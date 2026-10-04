@@ -1,0 +1,13 @@
+name: ai_engine
+description: AI Opponent System for Maya AI Rummy.
+version: 1.0.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  game_engine:
+    path: ../game-engine
+
+dev_dependencies:
+  test: ^1.24.0

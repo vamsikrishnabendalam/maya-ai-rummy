@@ -1,0 +1,28 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+npm-debug.log
+dist/
+.next/
+
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+*.buildlog
+
+# Environment & Local
+.env
+.env.local
+.firebase/
+.firebase_cache/
+
+# OS
+.DS_Store
+Thumbs.db

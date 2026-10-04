@@ -1,0 +1,11 @@
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart test

@@ -1,0 +1,11 @@
+name: maya_ai_rummy
+packages:
+  - apps/*
+  - packages/*
+  - server/*
+
+scripts:
+  analyze:
+    exec: flutter analyze
+  test:
+    exec: flutter test

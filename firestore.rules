@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'ADMIN' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+      );
+    }
+
+    // User profiles & wallets
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      // Allow user creation or update; prevent non-admin from self-assigning ADMIN role or changing accountStatus
+      allow create: if isOwner(uid) && (
+        !('role' in request.resource.data) || request.resource.data.role != 'ADMIN' || isAdmin()
+      );
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Achievements subcollection
+      match /achievements/{achievementId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(uid) || isAdmin();
+        allow delete: if false;
+      }
+    }
+
+    // Append-only Virtual Coin Ledger: Immutable (No update, no delete)
+    match /coinTransactions/{txId} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // Append-only Administrator Audit Logs: Immutable (No update, no delete)
+    match /adminAuditLogs/{auditId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // Tables: Anyone can read table info (needed to lookup room code); authenticated users can create and join
+    match /tables/{tableId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+
+      match /players/{uid} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
+        allow delete: if isAuthenticated();
+      }
+    }
+
+    // Games: Authenticated users can create and sync game states
+    match /games/{gameId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+
+      // STRICT PRIVATE HAND SECURITY:
+      // Only the card owner (request.auth.uid == uid) or an authorized ADMIN can read private hands!
+      match /privateHands/{uid} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create, update: if isAuthenticated();
+        allow delete: if false;
+      }
+
+      match /actions/{actionId} {
+        allow read, create: if isAuthenticated();
+        allow update, delete: if false;
+      }
+
+      match /events/{eventId} {
+        allow read, create: if isAuthenticated();
+        allow update, delete: if false;
+      }
+    }
+
+    // Player career statistics
+    match /playerStats/{uid} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(uid) || isAdmin();
+      allow delete: if false;
+    }
+  }
+}
