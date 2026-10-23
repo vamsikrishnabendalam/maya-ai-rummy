@@ -249,17 +249,27 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isCurrentTurn ? Colors.amber.withValues(alpha: 0.2) : Colors.black26,
+                              color: p.status == 'DROPPED'
+                                  ? Colors.orange.withValues(alpha: 0.2)
+                                  : (isCurrentTurn ? Colors.amber.withValues(alpha: 0.2) : Colors.black26),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: isCurrentTurn ? Colors.amber : Colors.white24,
+                                color: p.status == 'DROPPED'
+                                    ? Colors.orangeAccent
+                                    : (isCurrentTurn ? Colors.amber : Colors.white24),
                                 width: 0.8,
                               ),
                             ),
                             child: Text(
-                              isCurrentTurn ? 'PLAYING' : p.status,
+                              p.status == 'DROPPED'
+                                  ? 'DROPPED (${p.score} PTS)'
+                                  : (isCurrentTurn
+                                      ? (p.misses > 0 ? 'PLAYING (${p.misses}/3 MISS)' : 'PLAYING')
+                                      : (p.misses > 0 ? '${p.status} (${p.misses}/3 MISS)' : p.status)),
                               style: TextStyle(
-                                color: isCurrentTurn ? Colors.amberAccent : Colors.white70,
+                                color: p.status == 'DROPPED'
+                                    ? Colors.orangeAccent
+                                    : (isCurrentTurn ? Colors.amberAccent : Colors.white70),
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -622,6 +632,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final isDeclarer = game.declaringPlayerId == myUid;
     final declarerName = game.declaringPlayerName ?? 'Opponent';
     final hasSubmitted = game.submittedPlayerUids.contains(myUid);
+    final myPlayer = game.players.firstWhere((p) => p.uid == myUid,
+        orElse: () => TablePlayer(uid: myUid, displayName: 'Player', photoURL: '', seatIndex: 0));
+    final isDroppedOrElim = myPlayer.status == 'DROPPED' || myPlayer.status == 'ELIMINATED';
 
     int remainingSeconds = 0;
     if (game.declarationDeadline != null) {
@@ -635,11 +648,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         gradient: LinearGradient(
           colors: isDeclarer
               ? [const Color(0xFF1B4332), const Color(0xFF081C15)]
-              : [const Color(0xFF5A2A00), const Color(0xFF2E1500)],
+              : (isDroppedOrElim
+                  ? [const Color(0xFF2C1E14), const Color(0xFF140C08)]
+                  : [const Color(0xFF5A2A00), const Color(0xFF2E1500)]),
         ),
         border: Border(
           bottom: BorderSide(
-            color: isDeclarer ? AppColors.accent : Colors.amberAccent,
+            color: isDeclarer ? AppColors.accent : (isDroppedOrElim ? Colors.orangeAccent : Colors.amberAccent),
             width: 2,
           ),
         ),
@@ -647,8 +662,10 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
       child: Row(
         children: [
           Icon(
-            isDeclarer ? Icons.emoji_events_rounded : Icons.notification_important_rounded,
-            color: isDeclarer ? AppColors.accent : Colors.amberAccent,
+            isDeclarer
+                ? Icons.emoji_events_rounded
+                : (isDroppedOrElim ? Icons.exit_to_app_rounded : Icons.notification_important_rounded),
+            color: isDeclarer ? AppColors.accent : (isDroppedOrElim ? Colors.orangeAccent : Colors.amberAccent),
             size: 26,
           ),
           const SizedBox(width: 12),
@@ -660,9 +677,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 Text(
                   isDeclarer
                       ? 'YOU DECLARED A VALID SHOW (0 PTS)!'
-                      : 'ðŸ”” $declarerName HAS DECLARED!',
+                      : (isDroppedOrElim
+                          ? (myPlayer.status == 'DROPPED'
+                              ? 'YOU DROPPED FROM THIS ROUND (${myPlayer.score} PTS)'
+                              : 'YOU WERE ELIMINATED (${myPlayer.score} PTS)')
+                          : '🔔 $declarerName HAS DECLARED!'),
                   style: TextStyle(
-                    color: isDeclarer ? AppColors.accent : Colors.amberAccent,
+                    color: isDeclarer ? AppColors.accent : (isDroppedOrElim ? Colors.orangeAccent : Colors.amberAccent),
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
@@ -672,45 +693,48 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 Text(
                   isDeclarer
                       ? 'Waiting for opponents to arrange and submit their hands...'
-                      : (hasSubmitted
-                          ? 'âœ… Your hand is submitted! Waiting for other players...'
-                          : 'Arrange your cards to minimize penalty points, then tap "SUBMIT FINAL HAND".'),
+                      : (isDroppedOrElim
+                          ? 'Your drop penalty is locked in at ${myPlayer.score} pts. Waiting for round to conclude...'
+                          : (hasSubmitted
+                              ? '✅ Your hand is submitted! Waiting for other players...'
+                              : 'Arrange your cards to minimize penalty points, then tap "SUBMIT FINAL HAND".')),
                   style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: remainingSeconds <= 10 ? Colors.redAccent : AppColors.accent,
-                width: 1.5,
+          if (!isDroppedOrElim)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: remainingSeconds <= 10 ? Colors.redAccent : AppColors.accent,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    color: remainingSeconds <= 10 ? Colors.redAccent : AppColors.accent,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${remainingSeconds}s',
+                    style: TextStyle(
+                      color: remainingSeconds <= 10 ? Colors.redAccent : AppColors.accent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.timer_outlined,
-                  color: remainingSeconds <= 10 ? Colors.redAccent : AppColors.accent,
-                  size: 15,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${remainingSeconds}s',
-                  style: TextStyle(
-                    color: remainingSeconds <= 10 ? Colors.redAccent : AppColors.accent,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1447,6 +1471,21 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                         ),
                                       ),
                                     ],
+                                    if (myPlayer.misses > 0) ...[
+                                      const SizedBox(width: 5),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: Colors.redAccent.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(3),
+                                          border: Border.all(color: Colors.redAccent, width: 0.8),
+                                        ),
+                                        child: Text(
+                                          'TIMEOUTS: ${myPlayer.misses}/3',
+                                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -1534,6 +1573,28 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                       Text(
                                         'DECLARATION SUBMITTED (0 PTS)',
                                         style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else if (isDropped || myPlayer.status == 'ELIMINATED')
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.orangeAccent),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.exit_to_app, color: Colors.orangeAccent, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isDropped
+                                            ? 'DROPPED (${myPlayer.score} PTS LOCKED)'
+                                            : 'ELIMINATED (${myPlayer.score} PTS)',
+                                        style: const TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
                                       ),
                                     ],
                                   ),
@@ -1720,7 +1781,8 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         final alignment = alignments[i % alignments.length];
 
         final isEliminated = p.status == 'ELIMINATED';
-        final isDisconnected = !p.connected && !isEliminated;
+        final isDropped = p.status == 'DROPPED';
+        final isDisconnected = !p.connected && !isEliminated && !isDropped;
         final elapsed = p.disconnectedAt != null ? DateTime.now().difference(p.disconnectedAt!).inSeconds : 0;
         final remainingReconnectSec = (180 - elapsed).clamp(0, 180);
 
@@ -1730,6 +1792,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         if (isEliminated) {
           borderColor = Colors.redAccent.withValues(alpha: 0.7);
           bgColor = Colors.red.withValues(alpha: 0.2);
+        } else if (isDropped) {
+          borderColor = Colors.orangeAccent.withValues(alpha: 0.7);
+          bgColor = Colors.orange.withValues(alpha: 0.15);
         } else if (isDisconnected) {
           borderColor = Colors.amberAccent.withValues(alpha: 0.7);
           bgColor = Colors.amber.withValues(alpha: 0.15);
@@ -1757,14 +1822,18 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   radius: 14,
                   backgroundColor: isEliminated
                       ? Colors.redAccent
-                      : (isDisconnected
-                          ? Colors.amberAccent
-                          : (isTheirTurn ? AppColors.accent : Colors.white12)),
+                      : (isDropped
+                          ? Colors.orangeAccent
+                          : (isDisconnected
+                              ? Colors.amberAccent
+                              : (isTheirTurn ? AppColors.accent : Colors.white12))),
                   child: Icon(
                     isEliminated
                         ? Icons.close
-                        : (isDisconnected ? Icons.wifi_off : Icons.person),
-                    color: (isTheirTurn || isEliminated || isDisconnected) ? Colors.black : Colors.white70,
+                        : (isDropped
+                            ? Icons.exit_to_app
+                            : (isDisconnected ? Icons.wifi_off : Icons.person)),
+                    color: (isTheirTurn || isEliminated || isDropped || isDisconnected) ? Colors.black : Colors.white70,
                     size: 16,
                   ),
                 ),
@@ -1781,13 +1850,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                           style: TextStyle(
                             color: isEliminated
                                 ? Colors.redAccent
-                                : (isTheirTurn ? AppColors.accent : Colors.white),
+                                : (isDropped
+                                    ? Colors.orangeAccent
+                                    : (isTheirTurn ? AppColors.accent : Colors.white)),
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            decoration: isEliminated ? TextDecoration.lineThrough : null,
+                            decoration: (isEliminated || isDropped) ? TextDecoration.lineThrough : null,
                           ),
                         ),
-                        if (isTheirTurn && !isEliminated && game.status == 'IN_PROGRESS') ...[
+                        if (isTheirTurn && !isEliminated && !isDropped && game.status == 'IN_PROGRESS') ...[
                           const SizedBox(width: 5),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
@@ -1820,6 +1891,11 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                         'ELIMINATED (80 PTS)',
                         style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold),
                       )
+                    else if (isDropped)
+                      Text(
+                        'DROPPED (${p.score} PTS)',
+                        style: const TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                      )
                     else if (isDisconnected)
                       Text(
                         'DISCONNECTED (${remainingReconnectSec}s)',
@@ -1834,6 +1910,21 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                             '${p.cardCount} cards',
                             style: const TextStyle(color: Colors.white54, fontSize: 10),
                           ),
+                          if (p.misses > 0) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(color: Colors.redAccent, width: 0.7),
+                              ),
+                              child: Text(
+                                '${p.misses}/3 miss',
+                                style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                   ],

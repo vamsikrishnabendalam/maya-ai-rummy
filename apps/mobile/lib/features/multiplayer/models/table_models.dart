@@ -10,6 +10,7 @@ class TablePlayer {
   final int cardCount;
   final int score;
   final String status; // ACTIVE | DECLARED | WRONG_SHOW | DROPPED | ELIMINATED
+  final int misses; // Number of missed turns / timeouts (up to 3 chances)
   final DateTime? disconnectedAt;
   final DateTime? lastHeartbeat;
 
@@ -23,6 +24,7 @@ class TablePlayer {
     this.cardCount = 13,
     this.score = 0,
     this.status = 'ACTIVE',
+    this.misses = 0,
     this.disconnectedAt,
     this.lastHeartbeat,
   });
@@ -37,6 +39,7 @@ class TablePlayer {
     int? cardCount,
     int? score,
     String? status,
+    int? misses,
     DateTime? disconnectedAt,
     bool clearDisconnectedAt = false,
     DateTime? lastHeartbeat,
@@ -51,6 +54,7 @@ class TablePlayer {
       cardCount: cardCount ?? this.cardCount,
       score: score ?? this.score,
       status: status ?? this.status,
+      misses: misses ?? this.misses,
       disconnectedAt: clearDisconnectedAt ? null : (disconnectedAt ?? this.disconnectedAt),
       lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
     );
@@ -77,6 +81,7 @@ class TablePlayer {
       cardCount: json['cardCount'] ?? 13,
       score: json['score'] ?? 0,
       status: json['status'] ?? 'ACTIVE',
+      misses: (json['misses'] as num?)?.toInt() ?? 0,
       disconnectedAt: parseDate(json['disconnectedAt']),
       lastHeartbeat: parseDate(json['lastHeartbeat']),
     );
@@ -92,6 +97,7 @@ class TablePlayer {
     'cardCount': cardCount,
     'score': score,
     'status': status,
+    'misses': misses,
     'disconnectedAt': disconnectedAt?.toIso8601String(),
     'lastHeartbeat': lastHeartbeat?.toIso8601String(),
   };

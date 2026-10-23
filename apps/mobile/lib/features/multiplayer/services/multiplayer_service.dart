@@ -1345,18 +1345,53 @@ class MultiplayerService {
         'description': '${winner.displayName} declared a valid show with 0 points! 👑 Opponents have 30s to arrange their cards and submit final hand.',
       });
 
-      // Authoritative 30s server deadline for other players to submit their hands
+      // Authoritative 30s server deadline for active players to submit their hands
       final deadline = now.add(const Duration(seconds: 30));
 
-      final updatedGame = game.copyWith(
+      final initialResults = <MultiplayerFinalResult>[winnerResult];
+      final initialSubmittedUids = <String>[myUid];
+
+      // Auto-resolve any players who have already DROPPED or been ELIMINATED!
+      // They do NOT get 30s to sort cards; their dropped/elimination score is fixed!
+      for (final p in game.players) {
+        if (p.uid == myUid) continue;
+        if (p.status == 'DROPPED') {
+          initialResults.add(MultiplayerFinalResult(
+            uid: p.uid,
+            displayName: p.displayName,
+            photoURL: p.photoURL,
+            seatIndex: p.seatIndex,
+            score: p.score, // Keeps the exact drop penalty (e.g. 20 or 40)
+            isWinner: false,
+          ));
+          initialSubmittedUids.add(p.uid);
+        } else if (p.status == 'ELIMINATED') {
+          initialResults.add(MultiplayerFinalResult(
+            uid: p.uid,
+            displayName: p.displayName,
+            photoURL: p.photoURL,
+            seatIndex: p.seatIndex,
+            score: p.score > 0 ? p.score : 80,
+            isWinner: false,
+          ));
+          initialSubmittedUids.add(p.uid);
+        }
+      }
+
+      MultiplayerGameState updatedGame = game.copyWith(
         status: 'DECLARING',
         declaringPlayerId: myUid,
         declaringPlayerName: winner.displayName,
         declarationDeadline: deadline,
-        submittedPlayerUids: [myUid],
-        finalResults: [winnerResult],
+        submittedPlayerUids: initialSubmittedUids,
+        finalResults: initialResults,
         actionLog: actionLog,
       );
+
+      // If all opponents were already dropped/eliminated or submitted, finalize immediately!
+      if (initialSubmittedUids.length >= game.players.length) {
+        updatedGame = _finalizeGameResults(updatedGame);
+      }
 
       _mockGames[gameId] = updatedGame;
       _getOrCreateGameController(gameId).add(updatedGame);
@@ -1364,6 +1399,9 @@ class MultiplayerService {
       if (FirebaseConfig.isInitialized && _firestore != null) {
         try {
           await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
+          if (updatedGame.status == 'COMPLETED') {
+            await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+          }
         } catch (e) {
           debugPrint('[MultiplayerService] declareGame Firestore update notice: $e');
         }
@@ -1371,8 +1409,8 @@ class MultiplayerService {
 
       return {
         'isValid': true,
-        'status': 'DECLARING',
-        'message': 'Valid Declaration! You won the game with 0 points! Waiting for other players to submit their hands...',
+        'status': updatedGame.status,
+        'message': 'Valid Declaration! You won the game with 0 points!',
       };
     } else {
       // Wrong show: 80 points penalty
@@ -1414,9 +1452,15 @@ class MultiplayerService {
     if (game == null) throw Exception('Game not found');
     if (game.status != 'DECLARING') throw Exception('Game is not in declaration phase');
 
-    final now = DateTime.now();
     final player = game.players.firstWhere((p) => p.uid == myUid,
         orElse: () => TablePlayer(uid: myUid, displayName: 'Player', photoURL: '', seatIndex: 0));
+
+    // Dropped or eliminated players cannot submit cards; their penalties are already locked in
+    if (player.status == 'DROPPED' || player.status == 'ELIMINATED') {
+      throw Exception('Dropped or eliminated players do not submit cards.');
+    }
+
+    final now = DateTime.now();
 
     // Calculate deadwood score using GameEngine scoring rules
     final score = Scoring.calculateHandDeadwood(
@@ -1458,7 +1502,8 @@ class MultiplayerService {
     );
 
     // If all active players have submitted their hands, finalize game results immediately!
-    if (updatedSubmittedUids.length >= game.players.length) {
+    final activePlayers = game.players.where((p) => p.status == 'ACTIVE').toList();
+    if (activePlayers.every((p) => updatedSubmittedUids.contains(p.uid))) {
       updatedGame = _finalizeGameResults(updatedGame);
     }
 
@@ -1509,10 +1554,16 @@ class MultiplayerService {
 
     for (final p in game.players) {
       if (!submittedUids.contains(p.uid)) {
-        final pHand = _mockPrivateHands['${game.gameId}_${p.uid}'] ?? [];
         int score = 80;
-        if (pHand.isNotEmpty) {
-          score = HandPartitioner.findBestPartition(pHand, game.openJoker).penaltyScore.clamp(0, 80);
+        if (p.status == 'DROPPED') {
+          score = p.score; // Preserve exact drop penalty
+        } else if (p.status == 'ELIMINATED') {
+          score = p.score > 0 ? p.score : 80;
+        } else {
+          final pHand = _mockPrivateHands['${game.gameId}_${p.uid}'] ?? [];
+          if (pHand.isNotEmpty) {
+            score = HandPartitioner.findBestPartition(pHand, game.openJoker).penaltyScore.clamp(0, 80);
+          }
         }
         results.add(MultiplayerFinalResult(
           uid: p.uid,
@@ -1921,13 +1972,63 @@ class MultiplayerService {
             }
           }
 
-          // Eliminate the timed-out player (1 miss = elimination with current score)
           final timedOutPlayer = players[pIdx];
-          final elimScore = timedOutPlayer.score > 0 ? timedOutPlayer.score : 80;
-          players[pIdx] = timedOutPlayer.copyWith(status: 'ELIMINATED', score: elimScore);
-
+          final currentMisses = timedOutPlayer.misses;
           final rawLog = (gameData['actionLog'] as List<dynamic>?) ?? [];
           final actionLog = rawLog.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
+          if (currentMisses < 3) {
+            // Player used 1 of their 3 chances: auto-discard and pass turn
+            final newMisses = currentMisses + 1;
+            players[pIdx] = timedOutPlayer.copyWith(misses: newMisses);
+
+            // Advance to next active player in sequential circular seat order
+            TablePlayer? nextPlayer;
+            for (int i = 1; i < players.length; i++) {
+              final candidate = players[(pIdx + i) % players.length];
+              if (candidate.status == 'ACTIVE') {
+                nextPlayer = candidate;
+                break;
+              }
+            }
+            final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
+            nextPlayer ??= remainingActive.first;
+
+            actionLog.add({
+              'seq': actionLog.length + 1,
+              'timestamp': now.toIso8601String(),
+              'type': 'TURN_TIMEOUT',
+              'playerId': currentTurnUid,
+              'description': '${timedOutPlayer.displayName} missed turn ($newMisses/3 chances used). Card auto-discarded. Turn passed to ${nextPlayer.displayName}.',
+            });
+
+            final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
+            final nextDeadline = turnTimerSec > 0
+                ? now.add(Duration(seconds: turnTimerSec + 5)).toIso8601String()
+                : null;
+
+            tx.update(gameRef, {
+              'players': players.map((p) => p.toJson()).toList(),
+              'closedDeck': closedDeck,
+              'closedDeckRemaining': closedDeck.length,
+              'openPile': openPile,
+              'currentTurnPlayerId': nextPlayer.uid,
+              'turnNumber': (gameData['turnNumber'] as int? ?? 0) + 1,
+              'phase': 'DRAW_PHASE',
+              'turnDeadline': nextDeadline,
+              'cardDrawnFromOpenThisTurn': null,
+              'actionLog': actionLog,
+            });
+            return;
+          }
+
+          // Player already used all 3 chances: this timeout eliminates them!
+          final elimScore = timedOutPlayer.score > 0 ? timedOutPlayer.score : 80;
+          players[pIdx] = timedOutPlayer.copyWith(
+            status: 'ELIMINATED',
+            score: elimScore,
+            misses: currentMisses + 1,
+          );
 
           final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
 
@@ -1951,7 +2052,7 @@ class MultiplayerService {
               'timestamp': now.toIso8601String(),
               'type': 'PLAYER_ELIMINATED',
               'playerId': currentTurnUid,
-              'description': '${timedOutPlayer.displayName} missed turn and was eliminated. Score: $elimScore.',
+              'description': '${timedOutPlayer.displayName} missed turn (exceeded 3 chances) and was eliminated. Score: $elimScore.',
             });
 
             actionLog.add({
@@ -1972,18 +2073,34 @@ class MultiplayerService {
               'endedAt': now.toIso8601String(),
               'actionLog': actionLog,
             });
+
+            final tableId = gameData['tableId'] as String? ?? '';
+            if (tableId.isNotEmpty) {
+              tx.update(_firestore!.collection('tables').doc(tableId), {
+                'status': 'WAITING',
+                'activeGameId': null,
+              });
+            }
             return;
           }
 
-          // Advance to next active player
-          final nextPlayer = remainingActive.first;
+          // Advance to next active player in sequential circular seat order
+          TablePlayer? nextPlayer;
+          for (int i = 1; i < players.length; i++) {
+            final candidate = players[(pIdx + i) % players.length];
+            if (candidate.status == 'ACTIVE') {
+              nextPlayer = candidate;
+              break;
+            }
+          }
+          nextPlayer ??= remainingActive.first;
 
           actionLog.add({
             'seq': actionLog.length + 1,
             'timestamp': now.toIso8601String(),
             'type': 'PLAYER_ELIMINATED',
             'playerId': currentTurnUid,
-            'description': '${timedOutPlayer.displayName} missed turn and was eliminated. Turn advanced to ${nextPlayer.displayName}.',
+            'description': '${timedOutPlayer.displayName} missed turn (exceeded 3 chances) and was eliminated. Turn advanced to ${nextPlayer.displayName}.',
           });
 
           final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
@@ -2036,10 +2153,54 @@ class MultiplayerService {
     }
 
     final timedOutPlayer = players[pIdx];
-    final elimScore = timedOutPlayer.score > 0 ? timedOutPlayer.score : 80;
-    players[pIdx] = timedOutPlayer.copyWith(status: 'ELIMINATED', score: elimScore);
-
+    final currentMisses = timedOutPlayer.misses;
     final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
+
+    if (currentMisses < 3) {
+      final newMisses = currentMisses + 1;
+      players[pIdx] = timedOutPlayer.copyWith(misses: newMisses);
+
+      TablePlayer? nextPlayer;
+      for (int i = 1; i < players.length; i++) {
+        final candidate = players[(pIdx + i) % players.length];
+        if (candidate.status == 'ACTIVE') {
+          nextPlayer = candidate;
+          break;
+        }
+      }
+      final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
+      nextPlayer ??= remainingActive.first;
+
+      actionLog.add({
+        'seq': actionLog.length + 1,
+        'timestamp': now.toIso8601String(),
+        'type': 'TURN_TIMEOUT',
+        'playerId': game.currentTurnPlayerId,
+        'description': '${timedOutPlayer.displayName} missed turn ($newMisses/3 chances used). Card auto-discarded. Turn passed to ${nextPlayer.displayName}.',
+      });
+
+      final turnTimerSec = game.turnTimerSeconds;
+      final nextDeadline = turnTimerSec > 0 ? now.add(Duration(seconds: turnTimerSec + 5)) : null;
+
+      final updatedGame = game.copyWith(
+        players: players,
+        closedDeck: closedDeck,
+        openPile: openPile,
+        currentTurnPlayerId: nextPlayer.uid,
+        turnNumber: game.turnNumber + 1,
+        phase: 'DRAW_PHASE',
+        turnDeadline: nextDeadline,
+        clearCardDrawnFromOpen: true,
+        actionLog: actionLog,
+      );
+
+      _mockGames[gameId] = updatedGame;
+      _getOrCreateGameController(gameId).add(updatedGame);
+      return;
+    }
+
+    final elimScore = timedOutPlayer.score > 0 ? timedOutPlayer.score : 80;
+    players[pIdx] = timedOutPlayer.copyWith(status: 'ELIMINATED', score: elimScore, misses: currentMisses + 1);
     final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
 
     if (remainingActive.length <= 1) {
@@ -2061,7 +2222,7 @@ class MultiplayerService {
         'timestamp': now.toIso8601String(),
         'type': 'PLAYER_ELIMINATED',
         'playerId': game.currentTurnPlayerId,
-        'description': '${timedOutPlayer.displayName} missed turn and was eliminated. Score: $elimScore.',
+        'description': '${timedOutPlayer.displayName} missed turn (exceeded 3 chances) and was eliminated. Score: $elimScore.',
       });
 
       actionLog.add({
@@ -2074,7 +2235,6 @@ class MultiplayerService {
       final updatedGame = game.copyWith(
         players: players,
         closedDeck: closedDeck,
-        closedDeckRemaining: closedDeck.length,
         openPile: openPile,
         status: 'COMPLETED',
         winnerPlayerId: winner.uid,
@@ -2087,14 +2247,22 @@ class MultiplayerService {
       return;
     }
 
-    final nextPlayer = remainingActive.first;
+    TablePlayer? nextPlayer;
+    for (int i = 1; i < players.length; i++) {
+      final candidate = players[(pIdx + i) % players.length];
+      if (candidate.status == 'ACTIVE') {
+        nextPlayer = candidate;
+        break;
+      }
+    }
+    nextPlayer ??= remainingActive.first;
 
     actionLog.add({
       'seq': actionLog.length + 1,
       'timestamp': now.toIso8601String(),
       'type': 'PLAYER_ELIMINATED',
       'playerId': game.currentTurnPlayerId,
-      'description': '${timedOutPlayer.displayName} missed turn and was eliminated. Turn advanced to ${nextPlayer.displayName}.',
+      'description': '${timedOutPlayer.displayName} missed turn (exceeded 3 chances) and was eliminated. Turn advanced to ${nextPlayer.displayName}.',
     });
 
     final updatedGame = game.copyWith(
