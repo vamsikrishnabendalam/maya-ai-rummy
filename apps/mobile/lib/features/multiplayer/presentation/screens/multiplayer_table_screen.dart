@@ -205,9 +205,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                     ),
                                   ),
                                   if (p.isHost)
-                                    const Text('ðŸ‘‘ Host', style: TextStyle(color: Colors.amberAccent, fontSize: 9))
+                                    const Text('HOST', style: TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.bold))
                                   else if (p.uid == game.dealerPlayerId)
-                                    const Text('ðŸ…³ Dealer', style: TextStyle(color: Colors.cyanAccent, fontSize: 9)),
+                                    const Text('DEALER', style: TextStyle(color: Colors.cyanAccent, fontSize: 9, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ),
@@ -509,12 +509,30 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '$displayName ${isWinner ? "ðŸ‘‘ (WINNER)" : ""}',
-                        style: TextStyle(
-                          color: isWinner ? Colors.greenAccent : Colors.white70,
-                          fontWeight: isWinner ? FontWeight.bold : FontWeight.normal,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$displayName',
+                            style: TextStyle(
+                              color: isWinner ? Colors.greenAccent : Colors.white70,
+                              fontWeight: isWinner ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          if (isWinner) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 14),
+                            const SizedBox(width: 4),
+                            const Text(
+                              '(WINNER)',
+                              style: TextStyle(
+                                color: Colors.greenAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         '$score pts',
@@ -1466,7 +1484,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                           border: Border.all(color: Colors.amber, width: 0.8),
                                         ),
                                         child: const Text(
-                                          'ðŸ…³ DEALER',
+                                          'DEALER',
                                           style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.amberAccent),
                                         ),
                                       ),

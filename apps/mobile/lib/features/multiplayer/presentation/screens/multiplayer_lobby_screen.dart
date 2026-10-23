@@ -20,6 +20,7 @@ class MultiplayerLobbyScreen extends ConsumerStatefulWidget {
 class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen> {
   bool _isStarting = false;
   String? _statusNotice;
+  bool _hasBeenSeated = false;
 
   @override
   void initState() {
@@ -30,16 +31,20 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
   }
 
   Future<void> _ensureJoined() async {
-    final currentLobby = ref.read(multiplayerLobbyProvider).valueOrNull;
-    if (currentLobby == null || currentLobby.roomCode != widget.roomCode) {
-      // If not authenticated or anonymous without custom name, redirect to join screen
-      final user = ref.read(authProvider);
-      if (user == null || (user.isGuest && (user.displayName.isEmpty || user.displayName == 'Guest Player'))) {
-        if (mounted) {
-          context.go('/join/${widget.roomCode}');
-        }
-        return;
+    final user = ref.read(authProvider);
+    if (user == null || (user.isGuest && (user.displayName.isEmpty || user.displayName == 'Guest Player'))) {
+      if (mounted) {
+        context.go('/join/${widget.roomCode}');
       }
+      return;
+    }
+
+    final currentLobby = ref.read(multiplayerLobbyProvider).valueOrNull;
+    final isAlreadySeated = currentLobby != null &&
+        currentLobby.roomCode == widget.roomCode &&
+        currentLobby.players.any((p) => p.uid == user.uid);
+
+    if (!isAlreadySeated) {
       try {
         await ref.read(multiplayerLobbyProvider.notifier).joinTable(roomCode: widget.roomCode);
       } catch (e) {
@@ -135,8 +140,16 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             });
           }
 
-          // If non-host player is not in table players list, they were removed by host
-          if (user != null && lobby.players.isNotEmpty && !lobby.players.any((p) => p.uid == user.uid)) {
+          final isUserInLobby = user != null && lobby.players.any((p) => p.uid == user.uid);
+          if (isUserInLobby) {
+            _hasBeenSeated = true;
+          }
+
+          final wasKickedAuthoritatively = user != null && lobby.kickedPlayerUids.contains(user.uid);
+          final wasRemovedAfterBeingSeated = _hasBeenSeated && !isUserInLobby;
+
+          // If non-host player was kicked by host
+          if (user != null && (wasKickedAuthoritatively || wasRemovedAfterBeingSeated)) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

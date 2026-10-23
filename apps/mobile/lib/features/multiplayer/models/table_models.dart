@@ -123,6 +123,7 @@ class TableLobby {
   final int entryCoins; // min 100 for coin tables
   final int creationFee; // default 50 for coin tables
   final int prizePool;
+  final List<String> kickedPlayerUids;
 
   const TableLobby({
     required this.tableId,
@@ -144,6 +145,7 @@ class TableLobby {
     this.entryCoins = 0,
     this.creationFee = 0,
     this.prizePool = 0,
+    this.kickedPlayerUids = const [],
   });
 
   bool get isWaiting => status == 'WAITING';
@@ -171,6 +173,7 @@ class TableLobby {
     int? entryCoins,
     int? creationFee,
     int? prizePool,
+    List<String>? kickedPlayerUids,
   }) {
     return TableLobby(
       tableId: tableId ?? this.tableId,
@@ -192,6 +195,7 @@ class TableLobby {
       entryCoins: entryCoins ?? this.entryCoins,
       creationFee: creationFee ?? this.creationFee,
       prizePool: prizePool ?? this.prizePool,
+      kickedPlayerUids: kickedPlayerUids ?? this.kickedPlayerUids,
     );
   }
 
@@ -217,6 +221,7 @@ class TableLobby {
       entryCoins: json['entryCoins'] ?? 0,
       creationFee: json['creationFee'] ?? 0,
       prizePool: json['prizePool'] ?? 0,
+      kickedPlayerUids: (json['kickedPlayerUids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 
@@ -240,6 +245,7 @@ class TableLobby {
     'entryCoins': entryCoins,
     'creationFee': creationFee,
     'prizePool': prizePool,
+    'kickedPlayerUids': kickedPlayerUids,
   };
 }
 

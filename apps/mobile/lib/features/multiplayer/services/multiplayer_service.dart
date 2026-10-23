@@ -175,6 +175,11 @@ class MultiplayerService {
             }
             final found = TableLobby.fromJson(snap.data()!);
 
+            // If player was previously kicked by host from this table, deny re-entry
+            if (found.kickedPlayerUids.contains(user.uid)) {
+              throw Exception('You were removed from this table by the host.');
+            }
+
             // Check if player is ALREADY seated in this table
             final existingPlayerIndex = found.players.indexWhere((p) => p.uid == user.uid);
             if (existingPlayerIndex >= 0) {
@@ -292,6 +297,11 @@ class MultiplayerService {
 
     if (found == null) {
       throw Exception('Table $cleanCode not found. Please verify the room code.');
+    }
+
+    // If player was previously kicked by host from this table, deny re-entry
+    if (found.kickedPlayerUids.contains(user.uid)) {
+      throw Exception('You were removed from this table by the host.');
     }
 
     // Check if player is ALREADY seated in this table
@@ -462,10 +472,15 @@ class MultiplayerService {
 
           players.removeAt(targetIdx);
 
+          final rawKicked = (data['kickedPlayerUids'] as List<dynamic>?) ?? [];
+          final kickedUids = rawKicked.map((e) => e.toString()).toSet();
+          kickedUids.add(targetUid);
+
           tx.update(tableRef, {
             'players': players,
             'playerCount': players.length,
             'prizePool': isCoinTable ? math.max(0, currentPrizePool - entryCoins) : 0,
+            'kickedPlayerUids': kickedUids.toList(),
           });
         });
       } catch (e) {
@@ -479,10 +494,12 @@ class MultiplayerService {
     final lobby = _mockTables[tableId];
     if (lobby != null && lobby.hostUid == hostUid && lobby.status == 'WAITING') {
       final rem = lobby.players.where((p) => p.uid != targetUid).toList();
+      final updatedKicked = {...lobby.kickedPlayerUids, targetUid}.toList();
       final updated = lobby.copyWith(
         players: rem,
         playerCount: rem.length,
         prizePool: lobby.prizePool - (lobby.isCoinTable ? lobby.entryCoins : 0),
+        kickedPlayerUids: updatedKicked,
       );
       _mockTables[tableId] = updated;
       _getOrCreateTableController(tableId).add(updated);
@@ -1977,7 +1994,7 @@ class MultiplayerService {
           final rawLog = (gameData['actionLog'] as List<dynamic>?) ?? [];
           final actionLog = rawLog.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 
-          if (currentMisses < 3) {
+          if (currentMisses < 2) {
             // Player used 1 of their 3 chances: auto-discard and pass turn
             final newMisses = currentMisses + 1;
             players[pIdx] = timedOutPlayer.copyWith(misses: newMisses);
@@ -2022,7 +2039,7 @@ class MultiplayerService {
             return;
           }
 
-          // Player already used all 3 chances: this timeout eliminates them!
+          // Player reached 3/3 missed chances: this 3rd timeout eliminates them immediately!
           final elimScore = timedOutPlayer.score > 0 ? timedOutPlayer.score : 80;
           players[pIdx] = timedOutPlayer.copyWith(
             status: 'ELIMINATED',
@@ -2156,7 +2173,7 @@ class MultiplayerService {
     final currentMisses = timedOutPlayer.misses;
     final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
 
-    if (currentMisses < 3) {
+    if (currentMisses < 2) {
       final newMisses = currentMisses + 1;
       players[pIdx] = timedOutPlayer.copyWith(misses: newMisses);
 
