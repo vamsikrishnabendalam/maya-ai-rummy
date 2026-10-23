@@ -44,13 +44,6 @@ class AuthService {
       }
     }
 
-    if (kIsWeb) {
-      try {
-        await FirebaseAuth.instance.setPersistence(Persistence.session);
-      } catch (e) {
-        debugPrint('[AuthService] Web session persistence notice: $e');
-      }
-    }
 
     try {
       FirebaseAuth.instance.authStateChanges().listen((User? user) async {
@@ -146,23 +139,11 @@ class AuthService {
     final chosenName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'Guest Player';
     if (FirebaseConfig.isInitialized) {
       try {
-        if (kIsWeb) {
-          try {
-            await FirebaseAuth.instance.setPersistence(Persistence.session);
-          } catch (_) {}
-        }
-
-        final current = FirebaseAuth.instance.currentUser;
-        if (current != null && current.isAnonymous && forceNewSession) {
+        if (FirebaseAuth.instance.currentUser != null && forceNewSession) {
           await FirebaseAuth.instance.signOut();
         }
 
-        UserCredential cred;
-        if (FirebaseAuth.instance.currentUser == null) {
-          cred = await FirebaseAuth.instance.signInAnonymously();
-        } else {
-          cred = await FirebaseAuth.instance.signInAnonymously();
-        }
+        final cred = await FirebaseAuth.instance.signInAnonymously();
 
         if (cred.user != null) {
           try {
