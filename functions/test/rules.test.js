@@ -74,6 +74,21 @@ const dupSet = [
 ];
 assert.strictEqual(validateSet(dupSet, wildJoker).isValid, false);
 
+// 5-Card Set with Jokers -> VALID
+const fiveCardSet = [
+  { suit: 'hearts', rank: 'seven', isPrintedJoker: false },
+  { suit: 'diamonds', rank: 'seven', isPrintedJoker: false },
+  { suit: 'clubs', rank: 'seven', isPrintedJoker: false },
+  pj, // printed joker
+  { suit: 'spades', rank: 'two', isPrintedJoker: false }, // wild joker (two is wild)
+];
+assert.strictEqual(validateSet(fiveCardSet, wildJoker).isValid, true);
+
+// calculateLoserScore with integer cards -> VALID non-zero deadwood
+const loserIntCards = [0, 12, 25]; // Ace of hearts (10 pts), King of hearts (10 pts), King of diamonds (10 pts)
+const deadwood = calculateLoserScore(loserIntCards, wildJoker);
+assert.strictEqual(deadwood, 30);
+
 // 8. Full 13-Card Valid Declaration
 const fullGroups = [
   // Pure sequence (3 cards)

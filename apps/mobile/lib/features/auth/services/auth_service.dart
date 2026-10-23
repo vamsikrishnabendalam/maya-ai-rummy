@@ -44,6 +44,14 @@ class AuthService {
       }
     }
 
+    if (kIsWeb) {
+      try {
+        await FirebaseAuth.instance.setPersistence(Persistence.session);
+      } catch (e) {
+        debugPrint('[AuthService] Web session persistence notice: $e');
+      }
+    }
+
     try {
       FirebaseAuth.instance.authStateChanges().listen((User? user) async {
         _userDocSub?.cancel();
@@ -134,11 +142,28 @@ class AuthService {
   }
 
   /// Guest Sign-In: 0 coins, no rewards, no coin tables
-  Future<MultiplayerUser> signInAsGuest({String? name}) async {
+  Future<MultiplayerUser> signInAsGuest({String? name, bool forceNewSession = false}) async {
     final chosenName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'Guest Player';
     if (FirebaseConfig.isInitialized) {
       try {
-        final cred = await FirebaseAuth.instance.signInAnonymously();
+        if (kIsWeb) {
+          try {
+            await FirebaseAuth.instance.setPersistence(Persistence.session);
+          } catch (_) {}
+        }
+
+        final current = FirebaseAuth.instance.currentUser;
+        if (current != null && current.isAnonymous && forceNewSession) {
+          await FirebaseAuth.instance.signOut();
+        }
+
+        UserCredential cred;
+        if (FirebaseAuth.instance.currentUser == null) {
+          cred = await FirebaseAuth.instance.signInAnonymously();
+        } else {
+          cred = await FirebaseAuth.instance.signInAnonymously();
+        }
+
         if (cred.user != null) {
           try {
             await cred.user!.updateDisplayName(chosenName);
@@ -159,7 +184,7 @@ class AuthService {
       }
     }
 
-    final mockUid = 'guest_${DateTime.now().millisecondsSinceEpoch % 100000}';
+    final mockUid = 'guest_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecondsSinceEpoch % 1000)}';
     final guestUser = MultiplayerUser(
       uid: mockUid,
       displayName: chosenName,

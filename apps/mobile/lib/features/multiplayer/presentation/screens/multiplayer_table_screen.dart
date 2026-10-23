@@ -52,6 +52,8 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         }
       } else if (game.status == 'IN_PROGRESS') {
         final currentUid = ref.read(authProvider)?.uid;
+        final isSeated = currentUid != null && game.players.any((p) => p.uid == currentUid);
+        if (!isSeated) return;
         final isMyTurn = currentUid != null && game.currentTurnPlayerId == currentUid;
 
         // Turn timeout handling
@@ -762,6 +764,48 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
               SizedBox(height: 14),
               Text('Connecting to Multiplayer Table...', style: TextStyle(color: Colors.white, fontSize: 14)),
             ],
+          ),
+        ),
+      );
+    }
+
+    final isSeated = game.players.any((p) => p.uid == user.uid);
+    if (!isSeated) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF081220),
+        body: Center(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(28),
+            constraints: const BoxConstraints(maxWidth: 440),
+            decoration: BoxDecoration(
+              color: const Color(0xFF101F36),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.accent, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Not a Seated Player',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'This match (#${game.roomCode}) is currently in progress with ${game.playerCount} players. You are not a seated participant in this match.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
+                  onPressed: () => context.go('/multiplayer'),
+                  child: const Text('Back to Tables'),
+                ),
+              ],
+            ),
           ),
         ),
       );

@@ -192,12 +192,12 @@ function validateImpureSequence(cards, wildJokerCard) {
 
 /**
  * Validates whether a group of cards is a Set.
- * - 3 or 4 cards of the same rank
+ * - 3 to 5 cards of the same rank (max 4 natural cards, jokers can bring total up to 5)
  * - Different suits for natural cards (no duplicate suits!)
  * - Jokers allowed
  */
 function validateSet(cards, wildJokerCard) {
-  if (cards.length < 3 || cards.length > 4) return { isValid: false, type: 'invalid' };
+  if (cards.length < 3 || cards.length > 5) return { isValid: false, type: 'invalid' };
 
   const naturals = cards.filter(c => !isJoker(c, wildJokerCard));
 
@@ -207,6 +207,11 @@ function validateSet(cards, wildJokerCard) {
 
   const targetRank = naturals[0].rank;
   if (naturals.some(c => c.rank !== targetRank)) {
+    return { isValid: false, type: 'invalid' };
+  }
+
+  // Pure natural set without jokers cannot exceed 4 cards (one per suit)
+  if (naturals.length === cards.length && cards.length > 4) {
     return { isValid: false, type: 'invalid' };
   }
 
@@ -320,15 +325,14 @@ function validateDeclaration(groups, wildJokerCard) {
 
 /**
  * Calculates loser deadwood points.
+ * Accepts an array of card objects or raw integers.
  * If pure sequence is missing: all cards count as deadwood (capped at 80).
- * If pure sequence exists: pure sequence cards are exempt from penalty.
  */
 function calculateLoserScore(hand, wildJokerCard, maxPenalty = 80) {
-  // Check if hand contains any pure sequence
-  // Partition check: simple check
   let deadwood = 0;
   for (const card of hand) {
-    deadwood += getCardDeadwoodValue(card, wildJokerCard);
+    const cardObj = typeof card === 'number' ? cardFromInt(card) : card;
+    deadwood += getCardDeadwoodValue(cardObj, wildJokerCard);
   }
   return Math.min(deadwood, maxPenalty);
 }

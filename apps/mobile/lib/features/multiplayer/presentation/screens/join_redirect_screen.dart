@@ -66,7 +66,7 @@ class _JoinRedirectScreenState extends ConsumerState<JoinRedirectScreen> {
 
     try {
       final user = isGuest
-          ? await ref.read(authProvider.notifier).signInAsGuest(name: guestName)
+          ? await ref.read(authProvider.notifier).signInAsGuest(name: guestName, forceNewSession: true)
           : await ref.read(authProvider.notifier).signInWithGoogle();
 
       if (user != null) {

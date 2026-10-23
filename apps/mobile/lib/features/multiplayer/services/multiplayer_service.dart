@@ -1734,25 +1734,32 @@ class MultiplayerService {
 
           final phase = gameData['phase'] as String? ?? 'DRAW_PHASE';
 
+          final authUid = FirebaseAuth.instance.currentUser?.uid;
+          final isOwnerOfHand = authUid != null && authUid == currentTurnUid;
+
           // If in DRAW_PHASE: Pick 1 card from closed deck and drop to open pile
           if (phase == 'DRAW_PHASE' && closedDeck.isNotEmpty) {
             final cardInt = closedDeck.removeLast();
             openPile.add(cardInt);
-          } else if (phase == 'DISCARD_PHASE') {
-            // Player already drew a card into private hand; drop the extra card to open pile
-            final handRef = gameRef.collection('privateHands').doc(currentTurnUid);
-            final handSnap = await tx.get(handRef);
-            if (handSnap.exists && handSnap.data() != null) {
-              final existingCards = List<dynamic>.from(handSnap.data()!['cards'] ?? []);
-              if (existingCards.length > 13) {
-                final droppedCardInt = existingCards.removeLast();
-                if (droppedCardInt is int) {
-                  openPile.add(droppedCardInt);
-                } else if (droppedCardInt is Map) {
-                  openPile.add((droppedCardInt['val'] ?? droppedCardInt['intVal'] ?? 0) as int);
+          } else if (phase == 'DISCARD_PHASE' && isOwnerOfHand) {
+            // Player already drew a card into private hand; drop the extra card to open pile (only if owner)
+            try {
+              final handRef = gameRef.collection('privateHands').doc(currentTurnUid);
+              final handSnap = await tx.get(handRef);
+              if (handSnap.exists && handSnap.data() != null) {
+                final existingCards = List<dynamic>.from(handSnap.data()!['cards'] ?? []);
+                if (existingCards.length > 13) {
+                  final droppedCardInt = existingCards.removeLast();
+                  if (droppedCardInt is int) {
+                    openPile.add(droppedCardInt);
+                  } else if (droppedCardInt is Map) {
+                    openPile.add((droppedCardInt['val'] ?? droppedCardInt['intVal'] ?? 0) as int);
+                  }
+                  tx.update(handRef, {'cards': existingCards});
                 }
-                tx.update(handRef, {'cards': existingCards});
               }
+            } catch (e) {
+              debugPrint('[MultiplayerService] privateHand discard update note: $e');
             }
           }
 
