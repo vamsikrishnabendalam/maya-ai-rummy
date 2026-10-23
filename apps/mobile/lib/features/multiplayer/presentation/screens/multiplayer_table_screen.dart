@@ -466,8 +466,19 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
   }
 
   void _showResultDialog(Map<String, dynamic> result) {
+    final bool isAborted = result['isAborted'] == true;
     final bool isValid = result['isValid'] == true;
     final results = (result['finalResults'] as List<dynamic>?) ?? [];
+
+    IconData titleIcon = isValid ? Icons.emoji_events : Icons.warning_amber_rounded;
+    Color titleColor = isValid ? Colors.amber : Colors.redAccent;
+    String titleText = isValid ? 'GAME WON!' : 'WRONG SHOW';
+
+    if (isAborted) {
+      titleIcon = Icons.stop_circle_outlined;
+      titleColor = Colors.orangeAccent;
+      titleText = 'GAME ENDED BY HOST';
+    }
 
     showDialog(
       context: context,
@@ -476,15 +487,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         backgroundColor: const Color(0xFF0F1E36),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: isValid ? Colors.greenAccent : Colors.redAccent, width: 2),
+          side: BorderSide(color: titleColor, width: 2),
         ),
         title: Row(
           children: [
-            Icon(isValid ? Icons.emoji_events : Icons.warning_amber_rounded, color: isValid ? Colors.amber : Colors.redAccent, size: 28),
+            Icon(titleIcon, color: titleColor, size: 28),
             const SizedBox(width: 10),
             Text(
-              isValid ? 'GAME WON!' : 'WRONG SHOW',
-              style: TextStyle(color: isValid ? Colors.amber : Colors.redAccent, fontSize: 20, fontWeight: FontWeight.w900),
+              titleText,
+              style: TextStyle(color: titleColor, fontSize: 18, fontWeight: FontWeight.w900),
             ),
           ],
         ),
@@ -571,21 +582,29 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
               }
             },
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.go('/multiplayer');
-            },
-            child: const Text('Return to Lobby', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.go('/');
-            },
-            child: const Text('Home Screen', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
+          if (!isValid && !isAborted)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          else ...[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/multiplayer');
+              },
+              child: const Text('Return to Lobby', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/');
+              },
+              child: const Text('Home Screen', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
         ],
       ),
     );
@@ -770,11 +789,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
       final g = next.gameState;
       if (g != null && g.isGameOver && !_hasShownResultDialog) {
         _hasShownResultDialog = true;
+        final wasAbortedByHost = g.actionLog.any((a) => a['type'] == 'HOST_ENDED_GAME');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _showResultDialog({
-              'isValid': true,
-              'message': '${g.declaringPlayerName ?? "Winner"} won the match with 0 points!',
+              'isValid': !wasAbortedByHost,
+              'isAborted': wasAbortedByHost,
+              'message': wasAbortedByHost
+                  ? 'The table host ended the match before completion. Match cancelled with 0 points for all players.'
+                  : '${g.declaringPlayerName ?? "Winner"} won the match with 0 points!',
               'finalResults': g.finalResults.map((r) => r.toJson()).toList(),
             });
           }

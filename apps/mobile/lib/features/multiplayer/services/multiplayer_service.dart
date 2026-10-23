@@ -1430,31 +1430,165 @@ class MultiplayerService {
         'message': 'Valid Declaration! You won the game with 0 points!',
       };
     } else {
-      // Wrong show: 80 points penalty
+      // Wrong show: 80 points penalty and eliminate the player from active play
+      final pIdx = game.players.indexWhere((p) => p.uid == myUid);
+      final declaringPlayer = pIdx >= 0
+          ? game.players[pIdx]
+          : TablePlayer(uid: myUid, displayName: 'Player', photoURL: '', seatIndex: 0);
+
+      final players = List<TablePlayer>.from(game.players);
+      final elimScore = declaringPlayer.score > 0 ? declaringPlayer.score : 80;
+      if (pIdx >= 0) {
+        players[pIdx] = declaringPlayer.copyWith(
+          status: 'ELIMINATED',
+          score: elimScore,
+        );
+      }
+
+      // Discard card is placed on open pile
+      final openPile = List<Card>.from(game.openPile);
+      openPile.add(discardCard);
+
+      // Remove discardCard from player's hand in memory
+      final mockHand = _mockPrivateHands['${gameId}_$myUid'];
+      if (mockHand != null) {
+        mockHand.removeWhere((c) => c.toInt() == discardCard.toInt());
+      }
+
       final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
-      final pName = game.players.firstWhere((p) => p.uid == myUid, orElse: () => TablePlayer(uid: myUid, displayName: 'Player', photoURL: '', seatIndex: 0)).displayName;
       actionLog.add({
         'seq': actionLog.length + 1,
         'timestamp': now.toIso8601String(),
         'type': 'DECLARE_INVALID',
         'playerId': myUid,
         'card': discardCard.toInt(),
-        'description': '$pName submitted an invalid declaration (${valRes.errorMessage}). Penalized 80 points.',
+        'description': '${declaringPlayer.displayName} submitted an invalid declaration (${valRes.errorMessage}). Penalized $elimScore points and eliminated.',
       });
 
-      final updatedGame = game.copyWith(actionLog: actionLog);
+      final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
+
+      if (remainingActive.length <= 1) {
+        // Lone remaining active player wins immediately!
+        final winner = remainingActive.isNotEmpty ? remainingActive.first : players.first;
+        final finalResults = players.map((p) {
+          final isWin = p.uid == winner.uid;
+          return MultiplayerFinalResult(
+            uid: p.uid,
+            displayName: p.displayName,
+            photoURL: p.photoURL,
+            seatIndex: p.seatIndex,
+            score: isWin ? 0 : (p.score > 0 ? p.score : 80),
+            isWinner: isWin,
+          );
+        }).toList();
+
+        actionLog.add({
+          'seq': actionLog.length + 1,
+          'timestamp': now.toIso8601String(),
+          'type': 'GAME_COMPLETED',
+          'playerId': winner.uid,
+          'description': '${winner.displayName} wins the match as the lone remaining active player! 👑',
+        });
+
+        final updatedGame = game.copyWith(
+          players: players,
+          openPile: openPile,
+          status: 'COMPLETED',
+          winnerPlayerId: winner.uid,
+          finalResults: finalResults,
+          endedAt: now,
+          actionLog: actionLog,
+        );
+
+        _mockGames[gameId] = updatedGame;
+        _getOrCreateGameController(gameId).add(updatedGame);
+
+        if (FirebaseConfig.isInitialized && _firestore != null) {
+          try {
+            await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
+            await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+            final handRef = _firestore!.collection('games').doc(gameId).collection('privateHands').doc(myUid);
+            final handSnap = await handRef.get();
+            if (handSnap.exists && handSnap.data() != null) {
+              final rawCards = List<dynamic>.from(handSnap.data()!['cards'] ?? []);
+              rawCards.removeWhere((c) => (c is int ? c : (c as Map)['intVal']) == discardCard.toInt());
+              await handRef.update({'cards': rawCards});
+            }
+          } catch (e) {
+            debugPrint('[MultiplayerService] declareGame invalid show firestore notice: $e');
+          }
+        }
+
+        return {
+          'isValid': false,
+          'finalResults': finalResults.map((r) => r.toJson()).toList(),
+          'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $elimScore pts and eliminated. Game completed: ${winner.displayName} wins!',
+        };
+      }
+
+      // More than 1 active player remains: advance turn to next active player in sequential circular seat order!
+      TablePlayer? nextPlayer;
+      for (int i = 1; i < players.length; i++) {
+        final candidate = players[(pIdx + i) % players.length];
+        if (candidate.status == 'ACTIVE') {
+          nextPlayer = candidate;
+          break;
+        }
+      }
+      nextPlayer ??= remainingActive.first;
+
+      actionLog.add({
+        'seq': actionLog.length + 1,
+        'timestamp': now.toIso8601String(),
+        'type': 'TURN_ADVANCED',
+        'playerId': nextPlayer.uid,
+        'description': 'Turn passed to ${nextPlayer.displayName}.',
+      });
+
+      final turnTimerSec = game.turnTimerSeconds;
+      final nextDeadline = turnTimerSec > 0 ? now.add(Duration(seconds: turnTimerSec + 5)) : null;
+
+      final updatedGame = game.copyWith(
+        players: players,
+        openPile: openPile,
+        currentTurnPlayerId: nextPlayer.uid,
+        turnNumber: game.turnNumber + 1,
+        phase: 'DRAW_PHASE',
+        turnDeadline: nextDeadline,
+        clearCardDrawnFromOpen: true,
+        actionLog: actionLog,
+      );
+
       _mockGames[gameId] = updatedGame;
       _getOrCreateGameController(gameId).add(updatedGame);
 
       if (FirebaseConfig.isInitialized && _firestore != null) {
         try {
-          await _firestore!.collection('games').doc(gameId).update({'actionLog': actionLog});
-        } catch (_) {}
+          await _firestore!.collection('games').doc(gameId).update({
+            'players': players.map((p) => p.toJson()).toList(),
+            'openPile': openPile.map((c) => c.toInt()).toList(),
+            'currentTurnPlayerId': nextPlayer.uid,
+            'turnNumber': game.turnNumber + 1,
+            'phase': 'DRAW_PHASE',
+            'turnDeadline': nextDeadline?.toIso8601String(),
+            'cardDrawnFromOpenThisTurn': null,
+            'actionLog': actionLog,
+          });
+          final handRef = _firestore!.collection('games').doc(gameId).collection('privateHands').doc(myUid);
+          final handSnap = await handRef.get();
+          if (handSnap.exists && handSnap.data() != null) {
+            final rawCards = List<dynamic>.from(handSnap.data()!['cards'] ?? []);
+            rawCards.removeWhere((c) => (c is int ? c : (c as Map)['intVal']) == discardCard.toInt());
+            await handRef.update({'cards': rawCards});
+          }
+        } catch (e) {
+          debugPrint('[MultiplayerService] declareGame invalid show firestore update notice: $e');
+        }
       }
 
       return {
         'isValid': false,
-        'message': 'Invalid Declaration: ${valRes.errorMessage}. 80 points penalty.',
+        'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $elimScore points and eliminated. Game continues with remaining players.',
       };
     }
   }
@@ -2317,20 +2451,16 @@ class MultiplayerService {
           final isHost = players.any((p) => p.uid == myUid && p.isHost);
           if (!isHost) throw Exception('Only the table host can end the game.');
 
-          // Determine current winner (lowest score among active players)
-          final activePlayers = players.where((p) => p.status == 'ACTIVE' || p.status == 'DECLARED').toList();
-          activePlayers.sort((a, b) => a.score.compareTo(b.score));
-          final winner = activePlayers.isNotEmpty ? activePlayers.first : players.first;
-
+          // Host ended game before completion: reset all players' scores to 0 and declare no winner
+          final updatedPlayers = players.map((p) => p.copyWith(score: 0)).toList();
           final finalResults = players.map((p) {
-            final isWin = p.uid == winner.uid;
             return MultiplayerFinalResult(
               uid: p.uid,
               displayName: p.displayName,
               photoURL: p.photoURL,
               seatIndex: p.seatIndex,
-              score: p.score,
-              isWinner: isWin,
+              score: 0,
+              isWinner: false,
             );
           }).toList();
 
@@ -2341,12 +2471,15 @@ class MultiplayerService {
             'timestamp': now.toIso8601String(),
             'type': 'HOST_ENDED_GAME',
             'playerId': myUid,
-            'description': 'The table owner ended the game/tournament.',
+            'description': 'The table owner ended the game before completion. Match cancelled with 0 points for everyone.',
           });
 
           tx.update(gameRef, {
             'status': 'COMPLETED',
-            'winnerPlayerId': winner.uid,
+            'winnerPlayerId': null,
+            'declaringPlayerId': null,
+            'declaringPlayerName': null,
+            'players': updatedPlayers.map((p) => p.toJson()).toList(),
             'finalResults': finalResults.map((r) => r.toJson()).toList(),
             'endedAt': now.toIso8601String(),
             'actionLog': actionLog,
@@ -2356,7 +2489,7 @@ class MultiplayerService {
           final tableId = gameData['tableId'] as String?;
           if (tableId != null) {
             final tableRef = _firestore!.collection('tables').doc(tableId);
-            tx.update(tableRef, {'status': 'COMPLETED'});
+            tx.update(tableRef, {'status': 'WAITING', 'activeGameId': null});
           }
         });
       } catch (e) {
@@ -2373,19 +2506,15 @@ class MultiplayerService {
     final isHost = game.players.any((p) => p.uid == myUid && p.isHost);
     if (!isHost) throw Exception('Only the table host can end the game.');
 
-    final activePlayers = game.players.where((p) => p.status == 'ACTIVE' || p.status == 'DECLARED').toList();
-    activePlayers.sort((a, b) => a.score.compareTo(b.score));
-    final winner = activePlayers.isNotEmpty ? activePlayers.first : game.players.first;
-
+    final updatedPlayers = game.players.map((p) => p.copyWith(score: 0)).toList();
     final finalResults = game.players.map((p) {
-      final isWin = p.uid == winner.uid;
       return MultiplayerFinalResult(
         uid: p.uid,
         displayName: p.displayName,
         photoURL: p.photoURL,
         seatIndex: p.seatIndex,
-        score: p.score,
-        isWinner: isWin,
+        score: 0,
+        isWinner: false,
       );
     }).toList();
 
@@ -2395,12 +2524,14 @@ class MultiplayerService {
       'timestamp': now.toIso8601String(),
       'type': 'HOST_ENDED_GAME',
       'playerId': myUid,
-      'description': 'The table owner ended the game/tournament.',
+      'description': 'The table owner ended the game before completion. Match cancelled with 0 points for everyone.',
     });
 
     final updatedGame = game.copyWith(
       status: 'COMPLETED',
-      winnerPlayerId: winner.uid,
+      clearWinner: true,
+      clearDeclarer: true,
+      players: updatedPlayers,
       finalResults: finalResults,
       endedAt: now,
       actionLog: actionLog,
