@@ -153,18 +153,9 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _isLoading = true);
-              try {
-                await ref.read(authProvider.notifier).signInAsGuest();
-                if (mounted) {
-                  setState(() => _isLoading = false);
-                  onSignedIn?.call();
-                }
-              } catch (_) {
-                if (mounted) setState(() => _isLoading = false);
-              }
+              _promptGuestNameAndSignIn(onSignedIn: onSignedIn);
             },
             child: const Text('Play as Guest', style: TextStyle(color: AppColors.textMuted)),
           ),
@@ -193,6 +184,173 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _promptGuestNameAndSignIn({VoidCallback? onSignedIn}) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.accent, width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.badge_rounded, color: AppColors.accent, size: 22),
+            SizedBox(width: 8),
+            Text('Enter Your Name', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please enter your name to play as guest:',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0A1628),
+                hintText: 'e.g. Rahul, Maya, Alex',
+                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.accent, size: 20),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.accent, width: 1.5)),
+              ),
+              onSubmitted: (val) {
+                final trimmed = val.trim();
+                if (trimmed.isNotEmpty) {
+                  Navigator.pop(ctx, trimmed);
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              final trimmed = controller.text.trim();
+              if (trimmed.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter your name'), backgroundColor: Colors.redAccent),
+                );
+                return;
+              }
+              Navigator.pop(ctx, trimmed);
+            },
+            child: const Text('CONTINUE', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (name != null && name.isNotEmpty) {
+      setState(() => _isLoading = true);
+      try {
+        await ref.read(authProvider.notifier).signInAsGuest(name: name, forceNewSession: true);
+        if (mounted) {
+          setState(() => _isLoading = false);
+          onSignedIn?.call();
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = e.toString().replaceAll('Exception: ', '');
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _promptChangeGuestName(String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.glassBorder),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_rounded, color: AppColors.accent, size: 20),
+            SizedBox(width: 8),
+            Text('Change Nickname', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0A1628),
+                hintText: 'Enter new nickname',
+                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.accent, width: 1.5)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              final trimmed = controller.text.trim();
+              if (trimmed.isNotEmpty) {
+                Navigator.pop(ctx, trimmed);
+              }
+            },
+            child: const Text('SAVE', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.trim().isNotEmpty) {
+      await ref.read(authProvider.notifier).updateGuestName(newName.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Nickname updated to "${newName.trim()}"'), backgroundColor: Colors.green),
+        );
+      }
+    }
   }
 
   @override
@@ -226,22 +384,30 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.glass,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.glassBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person, color: AppColors.accent, size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            user.displayName,
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ],
+                    InkWell(
+                      onTap: user.isGuest ? () => _promptChangeGuestName(user.displayName) : null,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.glass,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.glassBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person, color: AppColors.accent, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              user.displayName,
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            if (user.isGuest) ...[
+                              const SizedBox(width: 4),
+                              const Icon(Icons.edit, color: Colors.white54, size: 12),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),

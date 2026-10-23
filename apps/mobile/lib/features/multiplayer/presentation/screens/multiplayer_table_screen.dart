@@ -1037,8 +1037,22 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   ),
                   const Spacer(),
 
-                  // Table Owner End Tournament / Close Game Button
+                  // Table Owner Manage Players & End Tournament Buttons
                   if (game.players.any((p) => p.uid == myUid && p.isHost) && !game.isCompleted) ...[
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E293B),
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white24, width: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.manage_accounts_rounded, color: AppColors.accent, size: 16),
+                      label: const Text('PLAYERS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      onPressed: () => _showManagePlayersModal(context, game, myUid),
+                    ),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3E1414),
@@ -1284,7 +1298,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                             ),
 
                             // Opponents Seating Layout (Dynamic 1 to 5 seats around the top orbit)
-                            _buildOpponentsOrbit(opponents, game),
+                            _buildOpponentsOrbit(opponents, game, isHost: myPlayer.isHost),
                           ],
                         ),
                       ),
@@ -1329,6 +1343,27 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     Text(
                       'You dropped from this round (${myPlayer.score} PTS penalty). Waiting for next deal...',
                       style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              )
+            else if (myPlayer.status == 'ELIMINATED')
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.redAccent),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'You were removed from this round by the table host (${myPlayer.score} PTS penalty).',
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -1648,7 +1683,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
   }
 
   /// Builds orbital positioning for 1 to 5 opponents around the table
-  Widget _buildOpponentsOrbit(List<TablePlayer> opponents, MultiplayerGameState game) {
+  Widget _buildOpponentsOrbit(List<TablePlayer> opponents, MultiplayerGameState game, {bool isHost = false}) {
     if (opponents.isEmpty) return const SizedBox.shrink();
 
     final alignments = <Alignment>[];
@@ -1803,11 +1838,194 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                       ),
                   ],
                 ),
+                if (isHost && game.status == 'IN_PROGRESS' && p.status == 'ACTIVE') ...[
+                  const SizedBox(width: 6),
+                  IconButton(
+                    iconSize: 16,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Remove ${p.displayName} from Game',
+                    icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent),
+                    onPressed: () => _showKickPlayerFromGameDialog(context, p),
+                  ),
+                ],
               ],
             ),
           ),
         );
       }),
+    );
+  }
+
+  void _showKickPlayerFromGameDialog(BuildContext context, TablePlayer targetPlayer) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 22),
+            SizedBox(width: 8),
+            Text('Remove from Game?', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to remove "${targetPlayer.displayName}" from the game?\n\nThey will be eliminated with an 80-point penalty and the turn will advance to the next player.',
+          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(multiplayerGameProvider.notifier).removePlayerByHost(targetPlayer.uid);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Removed ${targetPlayer.displayName} from the game.'), backgroundColor: Colors.orangeAccent),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to remove player: $e'), backgroundColor: Colors.redAccent),
+                  );
+                }
+              }
+            },
+            child: const Text('REMOVE PLAYER', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showManagePlayersModal(BuildContext context, MultiplayerGameState game, String myUid) {
+    final isHost = game.players.any((p) => p.uid == myUid && p.isHost);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0F1E36),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.manage_accounts_rounded, color: AppColors.accent, size: 22),
+                    SizedBox(width: 8),
+                    Text(
+                      'Table Players',
+                      style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white54),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 8),
+            ...game.players.map((p) {
+              final isCurrent = p.uid == myUid;
+              final isTurn = p.uid == game.currentTurnPlayerId;
+              final canKick = isHost && !p.isHost && p.status == 'ACTIVE' && game.status == 'IN_PROGRESS';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A1628),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isTurn ? AppColors.accent : Colors.white10,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: p.isHost ? Colors.amber.withValues(alpha: 0.2) : AppColors.accent.withValues(alpha: 0.2),
+                      child: Icon(
+                        p.isHost ? Icons.workspace_premium : Icons.person,
+                        color: p.isHost ? Colors.amber : AppColors.accent,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                p.displayName + (isCurrent ? ' (You)' : ''),
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              if (p.isHost) ...[
+                                const SizedBox(width: 6),
+                                const Text('HOST', style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold)),
+                              ],
+                              if (isTurn) ...[
+                                const SizedBox(width: 6),
+                                const Text('• TURN', style: TextStyle(color: AppColors.accent, fontSize: 9, fontWeight: FontWeight.bold)),
+                              ],
+                            ],
+                          ),
+                          Text(
+                            'Status: ${p.status} | Score: ${p.score} pts',
+                            style: TextStyle(color: p.status == 'ACTIVE' ? Colors.white54 : Colors.redAccent, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (canKick)
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent.withValues(alpha: 0.2),
+                          foregroundColor: Colors.redAccent,
+                          side: const BorderSide(color: Colors.redAccent, width: 1),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.person_remove_rounded, size: 14),
+                        label: const Text('REMOVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showKickPlayerFromGameDialog(context, p);
+                        },
+                      ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
     );
   }
 }

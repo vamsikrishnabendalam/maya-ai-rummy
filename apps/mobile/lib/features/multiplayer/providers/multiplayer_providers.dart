@@ -111,6 +111,18 @@ class MultiplayerLobbyNotifier extends StateNotifier<AsyncValue<TableLobby?>> {
     return gameId;
   }
 
+  Future<void> kickPlayer(String targetUid) async {
+    final lobby = state.value;
+    final user = _ref.read(authProvider);
+    if (lobby != null && user != null) {
+      await _service.kickPlayerFromTable(
+        tableId: lobby.tableId,
+        hostUid: user.uid,
+        targetUid: targetUid,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -831,6 +843,26 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     state = state.copyWith(isSubmitting: true);
     try {
       await _service.endGameByHost(gameId: game.gameId, myUid: user.uid);
+      state = state.copyWith(isSubmitting: false);
+    } catch (e) {
+      state = state.copyWith(isSubmitting: false, statusMessage: e.toString());
+      rethrow;
+    }
+  }
+
+  /// Host table owner action to remove/kick a player during the game
+  Future<void> removePlayerByHost(String targetUid) async {
+    final game = state.gameState;
+    final user = _ref.read(authProvider);
+    if (game == null || user == null || game.isCompleted) return;
+
+    state = state.copyWith(isSubmitting: true);
+    try {
+      await _service.removePlayerByHost(
+        gameId: game.gameId,
+        hostUid: user.uid,
+        targetUid: targetUid,
+      );
       state = state.copyWith(isSubmitting: false);
     } catch (e) {
       state = state.copyWith(isSubmitting: false, statusMessage: e.toString());

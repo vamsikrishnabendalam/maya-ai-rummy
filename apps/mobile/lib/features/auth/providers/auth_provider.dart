@@ -23,6 +23,10 @@ class AuthNotifier extends StateNotifier<MultiplayerUser?> {
     return await _authService.signInAsGuest(name: name, forceNewSession: forceNewSession);
   }
 
+  Future<void> updateGuestName(String newName) async {
+    await _authService.updateGuestName(newName);
+  }
+
   Future<MultiplayerUser> completeProfile({
     required String name,
     required String dateOfBirth,

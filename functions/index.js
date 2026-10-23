@@ -710,9 +710,18 @@ exports.dropGame = functions.https.onCall(async (data, context) => {
 
       return { success: true, message: 'Game completed. Remaining player won.', penalty };
     } else {
-      // Advance to next active player
-      const activeIdx = remainingActive.findIndex(p => p.uid === uid);
-      const nextActivePlayer = remainingActive[0];
+      // Advance to next active player in sequential circular seat order
+      let nextActivePlayer = null;
+      for (let i = 1; i < players.length; i++) {
+        const candidate = players[(playerIdx + i) % players.length];
+        if (candidate.status === 'ACTIVE') {
+          nextActivePlayer = candidate;
+          break;
+        }
+      }
+      if (!nextActivePlayer) {
+        nextActivePlayer = remainingActive[0];
+      }
 
       const turnTimerSeconds = gData.turnTimerSeconds !== undefined ? parseInt(gData.turnTimerSeconds, 10) : 30;
       const nextTurnDeadline = turnTimerSeconds > 0 ? new Date(Date.now() + (turnTimerSeconds + 5) * 1000) : null;

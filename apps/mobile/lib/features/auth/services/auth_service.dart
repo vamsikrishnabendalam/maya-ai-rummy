@@ -178,6 +178,21 @@ class AuthService {
     return guestUser;
   }
 
+  /// Update guest player nickname
+  Future<void> updateGuestName(String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return;
+    if (_currentUser != null && _currentUser!.isGuest) {
+      if (FirebaseConfig.isInitialized && FirebaseAuth.instance.currentUser != null) {
+        try {
+          await FirebaseAuth.instance.currentUser!.updateDisplayName(trimmed);
+        } catch (_) {}
+      }
+      final updated = _currentUser!.copyWith(displayName: trimmed);
+      _notify(updated);
+    }
+  }
+
   /// Complete player profile for newly signed-in Google user.
   /// Atomically creates account, grants 5,000 initial coins, and writes ledger entry.
   Future<MultiplayerUser> createAccountWithProfile({

@@ -135,6 +135,21 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             });
           }
 
+          // If non-host player is not in table players list, they were removed by host
+          if (user != null && lobby.players.isNotEmpty && !lobby.players.any((p) => p.uid == user.uid)) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('You were removed from the table by the host.'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+                context.go('/multiplayer');
+              }
+            });
+          }
+
           final isHost = user != null && lobby.hostUid == user.uid;
           final canStart = isHost && lobby.players.length >= 2;
           final origin = kIsWeb ? Uri.base.origin : 'https://mayarummy.cwards.com';
@@ -302,16 +317,23 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                                 ],
                               ),
                             ),
-                            if (player != null)
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.greenAccent,
-                                  shape: BoxShape.circle,
+                            if (player != null) ...[
+                              if (isHost && !player.isHost)
+                                IconButton(
+                                  tooltip: 'Remove ${player.displayName}',
+                                  icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 20),
+                                  onPressed: () => _showKickConfirmationDialog(context, player),
+                                )
+                              else
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.greenAccent,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                              )
-                            else
+                            ] else
                               const Text('Waiting...', style: TextStyle(color: Colors.white24, fontSize: 11)),
                           ],
                         ),
@@ -402,6 +424,61 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showKickConfirmationDialog(BuildContext context, TablePlayer player) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 22),
+            SizedBox(width: 8),
+            Text('Remove Player?', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to remove "${player.displayName}" from this table?',
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(multiplayerLobbyProvider.notifier).kickPlayer(player.uid);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Removed ${player.displayName} from table'), backgroundColor: Colors.orangeAccent),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to remove: $e'), backgroundColor: Colors.redAccent),
+                  );
+                }
+              }
+            },
+            child: const Text('REMOVE', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

@@ -342,6 +342,60 @@ class MultiplayerService {
     }
   }
 
+  /// Host Remove / Kick Player from Lobby (Before Game Starts)
+  Future<void> kickPlayerFromTable({
+    required String tableId,
+    required String hostUid,
+    required String targetUid,
+  }) async {
+    if (FirebaseConfig.isInitialized && _firestore != null) {
+      try {
+        final tableRef = _firestore!.collection('tables').doc(tableId);
+        await _firestore!.runTransaction((tx) async {
+          final snap = await tx.get(tableRef);
+          if (!snap.exists || snap.data() == null) throw Exception('Table not found');
+          final data = snap.data()!;
+          if (data['hostUid'] != hostUid) throw Exception('Only the table host can remove players.');
+          if (data['status'] != 'WAITING') throw Exception('Cannot remove player: Game is already in progress.');
+
+          final rawPlayers = (data['players'] as List<dynamic>?) ?? [];
+          final players = rawPlayers.map((p) => Map<String, dynamic>.from(p as Map)).toList();
+          final targetIdx = players.indexWhere((p) => p['uid'] == targetUid);
+          if (targetIdx < 0) return;
+
+          final isCoinTable = (data['isCoinTable'] as bool?) ?? false;
+          final entryCoins = (data['entryCoins'] as int?) ?? 0;
+          final currentPrizePool = (data['prizePool'] as int?) ?? 0;
+
+          players.removeAt(targetIdx);
+
+          tx.update(tableRef, {
+            'players': players,
+            'playerCount': players.length,
+            'prizePool': isCoinTable ? math.max(0, currentPrizePool - entryCoins) : 0,
+          });
+        });
+      } catch (e) {
+        debugPrint('[MultiplayerService] kickPlayerFromTable error: $e');
+        rethrow;
+      }
+      return;
+    }
+
+    // Local / Offline Simulation
+    final lobby = _mockTables[tableId];
+    if (lobby != null && lobby.hostUid == hostUid && lobby.status == 'WAITING') {
+      final rem = lobby.players.where((p) => p.uid != targetUid).toList();
+      final updated = lobby.copyWith(
+        players: rem,
+        playerCount: rem.length,
+        prizePool: lobby.prizePool - (lobby.isCoinTable ? lobby.entryCoins : 0),
+      );
+      _mockTables[tableId] = updated;
+      _getOrCreateTableController(tableId).add(updated);
+    }
+  }
+
   /// Start Game (Host only) - Authoritative deal of 13 cards per player with full invariants
   Future<String> startGame(String tableId) async {
     if (FirebaseConfig.isInitialized && _functions != null) {
@@ -1044,11 +1098,16 @@ class MultiplayerService {
               });
             }
           } else {
-            final currentActIdx = remainingActive.indexWhere((p) => p.uid == myUid);
-            final nextActIdx = (currentActIdx >= 0 && remainingActive.isNotEmpty)
-                ? ((currentActIdx + 1) % remainingActive.length)
-                : 0;
-            final nextPlayer = remainingActive[nextActIdx];
+            // Advance turn to the next active player in sequential circular seat order
+            TablePlayer? nextPlayer;
+            for (int i = 1; i < players.length; i++) {
+              final candidate = players[(pIdx + i) % players.length];
+              if (candidate.status == 'ACTIVE') {
+                nextPlayer = candidate;
+                break;
+              }
+            }
+            nextPlayer ??= remainingActive.isNotEmpty ? remainingActive.first : players.first;
 
             final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
             final nextDeadline = turnTimerSec > 0
@@ -1129,11 +1188,16 @@ class MultiplayerService {
       _mockGames[gameId] = updatedGame;
       _getOrCreateGameController(gameId).add(updatedGame);
     } else {
-      final currentActIdx = remainingActive.indexWhere((p) => p.uid == myUid);
-      final nextActIdx = (currentActIdx >= 0 && remainingActive.isNotEmpty)
-          ? ((currentActIdx + 1) % remainingActive.length)
-          : 0;
-      final nextPlayer = remainingActive[nextActIdx];
+      // Advance turn to the next active player in sequential circular seat order
+      TablePlayer? nextPlayer;
+      for (int i = 1; i < players.length; i++) {
+        final candidate = players[(pIdx + i) % players.length];
+        if (candidate.status == 'ACTIVE') {
+          nextPlayer = candidate;
+          break;
+        }
+      }
+      nextPlayer ??= remainingActive.isNotEmpty ? remainingActive.first : players.first;
 
       final turnTimerSec = game.turnTimerSeconds;
       final nextDeadline = turnTimerSec > 0 ? now.add(Duration(seconds: turnTimerSec + 5)) : null;
@@ -2066,6 +2130,200 @@ class MultiplayerService {
 
     _mockGames[gameId] = updatedGame;
     _getOrCreateGameController(gameId).add(updatedGame);
+  }
+
+  /// Host Remove / Kick Player from In-Progress Game
+  Future<void> removePlayerByHost({
+    required String gameId,
+    required String hostUid,
+    required String targetUid,
+  }) async {
+    final now = DateTime.now();
+
+    if (FirebaseConfig.isInitialized && _firestore != null) {
+      try {
+        final gameRef = _firestore!.collection('games').doc(gameId);
+        await _firestore!.runTransaction((tx) async {
+          final snap = await tx.get(gameRef);
+          if (!snap.exists || snap.data() == null) return;
+          final gameData = snap.data()!;
+          if (gameData['status'] == 'COMPLETED') return;
+
+          final rawPlayers = (gameData['players'] as List<dynamic>?) ?? [];
+          final players = rawPlayers.map((p) => TablePlayer.fromJson(Map<String, dynamic>.from(p as Map))).toList();
+
+          final isHost = players.any((p) => p.uid == hostUid && p.isHost);
+          if (!isHost) throw Exception('Only the table host can remove players.');
+
+          final targetIdx = players.indexWhere((p) => p.uid == targetUid);
+          if (targetIdx < 0) throw Exception('Player not found in game.');
+          final targetPlayer = players[targetIdx];
+          if (targetPlayer.status == 'ELIMINATED' || targetPlayer.status == 'DROPPED') {
+            throw Exception('Player is already not active.');
+          }
+
+          // Mark player eliminated with 80 penalty points
+          players[targetIdx] = targetPlayer.copyWith(status: 'ELIMINATED', score: 80);
+          final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
+
+          final rawLog = (gameData['actionLog'] as List<dynamic>?) ?? [];
+          final actionLog = rawLog.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          actionLog.add({
+            'seq': actionLog.length + 1,
+            'timestamp': now.toIso8601String(),
+            'type': 'HOST_REMOVED_PLAYER',
+            'playerId': hostUid,
+            'description': 'The table host removed ${targetPlayer.displayName} from the game (80 pts penalty).',
+          });
+
+          if (remainingActive.length <= 1) {
+            final winner = remainingActive.isNotEmpty ? remainingActive.first : players.first;
+            final finalResults = players.map((p) {
+              final isWin = p.uid == winner.uid;
+              return MultiplayerFinalResult(
+                uid: p.uid,
+                displayName: p.displayName,
+                photoURL: p.photoURL,
+                seatIndex: p.seatIndex,
+                score: isWin ? 0 : p.score,
+                isWinner: isWin,
+              );
+            }).toList();
+
+            tx.update(gameRef, {
+              'status': 'COMPLETED',
+              'winnerPlayerId': winner.uid,
+              'finalResults': finalResults.map((r) => r.toJson()).toList(),
+              'players': players.map((p) => p.toJson()).toList(),
+              'actionLog': actionLog,
+              'endedAt': now.toIso8601String(),
+            });
+
+            final tableId = gameData['tableId'] as String?;
+            if (tableId != null) {
+              tx.update(_firestore!.collection('tables').doc(tableId), {
+                'status': 'WAITING',
+                'activeGameId': null,
+              });
+            }
+          } else {
+            final currentTurnUid = gameData['currentTurnPlayerId'] as String?;
+            final wasTurn = currentTurnUid == targetUid;
+
+            final updates = <String, dynamic>{
+              'players': players.map((p) => p.toJson()).toList(),
+              'actionLog': actionLog,
+            };
+
+            if (wasTurn) {
+              TablePlayer? nextPlayer;
+              for (int i = 1; i < players.length; i++) {
+                final candidate = players[(targetIdx + i) % players.length];
+                if (candidate.status == 'ACTIVE') {
+                  nextPlayer = candidate;
+                  break;
+                }
+              }
+              nextPlayer ??= remainingActive.first;
+
+              final turnNum = (gameData['turnNumber'] as int?) ?? 0;
+              final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
+              final nextDeadline = turnTimerSec > 0
+                  ? now.add(Duration(seconds: turnTimerSec + 5)).toIso8601String()
+                  : null;
+
+              updates['currentTurnPlayerId'] = nextPlayer.uid;
+              updates['turnNumber'] = turnNum + 1;
+              updates['phase'] = 'DRAW_PHASE';
+              updates['turnDeadline'] = nextDeadline;
+              updates['cardDrawnFromOpenThisTurn'] = null;
+            }
+
+            tx.update(gameRef, updates);
+          }
+        });
+      } catch (e) {
+        debugPrint('[MultiplayerService] removePlayerByHost error: $e');
+        rethrow;
+      }
+      return;
+    }
+
+    // Local / Offline Simulation
+    final game = _mockGames[gameId];
+    if (game == null || game.status == 'COMPLETED') return;
+
+    final isHost = game.players.any((p) => p.uid == hostUid && p.isHost);
+    if (!isHost) throw Exception('Only the table host can remove players.');
+
+    final targetIdx = game.players.indexWhere((p) => p.uid == targetUid);
+    if (targetIdx < 0) return;
+    final players = List<TablePlayer>.from(game.players);
+    players[targetIdx] = players[targetIdx].copyWith(status: 'ELIMINATED', score: 80);
+    final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
+
+    final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
+    actionLog.add({
+      'seq': actionLog.length + 1,
+      'timestamp': now.toIso8601String(),
+      'type': 'HOST_REMOVED_PLAYER',
+      'playerId': hostUid,
+      'description': 'The table host removed ${players[targetIdx].displayName} from the game (80 pts penalty).',
+    });
+
+    if (remainingActive.length <= 1) {
+      final winner = remainingActive.isNotEmpty ? remainingActive.first : players.first;
+      final finalResults = players.map((p) {
+        final isWin = p.uid == winner.uid;
+        return MultiplayerFinalResult(
+          uid: p.uid,
+          displayName: p.displayName,
+          photoURL: p.photoURL,
+          seatIndex: p.seatIndex,
+          score: isWin ? 0 : p.score,
+          isWinner: isWin,
+        );
+      }).toList();
+
+      final updatedGame = game.copyWith(
+        status: 'COMPLETED',
+        winnerPlayerId: winner.uid,
+        finalResults: finalResults,
+        players: players,
+        endedAt: now,
+        actionLog: actionLog,
+      );
+      _mockGames[gameId] = updatedGame;
+      _getOrCreateGameController(gameId).add(updatedGame);
+    } else {
+      final wasTurn = game.currentTurnPlayerId == targetUid;
+      TablePlayer? nextPlayer;
+      if (wasTurn) {
+        for (int i = 1; i < players.length; i++) {
+          final candidate = players[(targetIdx + i) % players.length];
+          if (candidate.status == 'ACTIVE') {
+            nextPlayer = candidate;
+            break;
+          }
+        }
+        nextPlayer ??= remainingActive.first;
+      }
+
+      final turnTimerSec = game.turnTimerSeconds;
+      final nextDeadline = turnTimerSec > 0 ? now.add(Duration(seconds: turnTimerSec + 5)) : null;
+
+      final updatedGame = game.copyWith(
+        players: players,
+        currentTurnPlayerId: wasTurn ? nextPlayer!.uid : game.currentTurnPlayerId,
+        turnNumber: wasTurn ? game.turnNumber + 1 : game.turnNumber,
+        phase: wasTurn ? 'DRAW_PHASE' : game.phase,
+        turnDeadline: wasTurn ? nextDeadline : game.turnDeadline,
+        clearCardDrawnFromOpen: wasTurn ? true : false,
+        actionLog: actionLog,
+      );
+      _mockGames[gameId] = updatedGame;
+      _getOrCreateGameController(gameId).add(updatedGame);
+    }
   }
 
   // --------------- Real-time Streams ---------------
