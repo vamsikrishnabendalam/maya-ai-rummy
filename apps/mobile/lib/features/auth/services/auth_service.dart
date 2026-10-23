@@ -59,12 +59,22 @@ class AuthService {
     }
   }
 
+  bool _isSettingGuestName = false;
+
   Future<void> _handleAuthStateUser(User user) async {
+    if (_isSettingGuestName) return;
     final isAnon = user.isAnonymous;
     if (isAnon) {
+      final existingName = _currentUser?.displayName;
+      final currentName = (user.displayName != null && user.displayName!.isNotEmpty)
+          ? user.displayName!
+          : ((existingName != null && existingName.isNotEmpty && existingName != 'Guest Player')
+              ? existingName
+              : 'Guest Player');
+
       final guest = MultiplayerUser(
         uid: user.uid,
-        displayName: user.displayName ?? 'Guest Player',
+        displayName: currentName,
         photoURL: '',
         email: null,
         coins: 0,
@@ -137,45 +147,58 @@ class AuthService {
   /// Guest Sign-In: 0 coins, no rewards, no coin tables
   Future<MultiplayerUser> signInAsGuest({String? name, bool forceNewSession = false}) async {
     final chosenName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'Guest Player';
-    if (FirebaseConfig.isInitialized) {
-      try {
-        if (FirebaseAuth.instance.currentUser != null && forceNewSession) {
-          await FirebaseAuth.instance.signOut();
-        }
+    _isSettingGuestName = true;
+    try {
+      if (FirebaseConfig.isInitialized) {
+        try {
+          User? user = FirebaseAuth.instance.currentUser;
+          if (user != null && forceNewSession) {
+            await FirebaseAuth.instance.signOut();
+            user = null;
+          }
 
-        final cred = await FirebaseAuth.instance.signInAnonymously();
+          if (user == null || !user.isAnonymous) {
+            final cred = await FirebaseAuth.instance.signInAnonymously();
+            user = cred.user;
+          }
 
-        if (cred.user != null) {
-          try {
-            await cred.user!.updateDisplayName(chosenName);
-          } catch (_) {}
-          final guestUser = MultiplayerUser(
-            uid: cred.user!.uid,
-            displayName: chosenName,
-            photoURL: '',
-            coins: 0,
-            isGuest: true,
-            isProfileComplete: false,
-          );
-          _notify(guestUser);
-          return guestUser;
+          if (user != null) {
+            try {
+              await user.updateDisplayName(chosenName);
+              await user.reload();
+            } catch (_) {}
+            final guestUser = MultiplayerUser(
+              uid: user.uid,
+              displayName: chosenName,
+              photoURL: '',
+              coins: 0,
+              isGuest: true,
+              isProfileComplete: false,
+            );
+            _notify(guestUser);
+            return guestUser;
+          }
+        } catch (e) {
+          debugPrint('[AuthService] signInAsGuest notice: $e');
         }
-      } catch (e) {
-        debugPrint('[AuthService] signInAnonymously notice: $e');
       }
-    }
 
-    final mockUid = 'guest_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecondsSinceEpoch % 1000)}';
-    final guestUser = MultiplayerUser(
-      uid: mockUid,
-      displayName: chosenName,
-      photoURL: '',
-      coins: 0,
-      isGuest: true,
-      isProfileComplete: false,
-    );
-    _notify(guestUser);
-    return guestUser;
+      final mockUid = _currentUser?.isGuest == true && _currentUser!.uid.isNotEmpty
+          ? _currentUser!.uid
+          : 'guest_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecondsSinceEpoch % 1000)}';
+      final guestUser = MultiplayerUser(
+        uid: mockUid,
+        displayName: chosenName,
+        photoURL: '',
+        coins: 0,
+        isGuest: true,
+        isProfileComplete: false,
+      );
+      _notify(guestUser);
+      return guestUser;
+    } finally {
+      _isSettingGuestName = false;
+    }
   }
 
   /// Update guest player nickname

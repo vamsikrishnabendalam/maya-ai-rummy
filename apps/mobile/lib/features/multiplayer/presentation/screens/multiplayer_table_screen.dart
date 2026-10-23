@@ -54,7 +54,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         final currentUid = ref.read(authProvider)?.uid;
         final isSeated = currentUid != null && game.players.any((p) => p.uid == currentUid);
         if (!isSeated) return;
-        final isMyTurn = currentUid != null && game.currentTurnPlayerId == currentUid;
+        final isMyTurn = game.currentTurnPlayerId == currentUid;
 
         // Turn timeout handling
         if (game.turnDeadline != null) {

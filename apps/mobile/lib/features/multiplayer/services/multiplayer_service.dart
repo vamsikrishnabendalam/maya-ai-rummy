@@ -158,9 +158,7 @@ class MultiplayerService {
       }
     }
 
-    // Direct Firestore lookup by roomCode
-    TableLobby? found;
-
+    // Direct Firestore transactional join by roomCode
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
         final querySnap = await _firestore!
@@ -169,19 +167,126 @@ class MultiplayerService {
             .limit(1)
             .get();
         if (querySnap.docs.isNotEmpty) {
-          found = TableLobby.fromJson(querySnap.docs.first.data());
+          final docRef = querySnap.docs.first.reference;
+          final result = await _firestore!.runTransaction((tx) async {
+            final snap = await tx.get(docRef);
+            if (!snap.exists || snap.data() == null) {
+              throw Exception('Table $cleanCode not found.');
+            }
+            final found = TableLobby.fromJson(snap.data()!);
+
+            // Check if player is ALREADY seated in this table
+            final existingPlayerIndex = found.players.indexWhere((p) => p.uid == user.uid);
+            if (existingPlayerIndex >= 0) {
+              // Update displayName if changed
+              if (found.players[existingPlayerIndex].displayName != user.displayName) {
+                final updatedPlayers = [...found.players];
+                updatedPlayers[existingPlayerIndex] = updatedPlayers[existingPlayerIndex].copyWith(
+                  displayName: user.displayName,
+                );
+                tx.update(docRef, {
+                  'players': updatedPlayers.map((p) => p.toJson()).toList(),
+                });
+              }
+              return {
+                'tableId': found.tableId,
+                'roomCode': found.roomCode,
+                'seatIndex': found.players[existingPlayerIndex].seatIndex,
+                'activeGameId': found.activeGameId,
+                'status': found.status,
+                'isCoinTable': false,
+                'entryCoins': 0,
+              };
+            }
+
+            if (found.status == 'PLAYING') {
+              throw Exception('Game has already started in room $cleanCode. Spectating or joining mid-game is not permitted.');
+            }
+            if (found.status == 'COMPLETED' || found.status == 'FINISHED' || found.status == 'ABANDONED') {
+              throw Exception('Table $cleanCode has concluded or expired.');
+            }
+            if (found.players.length >= found.maxPlayers) {
+              throw Exception('Table $cleanCode is full (${found.players.length}/${found.maxPlayers} players).');
+            }
+
+            if (found.isCoinTable) {
+              if (user.isGuest) {
+                throw Exception('Guest players cannot join coin tables. Please sign in with Google.');
+              }
+              if (user.coins < found.entryCoins) {
+                throw Exception('Insufficient virtual coins (${user.coins} available, ${found.entryCoins} required).');
+              }
+            }
+
+            // Assign lowest available seat strictly within 0..found.maxPlayers - 1
+            final takenSeats = found.players.map((p) => p.seatIndex).toSet();
+            int seatIndex = 0;
+            while (takenSeats.contains(seatIndex) && seatIndex < found.maxPlayers) {
+              seatIndex++;
+            }
+            if (seatIndex >= found.maxPlayers) {
+              seatIndex = found.players.length;
+            }
+
+            final newPlayer = TablePlayer(
+              uid: user.uid,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              seatIndex: seatIndex,
+              isHost: false,
+              connected: true,
+            );
+
+            final updatedPlayers = [...found.players, newPlayer];
+            tx.update(docRef, {
+              'players': updatedPlayers.map((p) => p.toJson()).toList(),
+              'playerCount': updatedPlayers.length,
+              'prizePool': found.prizePool + (found.isCoinTable ? found.entryCoins : 0),
+            });
+
+            return {
+              'tableId': found.tableId,
+              'roomCode': found.roomCode,
+              'seatIndex': seatIndex,
+              'activeGameId': found.activeGameId,
+              'status': found.status,
+              'isCoinTable': found.isCoinTable,
+              'entryCoins': found.entryCoins,
+            };
+          });
+
+          if (result['isCoinTable'] == true && (result['entryCoins'] as int? ?? 0) > 0) {
+            await _walletService.deductCoins(
+              uid: user.uid,
+              amount: result['entryCoins'] as int,
+              type: 'TABLE_ENTRY_FEE',
+              reason: 'Entry fee for table #$cleanCode',
+              referenceId: result['tableId'] as String,
+            );
+          }
+
+          return {
+            'tableId': result['tableId'],
+            'roomCode': result['roomCode'],
+            'seatIndex': result['seatIndex'],
+            'activeGameId': result['activeGameId'],
+            'status': result['status'],
+          };
         }
       } catch (e) {
-        debugPrint('[MultiplayerService] joinTable Firestore lookup notice: $e');
+        debugPrint('[MultiplayerService] joinTable Firestore transaction error: $e');
+        if (e.toString().contains('full') || e.toString().contains('started') || e.toString().contains('not found')) {
+          rethrow;
+        }
       }
     }
 
-    if (found == null) {
-      for (final t in _mockTables.values) {
-        if (t.roomCode == cleanCode) {
-          found = t;
-          break;
-        }
+    // Local / Offline fallback lookup
+    TableLobby? found;
+    for (final t in _mockTables.values) {
+      if (t.roomCode == cleanCode) {
+        found = t;
+        break;
       }
     }
 
@@ -201,12 +306,10 @@ class MultiplayerService {
       };
     }
 
-    // If game has already started and player was not in it
     if (found.status == 'PLAYING') {
       throw Exception('Game has already started in room $cleanCode. Spectating or joining mid-game is not permitted.');
     }
 
-    // If room is already concluded or abandoned
     if (found.status == 'COMPLETED' || found.status == 'FINISHED' || found.status == 'ABANDONED') {
       throw Exception('Table $cleanCode has concluded or expired.');
     }
@@ -215,7 +318,6 @@ class MultiplayerService {
       throw Exception('Table $cleanCode is full (${found.players.length}/${found.maxPlayers} players).');
     }
 
-    // Coin table entry verification & atomic deduction
     if (found.isCoinTable) {
       if (user.isGuest) {
         throw Exception('Guest players cannot join coin tables. Please sign in with Google.');
@@ -232,7 +334,6 @@ class MultiplayerService {
       );
     }
 
-    // Assign next available seat
     final takenSeats = found.players.map((p) => p.seatIndex).toSet();
     int seatIndex = 0;
     while (takenSeats.contains(seatIndex)) {
@@ -257,14 +358,6 @@ class MultiplayerService {
 
     _mockTables[found.tableId] = updatedLobby;
     _getOrCreateTableController(found.tableId).add(updatedLobby);
-
-    if (FirebaseConfig.isInitialized && _firestore != null) {
-      try {
-        await _firestore!.collection('tables').doc(found.tableId).set(updatedLobby.toJson());
-      } catch (e) {
-        debugPrint('[MultiplayerService] joinTable Firestore update notice: $e');
-      }
-    }
 
     return {
       'tableId': found.tableId,

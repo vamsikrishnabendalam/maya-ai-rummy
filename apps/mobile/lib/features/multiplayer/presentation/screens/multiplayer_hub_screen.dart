@@ -41,7 +41,7 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
 
   Future<void> _handleCreateTable() async {
     final user = ref.read(authProvider);
-    if (user == null) {
+    if (user == null || (user.isGuest && (user.displayName.isEmpty || user.displayName == 'Guest Player'))) {
       _showSignInModal(onSignedIn: () => _handleCreateTable());
       return;
     }
@@ -109,7 +109,7 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
     }
 
     final user = ref.read(authProvider);
-    if (user == null) {
+    if (user == null || (user.isGuest && (user.displayName.isEmpty || user.displayName == 'Guest Player'))) {
       _showSignInModal(onSignedIn: () => _handleJoinTable());
       return;
     }
@@ -267,7 +267,7 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
     if (name != null && name.isNotEmpty) {
       setState(() => _isLoading = true);
       try {
-        await ref.read(authProvider.notifier).signInAsGuest(name: name, forceNewSession: true);
+        await ref.read(authProvider.notifier).signInAsGuest(name: name, forceNewSession: false);
         if (mounted) {
           setState(() => _isLoading = false);
           onSignedIn?.call();

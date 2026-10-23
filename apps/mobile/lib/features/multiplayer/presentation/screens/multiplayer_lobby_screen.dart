@@ -155,9 +155,17 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
           final origin = kIsWeb ? Uri.base.origin : 'https://mayarummy.cwards.com';
           final inviteLink = '$origin/join/${lobby.roomCode}';
 
+          // Sort players: Table Host ALWAYS first, followed by others in seat order
+          final sortedPlayers = [...lobby.players];
+          sortedPlayers.sort((a, b) {
+            if (a.isHost) return -1;
+            if (b.isHost) return 1;
+            return a.seatIndex.compareTo(b.seatIndex);
+          });
+
           return Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 620),
                 child: Column(
@@ -165,28 +173,28 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                   children: [
                     // Room Code & Invite Card
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF142E54), Color(0xFF0F1E36)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         children: [
                           Text(
                             lobby.tableName,
-                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: AppColors.accent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                             ),
                             child: Text(
@@ -194,32 +202,33 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                               style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('ROOM CODE: ', style: TextStyle(color: AppColors.textMuted, fontSize: 13, letterSpacing: 1.0)),
+                              const Text('ROOM CODE: ', style: TextStyle(color: AppColors.textMuted, fontSize: 12, letterSpacing: 1.0)),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF081220),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(color: AppColors.accent),
                                 ),
                                 child: Text(
                                   lobby.roomCode,
                                   style: const TextStyle(
                                     color: AppColors.accent,
-                                    fontSize: 22,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.w900,
-                                    letterSpacing: 4.0,
+                                    letterSpacing: 3.0,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               IconButton(
                                 tooltip: 'Copy Room Code',
-                                icon: const Icon(Icons.copy_rounded, color: AppColors.accent, size: 20),
+                                icon: const Icon(Icons.copy_rounded, color: AppColors.accent, size: 18),
+                                visualDensity: VisualDensity.compact,
                                 onPressed: () {
                                   Clipboard.setData(ClipboardData(text: lobby.roomCode));
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -229,16 +238,17 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           // Copy Invite Link Button
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: AppColors.glassBorder),
                               foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
-                            icon: const Icon(Icons.link_rounded, size: 18, color: AppColors.accent),
-                            label: const Text('COPY INVITE LINK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            icon: const Icon(Icons.link_rounded, size: 16, color: AppColors.accent),
+                            label: const Text('COPY INVITE LINK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                             onPressed: () {
                               Clipboard.setData(ClipboardData(text: inviteLink));
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -249,9 +259,9 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
 
-                    // Player Slots (2 to 6)
+                    // Player Slots Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -265,21 +275,18 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
-                    // List of slots
+                    // List of slots (up to maxPlayers)
                     ...List.generate(lobby.maxPlayers, (index) {
-                      final player = lobby.players.cast<TablePlayer?>().firstWhere(
-                            (p) => p?.seatIndex == index,
-                            orElse: () => null,
-                          );
+                      final player = index < sortedPlayers.length ? sortedPlayers[index] : null;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: player != null ? const Color(0xFF0F1E36) : const Color(0xFF0B1422),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: player != null ? AppColors.glassBorder : Colors.white10,
                           ),
@@ -287,11 +294,11 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                         child: Row(
                           children: [
                             CircleAvatar(
-                              radius: 18,
+                              radius: 16,
                               backgroundColor: player != null ? AppColors.accent.withValues(alpha: 0.2) : Colors.white10,
                               child: player != null
-                                  ? const Icon(Icons.person, color: AppColors.accent, size: 20)
-                                  : Text('${index + 1}', style: const TextStyle(color: Colors.white30, fontSize: 12)),
+                                  ? const Icon(Icons.person, color: AppColors.accent, size: 18)
+                                  : Text('${index + 1}', style: const TextStyle(color: Colors.white30, fontSize: 11)),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -303,13 +310,13 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                                     style: TextStyle(
                                       color: player != null ? Colors.white : Colors.white30,
                                       fontWeight: player != null ? FontWeight.bold : FontWeight.normal,
-                                      fontSize: 14,
+                                      fontSize: 13,
                                     ),
                                   ),
                                   if (player != null && player.isHost)
                                     const Row(
                                       children: [
-                                        Icon(Icons.workspace_premium, color: Colors.amber, size: 14),
+                                        Icon(Icons.workspace_premium, color: Colors.amber, size: 13),
                                         SizedBox(width: 4),
                                         Text('TABLE HOST', style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold)),
                                       ],
@@ -321,7 +328,8 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                               if (isHost && !player.isHost)
                                 IconButton(
                                   tooltip: 'Remove ${player.displayName}',
-                                  icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 20),
+                                  icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 18),
+                                  visualDensity: VisualDensity.compact,
                                   onPressed: () => _showKickConfirmationDialog(context, player),
                                 )
                               else
