@@ -9,6 +9,7 @@ const {
   validateSet,
   validateDeclaration,
   createShuffledDeck,
+  calculateLoserScore,
 } = require('../engine/rummyRules');
 
 console.log('Testing Server Rummy Engine...');
