@@ -24,6 +24,8 @@ class GameTableState {
   final Card? botDiscardCard;
   final AILevel aiLevel;
   final String dealerId; // 'ai_bot_1' or 'human_player'
+  final bool hasHumanOpenedJoker;
+  final bool hasBotOpenedJoker;
 
   const GameTableState({
     required this.gameState,
@@ -41,6 +43,8 @@ class GameTableState {
     this.botDiscardCard,
     this.aiLevel = AILevel.intermediate,
     this.dealerId = 'ai_bot_1',
+    this.hasHumanOpenedJoker = true,
+    this.hasBotOpenedJoker = true,
   });
 
   int get totalHumanScore => roundScores.fold(0, (sum, r) => sum + r.humanScore);
@@ -81,6 +85,8 @@ class GameTableState {
     Card? botDiscardCard,
     AILevel? aiLevel,
     String? dealerId,
+    bool? hasHumanOpenedJoker,
+    bool? hasBotOpenedJoker,
   }) {
     return GameTableState(
       gameState: gameState ?? this.gameState,
@@ -99,6 +105,8 @@ class GameTableState {
       botDiscardCard: botDiscardCard ?? this.botDiscardCard,
       aiLevel: aiLevel ?? this.aiLevel,
       dealerId: dealerId ?? this.dealerId,
+      hasHumanOpenedJoker: hasHumanOpenedJoker ?? this.hasHumanOpenedJoker,
+      hasBotOpenedJoker: hasBotOpenedJoker ?? this.hasBotOpenedJoker,
     );
   }
 }
@@ -179,6 +187,36 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
         Card(suit: Suit.diamonds, rank: Rank.two, deckIndex: 0);
   }
 
+  Card? get effectiveHumanWildJoker =>
+      (state.gameSettings.jokerMode == 'OPEN' || state.hasHumanOpenedJoker)
+          ? state.gameState.wildJoker
+          : null;
+
+  Card? get effectiveBotWildJoker =>
+      (state.gameSettings.jokerMode == 'OPEN' || state.hasBotOpenedJoker)
+          ? state.gameState.wildJoker
+          : null;
+
+  bool get hasHumanLife => SequenceValidator.hasPureSequenceInHand(humanPlayer.hand);
+
+  bool get canHumanOpenJoker =>
+      state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker && hasHumanLife;
+
+  void openClosedJoker() {
+    if (!state.gameSettings.isClosedJoker || state.hasHumanOpenedJoker) return;
+    if (!hasHumanLife) return;
+    state = state.copyWith(hasHumanOpenedJoker: true);
+    _revalidateGroups(state.cardGroups);
+    final score = _recalculateScore(state.cardGroups);
+    state = state.copyWith(currentScore: score);
+    _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.grouped);
+  }
+
+  void setJokerMode(String mode) {
+    final newSettings = state.gameSettings.copyWith(jokerMode: mode);
+    updateSettings(newSettings);
+  }
+
   /// Whether the remaining 13 cards (after discarding selectedCard) form a valid declaration
   bool get remainingCardsFormValidDeclaration {
     if (state.selectedCard == null || !isDiscardPhase) return false;
@@ -186,7 +224,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     final remainingGroups = _removeCardFromGroups(state.cardGroups, cardToDiscard);
     final declaredCards = remainingGroups.map((g) => g.cards).toList();
     final validator = DeclarationValidator();
-    final result = validator.validate(declaredCards, wildJokerCard);
+    final result = validator.validate(declaredCards, effectiveHumanWildJoker);
     return result.isValid;
   }
 
@@ -249,9 +287,10 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       ),
     ];
 
+    final bool isOpen = state.gameSettings.jokerMode == 'OPEN';
     final initialScore = Scoring.calculateHandDeadwood(
       groups: [humanHand],
-      wildJoker: newGameState.wildJoker,
+      wildJoker: isOpen ? newGameState.wildJoker : null,
       maxPenalty: state.gameSettings.fullCountPenalty,
     );
 
@@ -265,6 +304,8 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       roundScores: state.roundScores,
       isRoundOver: false,
       dealerId: 'ai_bot_1',
+      hasHumanOpenedJoker: isOpen,
+      hasBotOpenedJoker: isOpen,
     );
 
     _ref.read(gameUIProvider.notifier).resetUI();
@@ -346,9 +387,10 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       ),
     ];
 
+    final bool isOpen = state.gameSettings.jokerMode == 'OPEN';
     final initialScore = Scoring.calculateHandDeadwood(
       groups: [humanHand],
-      wildJoker: newGameState.wildJoker,
+      wildJoker: isOpen ? newGameState.wildJoker : null,
       maxPenalty: state.gameSettings.fullCountPenalty,
     );
 
@@ -365,6 +407,8 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       botDeclarationResult: null,
       botDiscardCard: null,
       dealerId: nextDealerId,
+      hasHumanOpenedJoker: isOpen,
+      hasBotOpenedJoker: isOpen,
     );
 
     _ref.read(gameUIProvider.notifier).resetUI();
@@ -411,14 +455,17 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   }
 
   void updateSettings(GameSettings newSettings) {
+    final bool isHumanRevealed = newSettings.jokerMode == 'OPEN' || state.hasHumanOpenedJoker;
     final newScore = Scoring.calculateHandDeadwood(
       groups: state.cardGroups.map((g) => g.cards).toList(),
-      wildJoker: wildJokerCard,
+      wildJoker: isHumanRevealed ? state.gameState.wildJoker : null,
       maxPenalty: newSettings.fullCountPenalty,
     );
     state = state.copyWith(
       gameSettings: newSettings,
       currentScore: newScore,
+      hasHumanOpenedJoker: newSettings.jokerMode == 'OPEN' ? true : state.hasHumanOpenedJoker,
+      hasBotOpenedJoker: newSettings.jokerMode == 'OPEN' ? true : state.hasBotOpenedJoker,
     );
   }
 
@@ -639,9 +686,9 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
     final declaredCards = remainingGroups.map((g) => g.cards).toList();
     final validator = DeclarationValidator();
-    final result = validator.validate(declaredCards, wildJokerCard);
+    final result = validator.validate(declaredCards, effectiveHumanWildJoker);
     final partitionResult = result.partitionResult ??
-        HandPartitioner.evaluateGroups(declaredCards, wildJokerCard);
+        HandPartitioner.evaluateGroups(declaredCards, effectiveHumanWildJoker);
 
     final updatedOpenPile = List<Card>.from(state.gameState.openPile);
     if (cardToDiscard != null) {
@@ -658,7 +705,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     // Optimally partition AI hand using HandPartitioner to find minimum count with best joker arrangement
     final aiOptimalPartition = HandPartitioner.findBestPartition(
       aiHand,
-      wildJokerCard,
+      effectiveBotWildJoker,
     );
     // On opponent wrong show, the winner gets 0 points!
     final int aiRoundScore = isHumanValid
@@ -975,7 +1022,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     return ProbabilityEngine.analyzeHand(
       playerHand: humanPlayer.hand,
       openPile: state.gameState.openPile,
-      openJoker: wildJokerCard,
+      openJoker: effectiveHumanWildJoker,
       closedDeckCount: state.gameState.closedDeck.length,
     );
   }
@@ -1006,7 +1053,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   void autoGroupHand() {
     if (state.isHandLocked || state.isRoundOver) return;
     final allCards = _allGroupedCards();
-    final partition = HandPartitioner.findBestPartition(allCards, wildJokerCard);
+    final partition = HandPartitioner.findBestPartition(allCards, effectiveHumanWildJoker);
     final groupsToApply = partition.groups.map((g) => g.cards).toList();
     applyRecommendedGrouping(groupsToApply);
   }
@@ -1023,7 +1070,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
       final aiPlayerState =
           state.gameState.players.firstWhere((p) => p.id == 'ai_bot_1');
-      final wildJoker = wildJokerCard;
+      if (state.gameSettings.isClosedJoker && !state.hasBotOpenedJoker) {
+        if (SequenceValidator.hasPureSequenceInHand(aiPlayerState.hand)) {
+          state = state.copyWith(hasBotOpenedJoker: true);
+        }
+      }
+      final wildJoker = effectiveBotWildJoker;
 
       final knowledge = BotKnowledgeState(
         ownHand: aiPlayerState.hand,
@@ -1287,7 +1339,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     final int humanScore = isBotValid
         ? Scoring.calculateHandDeadwood(
             groups: state.cardGroups.map((g) => g.cards).toList(),
-            wildJoker: wildJokerCard,
+            wildJoker: effectiveHumanWildJoker,
             maxPenalty: state.gameSettings.fullCountPenalty,
           )
         : 0;
@@ -1419,10 +1471,9 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   }
 
   int _recalculateScore(List<CardGroup> groups) {
-    if (state.gameState.wildJoker == null) return state.gameSettings.fullCountPenalty;
     return Scoring.calculateHandDeadwood(
       groups: groups.map((g) => g.cards).toList(),
-      wildJoker: wildJokerCard,
+      wildJoker: effectiveHumanWildJoker,
       maxPenalty: state.gameSettings.fullCountPenalty,
     );
   }
@@ -1492,14 +1543,14 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   CardGroupType _detectGroupType(List<Card> cards) {
     if (cards.length < 3) return CardGroupType.deadwood;
 
-    final seqRes = SequenceValidator.validate(cards, wildJokerCard);
+    final seqRes = SequenceValidator.validate(cards, effectiveHumanWildJoker);
     if (seqRes.isValid) {
       return seqRes.type == SequenceType.pure
           ? CardGroupType.pureSequence
           : CardGroupType.impureSequence;
     }
 
-    final setRes = SetValidator.validate(cards, wildJokerCard);
+    final setRes = SetValidator.validate(cards, effectiveHumanWildJoker);
     if (setRes.isValid) {
       return CardGroupType.set;
     }

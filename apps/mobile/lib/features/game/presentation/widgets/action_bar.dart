@@ -45,6 +45,12 @@ class ActionBar extends StatelessWidget {
   /// Callback to submit rearranged cards for show.
   final VoidCallback? onSubmitShow;
 
+  /// Whether the human player can view/open the closed joker (holds Life / pure sequence).
+  final bool canOpenClosedJoker;
+
+  /// Callback invoked when the human player taps Open Joker.
+  final VoidCallback? onOpenClosedJoker;
+
   const ActionBar({
     super.key,
     this.onSort,
@@ -61,6 +67,8 @@ class ActionBar extends StatelessWidget {
     this.currentDeclarationScore = 0,
     this.onAutoArrange,
     this.onSubmitShow,
+    this.canOpenClosedJoker = false,
+    this.onOpenClosedJoker,
   });
 
   @override
@@ -118,6 +126,14 @@ class ActionBar extends StatelessWidget {
                   label: 'Group',
                   onTap: onAutoGroup,
                 ),
+                if (canOpenClosedJoker)
+                  _ActionButton(
+                    icon: Icons.lock_open_rounded,
+                    label: 'Open Joker',
+                    onTap: onOpenClosedJoker,
+                    isHighlighted: true,
+                    highlightColor: AppColors.accent,
+                  ),
                 _ActionButton(
                   icon: Icons.delete_outline,
                   label: 'Discard',

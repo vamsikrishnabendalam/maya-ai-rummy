@@ -225,4 +225,33 @@ class SequenceValidator {
 
     return const SequenceValidationResult.invalid('Cards cannot form a valid sequence with available jokers.');
   }
+
+  /// Checks whether a collection of cards contains at least one valid Pure Sequence (Life)
+  /// of 3 or more consecutive cards of the same suit without any jokers.
+  static bool hasPureSequenceInHand(List<Card> cards) {
+    if (cards.length < 3) return false;
+    final suitCards = <Suit, List<Card>>{};
+    for (final c in cards) {
+      if (c.isPrintedJoker || c.suit == null || c.rank == null) continue;
+      suitCards.putIfAbsent(c.suit!, () => []).add(c);
+    }
+    for (final entry in suitCards.entries) {
+      final list = entry.value;
+      if (list.length < 3) continue;
+      final ranks = list.map((c) => rankToLowValue(c.rank!)).toSet().toList()..sort();
+      if (ranks.contains(1)) {
+        ranks.add(14); // Ace as high
+      }
+      int streak = 1;
+      for (int i = 1; i < ranks.length; i++) {
+        if (ranks[i] == ranks[i - 1] + 1) {
+          streak++;
+          if (streak >= 3) return true;
+        } else {
+          streak = 1;
+        }
+      }
+    }
+    return false;
+  }
 }

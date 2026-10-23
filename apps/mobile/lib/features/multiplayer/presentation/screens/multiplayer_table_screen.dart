@@ -10,6 +10,8 @@ import '../../../game/presentation/widgets/card_widget.dart';
 import '../../../game/presentation/widgets/card_back_widget.dart';
 import '../../../game/presentation/widgets/player_hand.dart';
 import '../../../game/presentation/widgets/card_animation_layer.dart';
+import '../../../game/models/card_group.dart';
+import 'package:game_engine/game_engine.dart';
 import '../../utils/game_log_exporter.dart';
 
 class MultiplayerTableScreen extends ConsumerStatefulWidget {
@@ -1254,25 +1256,106 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                     ),
                                     const SizedBox(width: 14),
 
-                                    // 2. Open Joker Card
+                                    // 2. Open or Closed Joker Card
                                     if (game.openJoker != null)
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Transform.rotate(
-                                            angle: 0.08,
-                                            child: SizedBox(
-                                              width: 58,
-                                              height: 82,
-                                              child: CardWidget(card: game.openJoker!),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          const Text(
-                                            'WILD JOKER',
-                                            style: TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
+                                      Builder(
+                                        builder: (_) {
+                                          final isJokerOpened = game.hasPlayerOpenedJoker(user.uid);
+                                          if (isJokerOpened) {
+                                            return Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Transform.rotate(
+                                                  angle: 0.08,
+                                                  child: SizedBox(
+                                                    width: 58,
+                                                    height: 82,
+                                                    child: CardWidget(card: game.openJoker!),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                const Text(
+                                                  'WILD JOKER',
+                                                  style: TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                                                ),
+                                              ],
+                                            );
+                                          } else {
+                                            final allMyCards = tableState.cardGroups.expand((g) => g.cards).toList();
+                                            final hasLife = tableState.cardGroups.any((g) => g.type == CardGroupType.pureSequence) ||
+                                                SequenceValidator.hasPureSequenceInHand(allMyCards);
+
+                                            return InkWell(
+                                              onTap: hasLife
+                                                  ? () => notifier.openClosedJoker()
+                                                  : () {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                                          duration: Duration(seconds: 2),
+                                                        ),
+                                                      );
+                                                    },
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 58,
+                                                        height: 82,
+                                                        child: CardBackWidget(
+                                                          width: 58,
+                                                          height: 82,
+                                                          showPulse: hasLife,
+                                                        ),
+                                                      ),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.black87,
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          border: Border.all(
+                                                            color: hasLife ? AppColors.accent : Colors.white24,
+                                                            width: hasLife ? 1.5 : 1.0,
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Icon(
+                                                              hasLife ? Icons.visibility : Icons.lock,
+                                                              color: hasLife ? AppColors.accent : Colors.white60,
+                                                              size: 11,
+                                                            ),
+                                                            if (hasLife) ...[
+                                                              const SizedBox(width: 3),
+                                                              const Text(
+                                                                'VIEW',
+                                                                style: TextStyle(color: AppColors.accent, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                                              ),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    hasLife ? 'OPEN JOKER' : 'CLOSED',
+                                                    style: TextStyle(
+                                                      color: hasLife ? AppColors.accent : Colors.white54,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }
+                                        },
                                       ),
                                     const SizedBox(width: 14),
 
@@ -1597,6 +1680,46 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                             ),
                             const SizedBox(width: 8),
 
+                            // OPEN JOKER BUTTON (If closed joker game and player has pure sequence / life)
+                            Builder(
+                              builder: (_) {
+                                final isJokerOpened = game.hasPlayerOpenedJoker(user.uid);
+                                if (!game.isClosedJoker || isJokerOpened) return const SizedBox.shrink();
+
+                                final allMyCards = tableState.cardGroups.expand((g) => g.cards).toList();
+                                final hasLife = tableState.cardGroups.any((g) => g.type == CardGroupType.pureSequence) ||
+                                    SequenceValidator.hasPureSequenceInHand(allMyCards);
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: hasLife ? Colors.amber : Colors.white12,
+                                      foregroundColor: hasLife ? Colors.black : Colors.white38,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    icon: Icon(hasLife ? Icons.visibility : Icons.lock, size: 14),
+                                    label: Text(
+                                      hasLife ? 'OPEN JOKER (LIFE)' : 'JOKER (LOCKED)',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                    onPressed: hasLife
+                                        ? () => notifier.openClosedJoker()
+                                        : () {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          },
+                                  ),
+                                );
+                              },
+                            ),
+
                             if (game.isDeclaring) ...[
                               if (game.declaringPlayerId == user.uid)
                                 Container(
@@ -1760,7 +1883,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   // Interactive PlayerHand with Drag-and-Drop & Reordering
                   PlayerHand(
                     cardGroups: tableState.cardGroups,
-                    wildJokerCard: game.openJoker,
+                    wildJokerCard: game.hasPlayerOpenedJoker(user.uid) ? game.openJoker : null,
                     selectedCard: tableState.selectedCard,
                     selectedCards: tableState.selectedCards,
                     isDiscardPhase: !game.isDeclaring && isMyTurn && isDiscardPhase,

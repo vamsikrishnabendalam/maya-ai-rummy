@@ -28,7 +28,6 @@ class Scoring {
     required Card? wildJoker,
     int maxPenalty = 80,
   }) {
-    if (wildJoker == null) return maxPenalty;
     if (groups.isEmpty) return 0;
 
     int pureSeqCount = 0;

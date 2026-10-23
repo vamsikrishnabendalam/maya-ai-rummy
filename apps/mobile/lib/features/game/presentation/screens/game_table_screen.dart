@@ -174,6 +174,10 @@ class GameTableScreen extends ConsumerWidget {
                     closedDeckCount: gameState.closedDeck.length,
                     openPile: gameState.openPile,
                     wildJoker: wildJoker,
+                    isClosedJoker: tableState.gameSettings.isClosedJoker,
+                    isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
+                    hasLife: notifier.hasHumanLife,
+                    onOpenClosedJoker: () => notifier.openClosedJoker(),
                     canDraw: isHumanTurn && isDrawPhase,
                     onDrawClosed: () => notifier.drawFromClosedDeck(),
                     onDrawOpen: () => notifier.drawFromOpenDeck(),
@@ -216,6 +220,8 @@ class GameTableScreen extends ConsumerWidget {
                 onAutoGroup: () => _openGroupSuggestions(context, ref),
                 onDiscard: () => notifier.discardSelectedCard(),
                 canDiscard: notifier.canDiscard,
+                canOpenClosedJoker: notifier.canHumanOpenJoker,
+                onOpenClosedJoker: () => notifier.openClosedJoker(),
                 onDiscardAndDeclare: () => _handleDiscardAndDeclare(context, ref),
                 canDiscardAndDeclare: notifier.canDiscardAndDeclare,
                 isDeclarationWinning: notifier.remainingCardsFormValidDeclaration,
@@ -233,7 +239,7 @@ class GameTableScreen extends ConsumerWidget {
               // --- Player Hand with Groups & Selection ---
               PlayerHand(
                 cardGroups: cardGroups,
-                wildJokerCard: wildJoker,
+                wildJokerCard: notifier.effectiveHumanWildJoker,
                 selectedCard: tableState.selectedCard,
                 isDiscardPhase: isHumanTurn && isDiscardPhase,
                 onCardTap: (card) {

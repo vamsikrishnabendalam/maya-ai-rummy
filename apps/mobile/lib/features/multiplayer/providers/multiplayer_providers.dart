@@ -32,6 +32,7 @@ class MultiplayerLobbyNotifier extends StateNotifier<AsyncValue<TableLobby?>> {
     int maxPenalty = 80,
     String entryType = 'FREE',
     int entryCoins = 0,
+    String jokerMode = 'OPEN',
   }) async {
     final user = _ref.read(authProvider);
     if (user == null) throw Exception('Must be signed in to create a table.');
@@ -50,6 +51,7 @@ class MultiplayerLobbyNotifier extends StateNotifier<AsyncValue<TableLobby?>> {
         maxPenalty: maxPenalty,
         entryType: entryType,
         entryCoins: entryCoins,
+        jokerMode: jokerMode,
       );
       watchTable(res['tableId']!);
       return res;
@@ -237,6 +239,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     _sub = _service.watchGame(gameId, user.uid).listen((g) {
       List<CardGroup> groups = state.cardGroups;
 
+      final effectiveJoker = g.effectiveJokerForPlayer(user.uid);
+
       // Section 7: Authoritative Hand State Synchronization (localHand = serverHand)
       // When 13 cards first arrive on initial deal or on page reload / tab shift:
       if (groups.isEmpty && g.myHand.isNotEmpty) {
@@ -244,13 +248,13 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         if (saved != null && saved.isNotEmpty) {
           _hasTriggeredInitialDeal = true;
           _storage.setBool('dealt_${gameId}_${user.uid}', true);
-          groups = _syncGroupsWithHand(saved, g.myHand, g.openJoker);
+          groups = _syncGroupsWithHand(saved, g.myHand, effectiveJoker);
         } else {
-          final partition = HandPartitioner.findBestPartition(g.myHand, g.openJoker);
+          final partition = HandPartitioner.findBestPartition(g.myHand, effectiveJoker);
           groups = [];
           for (final grp in partition.groups) {
             if (grp.cards.isNotEmpty) {
-              final type = _detectGroupType(grp.cards, g.openJoker);
+              final type = _detectGroupType(grp.cards, effectiveJoker);
               groups.add(CardGroup(
                 id: 'grp_${_groupIdCounter++}',
                 type: type,
@@ -270,12 +274,12 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         }
         _persistGroups(gameId, user.uid, groups);
       } else if (groups.isNotEmpty && g.myHand.isNotEmpty) {
-        groups = _syncGroupsWithHand(groups, g.myHand, g.openJoker);
+        groups = _syncGroupsWithHand(groups, g.myHand, effectiveJoker);
         _persistGroups(gameId, user.uid, groups);
       }
 
-      _revalidateGroups(groups, g.openJoker);
-      final score = _recalculateScore(groups, g.openJoker);
+      _revalidateGroups(groups, effectiveJoker);
+      final score = _recalculateScore(groups, effectiveJoker);
 
       state = state.copyWith(
         gameState: g,
@@ -318,6 +322,41 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
   void clearSelection() {
     state = state.copyWith(clearSelectedCard: true, selectedCards: const {});
+  }
+
+  Card? get _effectiveWildJoker {
+    final game = state.gameState;
+    final user = _ref.read(authProvider);
+    if (game == null || user == null) return null;
+    return game.effectiveJokerForPlayer(user.uid);
+  }
+
+  /// Reveals closed joker to current player when they form Life (Pure Sequence)
+  Future<void> openClosedJoker() async {
+    final game = state.gameState;
+    final user = _ref.read(authProvider);
+    if (game == null || user == null) return;
+    if (!game.isClosedJoker) return;
+    if (game.openedJokerPlayerUids.contains(user.uid)) return;
+
+    state = state.copyWith(isSubmitting: true);
+    try {
+      await _service.openClosedJoker(gameId: game.gameId, myUid: user.uid);
+      final updatedOpened = [...game.openedJokerPlayerUids, user.uid];
+      final updatedGame = game.copyWith(openedJokerPlayerUids: updatedOpened);
+      final updatedGroups = List<CardGroup>.from(state.cardGroups);
+      _revalidateGroups(updatedGroups, updatedGame.openJoker);
+      final score = _recalculateScore(updatedGroups, updatedGame.openJoker);
+
+      state = state.copyWith(
+        gameState: updatedGame,
+        cardGroups: updatedGroups,
+        currentScore: score,
+        isSubmitting: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isSubmitting: false, statusMessage: e.toString());
+    }
   }
 
   // Draw Closed
@@ -376,8 +415,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         isValid: false,
         customLabel: 'DRAWN',
       ));
-      _revalidateGroups(updatedGroups, game.openJoker);
-      final score = _recalculateScore(updatedGroups, game.openJoker);
+      _revalidateGroups(updatedGroups, _effectiveWildJoker);
+      final score = _recalculateScore(updatedGroups, _effectiveWildJoker);
       _persistGroups(game.gameId, user.uid, updatedGroups);
 
       state = state.copyWith(
@@ -420,8 +459,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
       final updated = _removeCardFromGroups(state.cardGroups, cardToDiscard);
       _clearDrawnTags(updated);
-      _revalidateGroups(updated, game.openJoker);
-      final score = _recalculateScore(updated, game.openJoker);
+      _revalidateGroups(updated, _effectiveWildJoker);
+      final score = _recalculateScore(updated, _effectiveWildJoker);
       _persistGroups(game.gameId, user.uid, updated);
 
       state = state.copyWith(
@@ -569,8 +608,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     groups[toIdx] = groups[toIdx].copyWith(cards: toCards);
 
     _cleanupEmptyGroups(groups);
-    _revalidateGroups(groups, state.gameState?.openJoker);
-    final score = _recalculateScore(groups, state.gameState?.openJoker);
+    _revalidateGroups(groups, _effectiveWildJoker);
+    final score = _recalculateScore(groups, _effectiveWildJoker);
 
     final user = _ref.read(authProvider);
     if (state.gameState != null && user != null) {
@@ -594,8 +633,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     cards.insert(adjustedNew.clamp(0, cards.length), card);
     groups[idx] = groups[idx].copyWith(cards: cards);
 
-    _revalidateGroups(groups, state.gameState?.openJoker);
-    final score = _recalculateScore(groups, state.gameState?.openJoker);
+    _revalidateGroups(groups, _effectiveWildJoker);
+    final score = _recalculateScore(groups, _effectiveWildJoker);
 
     final user = _ref.read(authProvider);
     if (state.gameState != null && user != null) {
@@ -621,8 +660,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       isValid: false,
     ));
     _cleanupEmptyGroups(groups);
-    _revalidateGroups(groups, state.gameState?.openJoker);
-    final score = _recalculateScore(groups, state.gameState?.openJoker);
+    _revalidateGroups(groups, _effectiveWildJoker);
+    final score = _recalculateScore(groups, _effectiveWildJoker);
 
     final user = _ref.read(authProvider);
     if (state.gameState != null && user != null) {
@@ -669,8 +708,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       ),
     ];
 
-    _revalidateGroups(newGroups, state.gameState?.openJoker);
-    final score = _recalculateScore(newGroups, state.gameState?.openJoker);
+    _revalidateGroups(newGroups, _effectiveWildJoker);
+    final score = _recalculateScore(newGroups, _effectiveWildJoker);
 
     final user = _ref.read(authProvider);
     if (state.gameState != null && user != null) {
@@ -686,7 +725,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     final allCards = _allCards();
     if (allCards.isEmpty) return;
 
-    final openJoker = state.gameState?.openJoker;
+    final openJoker = _effectiveWildJoker;
     if (allCards.length >= 14) {
       // 14+ cards: Partition all cards to find melds and best discard card
       final partition14 = HandPartitioner.findBestPartition(allCards, openJoker);
@@ -894,7 +933,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       }
     }
     _cleanupEmptyGroups(updated);
-    final type = _detectGroupType(validCardsToGroup, state.gameState?.openJoker);
+    final type = _detectGroupType(validCardsToGroup, _effectiveWildJoker);
     updated.add(CardGroup(
       id: 'grp_${_groupIdCounter++}',
       type: type,
@@ -902,8 +941,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       isValid: type != CardGroupType.deadwood,
     ));
 
-    _revalidateGroups(updated, state.gameState?.openJoker);
-    final score = _recalculateScore(updated, state.gameState?.openJoker);
+    _revalidateGroups(updated, _effectiveWildJoker);
+    final score = _recalculateScore(updated, _effectiveWildJoker);
 
     final user = _ref.read(authProvider);
     if (state.gameState != null && user != null) {
@@ -965,16 +1004,15 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
   CardGroupType _detectGroupType(List<Card> cards, Card? wildJoker) {
     if (cards.length < 3) return CardGroupType.deadwood;
-    final wJoker = wildJoker ?? Card(suit: Suit.diamonds, rank: Rank.two, deckIndex: 0);
 
-    final seqRes = SequenceValidator.validate(cards, wJoker);
+    final seqRes = SequenceValidator.validate(cards, wildJoker);
     if (seqRes.isValid) {
       return seqRes.type == SequenceType.pure
           ? CardGroupType.pureSequence
           : CardGroupType.impureSequence;
     }
 
-    final setRes = SetValidator.validate(cards, wJoker);
+    final setRes = SetValidator.validate(cards, wildJoker);
     if (setRes.isValid) {
       return CardGroupType.set;
     }
@@ -1006,7 +1044,6 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
   }
 
   int _recalculateScore(List<CardGroup> groups, Card? wildJoker) {
-    if (wildJoker == null) return 80;
     return Scoring.calculateHandDeadwood(
       groups: groups.map((g) => g.cards).toList(),
       wildJoker: wildJoker,

@@ -124,6 +124,7 @@ class TableLobby {
   final int creationFee; // default 50 for coin tables
   final int prizePool;
   final List<String> kickedPlayerUids;
+  final String jokerMode; // 'OPEN' | 'CLOSED'
 
   const TableLobby({
     required this.tableId,
@@ -146,12 +147,14 @@ class TableLobby {
     this.creationFee = 0,
     this.prizePool = 0,
     this.kickedPlayerUids = const [],
+    this.jokerMode = 'OPEN',
   });
 
   bool get isWaiting => status == 'WAITING';
   bool get isPlaying => status == 'PLAYING';
   bool get isFull => players.length >= maxPlayers;
   bool get isCoinTable => entryType == 'COIN';
+  bool get isClosedJoker => jokerMode == 'CLOSED';
 
   TableLobby copyWith({
     String? tableId,
@@ -174,6 +177,7 @@ class TableLobby {
     int? creationFee,
     int? prizePool,
     List<String>? kickedPlayerUids,
+    String? jokerMode,
   }) {
     return TableLobby(
       tableId: tableId ?? this.tableId,
@@ -196,6 +200,7 @@ class TableLobby {
       creationFee: creationFee ?? this.creationFee,
       prizePool: prizePool ?? this.prizePool,
       kickedPlayerUids: kickedPlayerUids ?? this.kickedPlayerUids,
+      jokerMode: jokerMode ?? this.jokerMode,
     );
   }
 
@@ -222,6 +227,7 @@ class TableLobby {
       creationFee: json['creationFee'] ?? 0,
       prizePool: json['prizePool'] ?? 0,
       kickedPlayerUids: (json['kickedPlayerUids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      jokerMode: json['jokerMode'] ?? 'OPEN',
     );
   }
 
@@ -246,6 +252,7 @@ class TableLobby {
     'creationFee': creationFee,
     'prizePool': prizePool,
     'kickedPlayerUids': kickedPlayerUids,
+    'jokerMode': jokerMode,
   };
 }
 
@@ -305,6 +312,8 @@ class MultiplayerGameState {
   final int entryCoins;
   final int creationFee;
   final int prizePool;
+  final String jokerMode; // 'OPEN' | 'CLOSED'
+  final List<String> openedJokerPlayerUids;
   final Card? openJoker;
   final String effectiveWildRank;
   final List<Card> openPile;
@@ -344,6 +353,8 @@ class MultiplayerGameState {
     this.entryCoins = 0,
     this.creationFee = 0,
     this.prizePool = 0,
+    this.jokerMode = 'OPEN',
+    this.openedJokerPlayerUids = const [],
     this.openJoker,
     this.effectiveWildRank = 'two',
     this.openPile = const [],
@@ -369,8 +380,12 @@ class MultiplayerGameState {
   bool get isDeclaring => status == 'DECLARING';
   bool get isGameOver => status == 'COMPLETED';
   bool get isCompleted => status == 'COMPLETED';
+  bool get isClosedJoker => jokerMode == 'CLOSED';
 
   bool isMyTurn(String myUid) => currentTurnPlayerId == myUid;
+
+  bool hasPlayerOpenedJoker(String uid) => jokerMode == 'OPEN' || openedJokerPlayerUids.contains(uid);
+  Card? effectiveJokerForPlayer(String uid) => hasPlayerOpenedJoker(uid) ? openJoker : null;
 
   MultiplayerGameState copyWith({
     String? gameId,
@@ -392,6 +407,8 @@ class MultiplayerGameState {
     int? entryCoins,
     int? creationFee,
     int? prizePool,
+    String? jokerMode,
+    List<String>? openedJokerPlayerUids,
     Card? openJoker,
     String? effectiveWildRank,
     List<Card>? openPile,
@@ -434,6 +451,8 @@ class MultiplayerGameState {
       entryCoins: entryCoins ?? this.entryCoins,
       creationFee: creationFee ?? this.creationFee,
       prizePool: prizePool ?? this.prizePool,
+      jokerMode: jokerMode ?? this.jokerMode,
+      openedJokerPlayerUids: openedJokerPlayerUids ?? this.openedJokerPlayerUids,
       openJoker: openJoker ?? this.openJoker,
       effectiveWildRank: effectiveWildRank ?? this.effectiveWildRank,
       openPile: openPile ?? this.openPile,
@@ -516,6 +535,8 @@ class MultiplayerGameState {
       entryCoins: json['entryCoins'] ?? 0,
       creationFee: json['creationFee'] ?? 0,
       prizePool: json['prizePool'] ?? 0,
+      jokerMode: json['jokerMode'] ?? 'OPEN',
+      openedJokerPlayerUids: (json['openedJokerPlayerUids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       openJoker: parsedJoker,
       effectiveWildRank: json['effectiveWildRank'] ?? 'two',
       openPile: parsedOpenPile,
@@ -557,6 +578,8 @@ class MultiplayerGameState {
     'entryCoins': entryCoins,
     'creationFee': creationFee,
     'prizePool': prizePool,
+    'jokerMode': jokerMode,
+    'openedJokerPlayerUids': openedJokerPlayerUids,
     'openJoker': openJoker?.toInt(),
     'effectiveWildRank': effectiveWildRank,
     'openPile': openPile.map((c) => c.toInt()).toList(),

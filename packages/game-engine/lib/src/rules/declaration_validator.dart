@@ -20,7 +20,7 @@ class DeclarationValidator {
   /// Validates a list of card groups.
   /// If groups are supplied, validates them. If the groups are invalid,
   /// also searches for any valid 13-card partition in the combined hand.
-  ValidationResult validate(List<List<Card>> groups, Card wildJoker) {
+  ValidationResult validate(List<List<Card>> groups, Card? wildJoker) {
     // 1. Evaluate explicit groups
     final explicitResult = HandPartitioner.evaluateGroups(groups, wildJoker);
     if (explicitResult.isValidDeclaration) {

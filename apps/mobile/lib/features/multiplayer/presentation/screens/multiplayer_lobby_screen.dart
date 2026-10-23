@@ -211,7 +211,7 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                               border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
                             ),
                             child: Text(
-                              '${lobby.gameMode} • ${lobby.turnTimerSeconds}s Turn • ${lobby.firstDropPenalty}/${lobby.middleDropPenalty}/${lobby.maxPenalty} Drop',
+                              '${lobby.gameMode} • ${lobby.isClosedJoker ? "🔒 Closed Joker" : "🃏 Open Joker"} • ${lobby.turnTimerSeconds == 0 ? "No Limit" : "${lobby.turnTimerSeconds}s"} Turn • ${lobby.firstDropPenalty}/${lobby.middleDropPenalty}/${lobby.maxPenalty} Drop',
                               style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ),

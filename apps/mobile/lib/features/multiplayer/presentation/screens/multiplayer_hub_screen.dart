@@ -20,6 +20,7 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
   final _maxPenaltyController = TextEditingController(text: '80');
   int _selectedPlayerCount = 2;
   String _selectedGameMode = 'Points Rummy';
+  String _selectedJokerMode = 'OPEN'; // 'OPEN' or 'CLOSED'
   int _selectedTurnTimer = 30; // 30, 45, 60, or 0 (No Limit)
   String _selectedDropPenalty = '20 / 40 / 80';
   bool _isCustomDrop = false;
@@ -84,6 +85,7 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
             : _tableNameController.text.trim(),
         maxPlayers: _selectedPlayerCount,
         gameMode: _selectedGameMode,
+        jokerMode: _selectedJokerMode,
         turnTimerSeconds: _selectedTurnTimer,
         firstDropPenalty: firstDrop,
         middleDropPenalty: middleDrop,
@@ -595,6 +597,41 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
                             onSelected: (_) => setState(() => _selectedGameMode = mode),
                           );
                         }).toList(),
+                      ),
+
+                      const SizedBox(height: 14),
+                      const Text('Joker Mode:', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(
+                                child: Text('🃏 Open Joker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              selected: _selectedJokerMode == 'OPEN',
+                              selectedColor: AppColors.accent,
+                              backgroundColor: const Color(0xFF081220),
+                              side: BorderSide(color: _selectedJokerMode == 'OPEN' ? AppColors.accent : AppColors.glassBorder),
+                              labelStyle: TextStyle(color: _selectedJokerMode == 'OPEN' ? Colors.black : Colors.white),
+                              onSelected: (_) => setState(() => _selectedJokerMode = 'OPEN'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(
+                                child: Text('🔒 Closed Joker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              selected: _selectedJokerMode == 'CLOSED',
+                              selectedColor: AppColors.accent,
+                              backgroundColor: const Color(0xFF081220),
+                              side: BorderSide(color: _selectedJokerMode == 'CLOSED' ? AppColors.accent : AppColors.glassBorder),
+                              labelStyle: TextStyle(color: _selectedJokerMode == 'CLOSED' ? Colors.black : Colors.white),
+                              onSelected: (_) => setState(() => _selectedJokerMode = 'CLOSED'),
+                            ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 14),

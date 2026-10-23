@@ -15,6 +15,7 @@ class HomeState {
   final int playerLevel;
   final int playerXP;
   final int activeBottomNavIndex;
+  final String selectedJokerMode; // 'OPEN' or 'CLOSED'
 
   const HomeState({
     this.selectedDifficulty = AILevel.intermediate,
@@ -28,6 +29,7 @@ class HomeState {
     this.playerLevel = 1,
     this.playerXP = 0,
     this.activeBottomNavIndex = 0,
+    this.selectedJokerMode = 'OPEN',
   });
 
   HomeState copyWith({
@@ -42,6 +44,7 @@ class HomeState {
     int? playerLevel,
     int? playerXP,
     int? activeBottomNavIndex,
+    String? selectedJokerMode,
   }) {
     return HomeState(
       selectedDifficulty: selectedDifficulty ?? this.selectedDifficulty,
@@ -55,6 +58,7 @@ class HomeState {
       playerLevel: playerLevel ?? this.playerLevel,
       playerXP: playerXP ?? this.playerXP,
       activeBottomNavIndex: activeBottomNavIndex ?? this.activeBottomNavIndex,
+      selectedJokerMode: selectedJokerMode ?? this.selectedJokerMode,
     );
   }
 
@@ -139,6 +143,10 @@ class HomeNotifier extends StateNotifier<HomeState> {
       coins: _prefs.getCoins(),
       dailyChallengeClaimed: true,
     );
+  }
+
+  void setJokerMode(String mode) {
+    state = state.copyWith(selectedJokerMode: mode);
   }
 
   void setBottomNavIndex(int index) {

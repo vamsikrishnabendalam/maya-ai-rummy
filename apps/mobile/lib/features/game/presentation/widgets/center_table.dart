@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart' hide Card;
+import 'package:flutter/material.dart' hide Card;
 import 'package:game_engine/game_engine.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'card_widget.dart';
@@ -15,6 +15,18 @@ class CenterTable extends StatelessWidget {
   /// The wild joker card turned face-up for the current round.
   final Card wildJoker;
 
+  /// Whether the table is playing with closed joker rule.
+  final bool isClosedJoker;
+
+  /// Whether the player has opened and revealed the joker.
+  final bool isJokerOpened;
+
+  /// Whether the player holds a valid Pure Sequence (Life) to view joker.
+  final bool hasLife;
+
+  /// Callback when player taps to open/view the closed joker.
+  final VoidCallback? onOpenClosedJoker;
+
   /// Whether the player can tap either deck to draw a card.
   final bool canDraw;
 
@@ -29,6 +41,10 @@ class CenterTable extends StatelessWidget {
     required this.closedDeckCount,
     required this.openPile,
     required this.wildJoker,
+    this.isClosedJoker = false,
+    this.isJokerOpened = true,
+    this.hasLife = false,
+    this.onOpenClosedJoker,
     this.canDraw = false,
     this.onDrawClosed,
     this.onDrawOpen,
@@ -110,6 +126,100 @@ class CenterTable extends StatelessWidget {
 
   /// Builds the wild joker display with surrounding golden glow and label.
   Widget _buildWildJoker() {
+    if (isClosedJoker && !isJokerOpened) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 64,
+            height: 94,
+            child: Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CardBackWidget(
+                    width: 56,
+                    height: 84,
+                    showPulse: hasLife,
+                    onTap: hasLife ? onOpenClosedJoker : null,
+                  ),
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: hasLife ? AppColors.accent : Colors.black87,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: hasLife ? Colors.white : Colors.amber.shade700,
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          if (hasLife)
+                            BoxShadow(
+                              color: AppColors.accent.withValues(alpha: 0.8),
+                              blurRadius: 8,
+                            ),
+                        ],
+                      ),
+                      child: Icon(
+                        hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                        size: 13,
+                        color: hasLife ? Colors.black : Colors.amber.shade200,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (hasLife)
+            GestureDetector(
+              onTap: onOpenClosedJoker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'VIEW JOKER',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            )
+          else
+            const Column(
+              children: [
+                Text(
+                  'CLOSED JOKER',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textMuted,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  '(Need Life)',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.white38,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

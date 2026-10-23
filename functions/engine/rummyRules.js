@@ -52,7 +52,8 @@ function cardToInt(card) {
 }
 
 function getEffectiveWildRank(wildJokerCard) {
-  if (!wildJokerCard || wildJokerCard.isPrintedJoker) {
+  if (!wildJokerCard) return null;
+  if (wildJokerCard.isPrintedJoker) {
     return 'ace';
   }
   return wildJokerCard.rank;
@@ -61,12 +62,14 @@ function getEffectiveWildRank(wildJokerCard) {
 function isJoker(card, wildJokerCard) {
   if (!card) return false;
   if (card.isPrintedJoker) return true;
+  if (!wildJokerCard) return false;
   const effectiveWild = getEffectiveWildRank(wildJokerCard);
   return card.rank === effectiveWild;
 }
 
 function isWildJoker(card, wildJokerCard) {
   if (!card || card.isPrintedJoker) return false;
+  if (!wildJokerCard) return false;
   const effectiveWild = getEffectiveWildRank(wildJokerCard);
   return card.rank === effectiveWild;
 }

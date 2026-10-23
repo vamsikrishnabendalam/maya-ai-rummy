@@ -51,6 +51,7 @@ class MultiplayerService {
     int maxPenalty = 80,
     String entryType = 'FREE',
     int entryCoins = 0,
+    String jokerMode = 'OPEN',
   }) async {
     final isCoin = entryType == 'COIN';
     const creationFee = 50;
@@ -115,6 +116,7 @@ class MultiplayerService {
       entryCoins: isCoin ? entryCoins : 0,
       creationFee: isCoin ? creationFee : 0,
       prizePool: isCoin ? entryCoins : 0,
+      jokerMode: jokerMode,
     );
 
     _mockTables[tableId] = lobby;
@@ -617,6 +619,7 @@ class MultiplayerService {
       throw Exception('DEAL_VALIDATION_FAILED: Duplicate physical card ownership detected across table.');
     }
 
+    final isClosedJoker = lobby.jokerMode == 'CLOSED';
     final initialActionLog = [
       {
         'seq': 1,
@@ -625,14 +628,23 @@ class MultiplayerService {
         'playerId': lobby.hostUid,
         'description': 'Game started with ${lobby.players.length} players. Room: ${lobby.roomCode}',
       },
-      {
-        'seq': 2,
-        'timestamp': now.toIso8601String(),
-        'type': 'OPEN_JOKER_REVEALED',
-        'playerId': lobby.hostUid,
-        'card': openJoker.toInt(),
-        'description': 'Open Joker cut: ${openJoker.label} (${effectiveWildRank.toUpperCase()} is Wild)',
-      },
+      if (isClosedJoker)
+        {
+          'seq': 2,
+          'timestamp': now.toIso8601String(),
+          'type': 'CLOSED_JOKER_DRAWN',
+          'playerId': lobby.hostUid,
+          'description': 'Closed Joker placed face-down. Pure Sequence (Life) required to view.',
+        }
+      else
+        {
+          'seq': 2,
+          'timestamp': now.toIso8601String(),
+          'type': 'OPEN_JOKER_REVEALED',
+          'playerId': lobby.hostUid,
+          'card': openJoker.toInt(),
+          'description': 'Open Joker cut: ${openJoker.label} (${effectiveWildRank.toUpperCase()} is Wild)',
+        },
       {
         'seq': 3,
         'timestamp': now.toIso8601String(),
@@ -665,6 +677,8 @@ class MultiplayerService {
       creationFee: lobby.creationFee,
       prizePool: lobby.prizePool > 0 ? lobby.prizePool : (lobby.isCoinTable ? lobby.players.length * lobby.entryCoins : 0),
       turnDeadline: lobby.turnTimerSeconds <= 0 ? null : now.add(Duration(seconds: lobby.turnTimerSeconds + 5)),
+      jokerMode: lobby.jokerMode,
+      openedJokerPlayerUids: const [],
       openJoker: openJoker,
       effectiveWildRank: effectiveWildRank,
       openPile: [firstOpenCard],
@@ -1327,6 +1341,53 @@ class MultiplayerService {
     }
   }
 
+  /// Reveals the closed joker to a player who has formed Life (Pure Sequence)
+  Future<void> openClosedJoker({
+    required String gameId,
+    required String myUid,
+  }) async {
+    final game = _mockGames[gameId];
+    if (game == null) return;
+    if (game.jokerMode != 'CLOSED') return;
+    if (game.openedJokerPlayerUids.contains(myUid)) return;
+
+    final player = game.players.firstWhere(
+      (p) => p.uid == myUid,
+      orElse: () => TablePlayer(uid: myUid, displayName: 'Player', photoURL: '', seatIndex: 0),
+    );
+    final now = DateTime.now();
+    final updatedOpened = [...game.openedJokerPlayerUids, myUid];
+    final jokerLabel = game.openJoker?.label ?? 'Wild Joker';
+
+    final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
+    actionLog.add({
+      'seq': actionLog.length + 1,
+      'timestamp': now.toIso8601String(),
+      'type': 'CLOSED_JOKER_OPENED',
+      'playerId': myUid,
+      'description': '${player.displayName} unlocked and revealed the Closed Joker ($jokerLabel) with Life! 🃏',
+    });
+
+    final updatedGame = game.copyWith(
+      openedJokerPlayerUids: updatedOpened,
+      actionLog: actionLog,
+    );
+
+    _mockGames[gameId] = updatedGame;
+    _getOrCreateGameController(gameId).add(updatedGame);
+
+    if (FirebaseConfig.isInitialized && _firestore != null) {
+      try {
+        await _firestore!.collection('games').doc(gameId).update({
+          'openedJokerPlayerUids': updatedOpened,
+          'actionLog': actionLog,
+        });
+      } catch (e) {
+        debugPrint('[MultiplayerService] openClosedJoker Firestore error: $e');
+      }
+    }
+  }
+
   /// Declare Game with pure GameEngine meld verification & point calculation
   Future<Map<String, dynamic>> declareGame({
     required String gameId,
@@ -1337,7 +1398,9 @@ class MultiplayerService {
     final game = _mockGames[gameId];
     if (game == null) throw Exception('Game not found');
 
-    final valRes = DeclarationValidator().validate(groups, game.openJoker!);
+    final hasSeenJoker = game.hasPlayerOpenedJoker(myUid);
+    final effectiveJoker = hasSeenJoker ? game.openJoker! : null;
+    final valRes = DeclarationValidator().validate(groups, effectiveJoker);
     final now = DateTime.now();
 
     if (valRes.isValid) {
@@ -1351,6 +1414,10 @@ class MultiplayerService {
         score: 0,
         isWinner: true,
       );
+
+      final updatedOpened = (!game.openedJokerPlayerUids.contains(myUid))
+          ? [...game.openedJokerPlayerUids, myUid]
+          : game.openedJokerPlayerUids;
 
       final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
       actionLog.add({
@@ -1402,6 +1469,7 @@ class MultiplayerService {
         declarationDeadline: deadline,
         submittedPlayerUids: initialSubmittedUids,
         finalResults: initialResults,
+        openedJokerPlayerUids: updatedOpened,
         actionLog: actionLog,
       );
 
@@ -1614,9 +1682,10 @@ class MultiplayerService {
     final now = DateTime.now();
 
     // Calculate deadwood score using GameEngine scoring rules
+    final hasSeenJoker = game.hasPlayerOpenedJoker(myUid);
     final score = Scoring.calculateHandDeadwood(
       groups: groups,
-      wildJoker: game.openJoker!,
+      wildJoker: hasSeenJoker ? game.openJoker : null,
       maxPenalty: 80,
     );
 
@@ -1713,7 +1782,9 @@ class MultiplayerService {
         } else {
           final pHand = _mockPrivateHands['${game.gameId}_${p.uid}'] ?? [];
           if (pHand.isNotEmpty) {
-            score = HandPartitioner.findBestPartition(pHand, game.openJoker).penaltyScore.clamp(0, 80);
+            final hasSeenJoker = game.hasPlayerOpenedJoker(p.uid);
+            final effectiveJoker = hasSeenJoker ? game.openJoker : null;
+            score = HandPartitioner.findBestPartition(pHand, effectiveJoker).penaltyScore.clamp(0, 80);
           }
         }
         results.add(MultiplayerFinalResult(

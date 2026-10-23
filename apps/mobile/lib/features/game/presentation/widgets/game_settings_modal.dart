@@ -24,6 +24,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
   late int _middleDrop;
   late int _fullCount;
   late int _eliminationScore;
+  late String _jokerMode;
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
     _middleDrop = widget.currentSettings.middleDropPenalty;
     _fullCount = widget.currentSettings.fullCountPenalty;
     _eliminationScore = widget.currentSettings.eliminationScore;
+    _jokerMode = widget.currentSettings.jokerMode;
   }
 
   void _resetDefaults() {
@@ -40,6 +42,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
       _middleDrop = 40;
       _fullCount = 80;
       _eliminationScore = 201;
+      _jokerMode = 'OPEN';
     });
   }
 
@@ -49,6 +52,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
       middleDropPenalty: _middleDrop,
       fullCountPenalty: _fullCount,
       eliminationScore: _eliminationScore,
+      jokerMode: _jokerMode,
     ));
     widget.onClose();
   }
@@ -109,6 +113,53 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Joker Mode',
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Choose whether the wild joker is open from deal, or closed until Life (Pure Sequence) is formed',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(
+                                child: Text('🃏 Open Joker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              selected: _jokerMode == 'OPEN',
+                              selectedColor: AppColors.accent,
+                              backgroundColor: const Color(0xFF081220),
+                              side: BorderSide(color: _jokerMode == 'OPEN' ? AppColors.accent : AppColors.glassBorder),
+                              labelStyle: TextStyle(color: _jokerMode == 'OPEN' ? Colors.black : Colors.white),
+                              onSelected: (_) => setState(() => _jokerMode = 'OPEN'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(
+                                child: Text('🔒 Closed Joker', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              selected: _jokerMode == 'CLOSED',
+                              selectedColor: AppColors.accent,
+                              backgroundColor: const Color(0xFF081220),
+                              side: BorderSide(color: _jokerMode == 'CLOSED' ? AppColors.accent : AppColors.glassBorder),
+                              labelStyle: TextStyle(color: _jokerMode == 'CLOSED' ? Colors.black : Colors.white),
+                              onSelected: (_) => setState(() => _jokerMode = 'CLOSED'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Divider(color: AppColors.glassBorder, height: 28),
                   _buildSettingRow(
                     title: 'First Drop Penalty',
                     subtitle: 'Points added when dropping on your first turn',
