@@ -125,8 +125,17 @@ class _ProfileSetupModalState extends ConsumerState<ProfileSetupModal> {
         );
       }
     } catch (e) {
+      String msg = e.toString().replaceAll('Exception: ', '');
+      try {
+        final dynamic dyn = e;
+        if (dyn.error != null) {
+          msg = dyn.error.toString().replaceAll('Exception: ', '');
+        } else if (dyn.message != null) {
+          msg = dyn.message.toString();
+        }
+      } catch (_) {}
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = msg;
         _isLoading = false;
       });
     }

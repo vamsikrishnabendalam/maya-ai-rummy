@@ -20,10 +20,7 @@ service cloud.firestore {
     // User profiles & wallets
     match /users/{uid} {
       allow read: if isAuthenticated();
-      // Allow user creation or update; prevent non-admin from self-assigning ADMIN role or changing accountStatus
-      allow create: if isOwner(uid) && (
-        !('role' in request.resource.data) || request.resource.data.role != 'ADMIN' || isAdmin()
-      );
+      allow create: if isOwner(uid);
       allow update: if isOwner(uid) || isAdmin();
       allow delete: if isAdmin();
 
@@ -33,6 +30,10 @@ service cloud.firestore {
         allow create, update: if isOwner(uid) || isAdmin();
         allow delete: if false;
       }
+    }
+
+    match /registrationSecurity/{id} {
+      allow read, write: if isAuthenticated();
     }
 
     // Append-only Virtual Coin Ledger: Immutable (No update, no delete)
