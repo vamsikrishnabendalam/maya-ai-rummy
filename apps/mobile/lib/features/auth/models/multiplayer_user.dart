@@ -22,6 +22,8 @@ class MultiplayerUser {
   final int xp;
   final int lifetimeXP;
   final int loginStreak;
+  final int currentStreak;
+  final int bestWinStreak;
   final String? lastRewardDate; // YYYY-MM-DD
   final bool isProfileComplete;
   final bool isGuest;
@@ -52,6 +54,8 @@ class MultiplayerUser {
     this.xp = 0,
     this.lifetimeXP = 0,
     this.loginStreak = 1,
+    this.currentStreak = 0,
+    this.bestWinStreak = 0,
     this.lastRewardDate,
     this.isProfileComplete = false,
     this.isGuest = false,
@@ -91,6 +95,8 @@ class MultiplayerUser {
     int? xp,
     int? lifetimeXP,
     int? loginStreak,
+    int? currentStreak,
+    int? bestWinStreak,
     String? lastRewardDate,
     bool? isProfileComplete,
     bool? isGuest,
@@ -121,6 +127,8 @@ class MultiplayerUser {
       xp: xp ?? this.xp,
       lifetimeXP: lifetimeXP ?? this.lifetimeXP,
       loginStreak: loginStreak ?? this.loginStreak,
+      currentStreak: currentStreak ?? this.currentStreak,
+      bestWinStreak: bestWinStreak ?? this.bestWinStreak,
       lastRewardDate: lastRewardDate ?? this.lastRewardDate,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
       isGuest: isGuest ?? this.isGuest,
@@ -153,6 +161,8 @@ class MultiplayerUser {
     'xp': xp,
     'lifetimeXP': lifetimeXP,
     'loginStreak': loginStreak,
+    'currentStreak': currentStreak,
+    'bestWinStreak': bestWinStreak,
     'lastRewardDate': lastRewardDate,
     'isProfileComplete': isProfileComplete,
     'isGuest': isGuest,
@@ -198,6 +208,8 @@ class MultiplayerUser {
       xp: json['xp'] ?? 0,
       lifetimeXP: json['lifetimeXP'] ?? json['xp'] ?? 0,
       loginStreak: json['loginStreak'] ?? 1,
+      currentStreak: json['currentStreak'] ?? stats['currentStreak'] ?? 0,
+      bestWinStreak: json['bestWinStreak'] ?? stats['bestWinStreak'] ?? 0,
       lastRewardDate: json['lastRewardDate'],
       isProfileComplete: json['isProfileComplete'] ?? (json['email'] != null && !(json['isGuest'] ?? false)),
       isGuest: json['isGuest'] ?? false,

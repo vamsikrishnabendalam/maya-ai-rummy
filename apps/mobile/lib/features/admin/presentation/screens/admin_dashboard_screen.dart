@@ -802,6 +802,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
+                icon: const Icon(Icons.insights_rounded, color: Colors.purpleAccent, size: 20),
+                tooltip: 'Player Progression & Achievements',
+                onPressed: () => _showPlayerProgressionDialog(u),
+              ),
+              IconButton(
                 icon: const Icon(Icons.currency_exchange, color: Color(0xFFFFD700), size: 20),
                 tooltip: 'Adjust Virtual Coins',
                 onPressed: () => _showCoinAdjustmentDialog(u),
@@ -1090,35 +1095,388 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
   Widget _buildLevelsTab() {
     final kpis = _kpiData ?? const AdminKPIData();
 
+    // Compute live tier counts from loaded users if available
+    int bronzeCount = 0;
+    int silverCount = 0;
+    int goldCount = 0;
+    int platinumCount = 0;
+
+    if (_users.isNotEmpty) {
+      for (final u in _users) {
+        switch (u.currentTier.toUpperCase()) {
+          case 'PLATINUM':
+            platinumCount++;
+            break;
+          case 'GOLD':
+            goldCount++;
+            break;
+          case 'SILVER':
+            silverCount++;
+            break;
+          case 'BRONZE':
+          default:
+            bronzeCount++;
+            break;
+        }
+      }
+    } else {
+      bronzeCount = kpis.tierDistribution['BRONZE'] ?? 0;
+      silverCount = kpis.tierDistribution['SILVER'] ?? 0;
+      goldCount = kpis.tierDistribution['GOLD'] ?? 0;
+      platinumCount = kpis.tierDistribution['PLATINUM'] ?? 0;
+    }
+
+    final totalTiers = (bronzeCount + silverCount + goldCount + platinumCount).clamp(1, 999999);
+
+    // Sort leaderboard by XP descending
+    final leaderboard = List<MultiplayerUser>.from(_users)
+      ..sort((a, b) => b.xp.compareTo(a.xp));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Player Progression & Tier Distribution', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          const Text('20 Progression Levels (Bronze I–V to Platinum I–V)', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Player Progression, Levels & Leaderboards', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('20 Tiered Levels (Bronze I–V to Platinum I–V) • Live Player Achievements Monitoring', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh Progression', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                onPressed: () {
+                  _searchUsers('');
+                  _loadKPIs();
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
 
-          // Tiers Grid
+          // Tiers Grid with Live Percentages
           Row(
             children: [
               Expanded(
-                child: _buildTierStatCard('BRONZE', LevelProgression.getTierColor('BRONZE'), kpis.tierDistribution['BRONZE'] ?? 0, 'Levels 1 - 5 (0 to 999 XP)'),
+                child: _buildTierStatCard(
+                  'BRONZE',
+                  LevelProgression.getTierColor('BRONZE'),
+                  bronzeCount,
+                  '${((bronzeCount / totalTiers) * 100).toStringAsFixed(1)}% of players • 0-999 XP',
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: _buildTierStatCard('SILVER', LevelProgression.getTierColor('SILVER'), kpis.tierDistribution['SILVER'] ?? 0, 'Levels 6 - 10 (1,000 to 3,999 XP)'),
+                child: _buildTierStatCard(
+                  'SILVER',
+                  LevelProgression.getTierColor('SILVER'),
+                  silverCount,
+                  '${((silverCount / totalTiers) * 100).toStringAsFixed(1)}% of players • 1K-3.9K XP',
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: _buildTierStatCard('GOLD', LevelProgression.getTierColor('GOLD'), kpis.tierDistribution['GOLD'] ?? 0, 'Levels 11 - 15 (4,000 to 10,999 XP)'),
+                child: _buildTierStatCard(
+                  'GOLD',
+                  LevelProgression.getTierColor('GOLD'),
+                  goldCount,
+                  '${((goldCount / totalTiers) * 100).toStringAsFixed(1)}% of players • 4K-10.9K XP',
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: _buildTierStatCard('PLATINUM', LevelProgression.getTierColor('PLATINUM'), kpis.tierDistribution['PLATINUM'] ?? 0, 'Levels 16 - 20 (11,000+ XP)'),
+                child: _buildTierStatCard(
+                  'PLATINUM',
+                  LevelProgression.getTierColor('PLATINUM'),
+                  platinumCount,
+                  '${((platinumCount / totalTiers) * 100).toStringAsFixed(1)}% of players • 11K+ XP',
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 28),
+
+          // Top Players Progression Leaderboard
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F1E36),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.emoji_events_rounded, color: AppColors.accent, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          'Top Players Progression Leaderboard',
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${leaderboard.length} Players Registered',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (leaderboard.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(
+                      child: Text('No player progression records loaded yet.', style: TextStyle(color: AppColors.textMuted)),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: leaderboard.length.clamp(0, 10),
+                    separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (ctx, i) {
+                      final u = leaderboard[i];
+                      final tierColor = LevelProgression.getTierColor(u.currentTier);
+                      final isTop3 = i < 3;
+                      final rankColors = [
+                        const Color(0xFFFFD700), // Gold
+                        const Color(0xFFCFD8DC), // Silver
+                        const Color(0xFFCD7F32), // Bronze
+                      ];
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            // Rank Badge
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isTop3 ? rankColors[i].withValues(alpha: 0.2) : Colors.white10,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: isTop3 ? rankColors[i] : Colors.white24),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '#${i + 1}',
+                                  style: TextStyle(
+                                    color: isTop3 ? rankColors[i] : Colors.white70,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+
+                            // Avatar & Name
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: tierColor.withValues(alpha: 0.2),
+                              child: Text(
+                                u.displayName.isNotEmpty ? u.displayName[0].toUpperCase() : '?',
+                                style: TextStyle(color: tierColor, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    u.displayName,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  Text(
+                                    (u.email != null && u.email!.isNotEmpty) ? u.email! : 'UID: ${u.uid}',
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Tier & Level Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: tierColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: tierColor.withValues(alpha: 0.6)),
+                              ),
+                              child: Text(
+                                '${u.currentTier} • Lvl ${u.currentLevelIndex}',
+                                style: TextStyle(color: tierColor, fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+
+                            // XP
+                            SizedBox(
+                              width: 90,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('${u.xp} XP', style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  const Text('Lifetime XP', style: TextStyle(color: AppColors.textMuted, fontSize: 9)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+
+                            // Matches & Win Rate
+                            SizedBox(
+                              width: 110,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${u.gamesWon}W / ${u.gamesPlayed}G',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text('Win Rate: ${u.winRateFormatted}', style: const TextStyle(color: Colors.greenAccent, fontSize: 10)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // Inspect Button
+                            IconButton(
+                              icon: const Icon(Icons.insights_rounded, color: Colors.purpleAccent, size: 20),
+                              tooltip: 'Inspect Progression & Grant Rewards',
+                              onPressed: () => _showPlayerProgressionDialog(u),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // All 14 System Achievements Registry
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F1E36),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.military_tech_rounded, color: AppColors.accent, size: 22),
+                    SizedBox(width: 10),
+                    Text(
+                      'Predefined Achievements Registry (14 Achievements)',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Automated milestone, victory, streak, and tier unlocks rewarded via server-authoritative wallet ledger.',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: AchievementDefinition.all.map((def) {
+                    Color catColor = Colors.blueAccent;
+                    if (def.category == 'WINS') catColor = Colors.amberAccent;
+                    if (def.category == 'SKILL') catColor = Colors.purpleAccent;
+                    if (def.category == 'TIER') catColor = Colors.tealAccent;
+
+                    return Container(
+                      width: 280,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF081220),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: catColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: catColor.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(def.icon, color: catColor, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        def.title,
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: catColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        def.category,
+                                        style: TextStyle(color: catColor, fontSize: 8, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  def.description,
+                                  style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '+${def.coinReward} 🪙 • +${def.xpReward} XP',
+                                  style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 28),
 
@@ -1658,5 +2016,628 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
         );
       }
     }
+  }
+
+  void _showPlayerProgressionDialog(MultiplayerUser user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _PlayerProgressionDialog(
+        user: user,
+        adminService: _adminService,
+        adminUser: ref.read(authProvider),
+        onUserUpdated: () {
+          _searchUsers(_userSearchController.text);
+          _loadKPIs();
+        },
+      ),
+    );
+  }
+}
+
+/// Dedicated Deep-Dive Modal for Player Progression, XP, Career Stats & Achievements Management
+class _PlayerProgressionDialog extends StatefulWidget {
+  final MultiplayerUser user;
+  final AdminService adminService;
+  final MultiplayerUser? adminUser;
+  final VoidCallback onUserUpdated;
+
+  const _PlayerProgressionDialog({
+    Key? key,
+    required this.user,
+    required this.adminService,
+    required this.adminUser,
+    required this.onUserUpdated,
+  }) : super(key: key);
+
+  @override
+  State<_PlayerProgressionDialog> createState() => _PlayerProgressionDialogState();
+}
+
+class _PlayerProgressionDialogState extends State<_PlayerProgressionDialog> with SingleTickerProviderStateMixin {
+  late TabController _dialogTabController;
+  late MultiplayerUser _user;
+  Map<String, UserAchievement> _achievements = {};
+  bool _isLoading = true;
+  bool _isActionRunning = false;
+  String? _statusMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _dialogTabController = TabController(length: 2, vsync: this);
+    _user = widget.user;
+    _loadAchievements();
+  }
+
+  @override
+  void dispose() {
+    _dialogTabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAchievements() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await widget.adminService.fetchPlayerAchievements(_user.uid);
+      if (mounted) setState(() => _achievements = res);
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _grantXP(int xp, String defaultReason) async {
+    final reasonCtrl = TextEditingController(text: defaultReason);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        title: Text('Grant $xp XP to ${_user.displayName}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Target: ${_user.displayName} (Current: ${_user.xp} XP)', style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Mandatory Audit Reason',
+                labelStyle: TextStyle(color: AppColors.textMuted),
+                filled: true,
+                fillColor: Color(0xFF081220),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Grant XP', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isActionRunning = true);
+    try {
+      final admin = widget.adminUser;
+      await widget.adminService.grantPlayerXP(
+        adminUid: admin?.uid ?? 'master_admin',
+        adminEmail: admin?.email ?? 'admin@mayarummy.com',
+        targetUid: _user.uid,
+        xpAmount: xp,
+        reason: reasonCtrl.text.trim().isEmpty ? defaultReason : reasonCtrl.text.trim(),
+      );
+
+      final updatedUsers = await widget.adminService.searchUsers(_user.uid);
+      if (updatedUsers.isNotEmpty && mounted) {
+        setState(() {
+          _user = updatedUsers.first;
+          _statusMessage = 'Successfully granted $xp XP to ${_user.displayName}!';
+        });
+      }
+      widget.onUserUpdated();
+    } catch (e) {
+      if (mounted) setState(() => _statusMessage = 'Error granting XP: $e');
+    } finally {
+      if (mounted) setState(() => _isActionRunning = false);
+    }
+  }
+
+  Future<void> _showCustomXPDialog() async {
+    final amountCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController(text: 'Admin manual XP adjustment');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        title: Text('Custom XP Grant: ${_user.displayName}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'XP Amount (e.g. 250)',
+                labelStyle: TextStyle(color: AppColors.textMuted),
+                filled: true,
+                fillColor: Color(0xFF081220),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Mandatory Audit Reason',
+                labelStyle: TextStyle(color: AppColors.textMuted),
+                filled: true,
+                fillColor: Color(0xFF081220),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Grant Custom XP', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    final parsed = int.tryParse(amountCtrl.text.trim()) ?? 0;
+    if (parsed <= 0) return;
+
+    await _grantXP(parsed, reasonCtrl.text.trim());
+  }
+
+  Future<void> _unlockAchievement(AchievementDefinition def) async {
+    final reasonCtrl = TextEditingController(text: 'Admin testing & milestone grant');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        title: Text('Unlock Achievement: ${def.title}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Player: ${_user.displayName}', style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 6),
+            Text(
+              'Rewards: +${def.coinReward} 🪙 Coins • +${def.xpReward} XP',
+              style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Audit Reason',
+                labelStyle: TextStyle(color: AppColors.textMuted),
+                filled: true,
+                fillColor: Color(0xFF081220),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Unlock & Award', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isActionRunning = true);
+    try {
+      final admin = widget.adminUser;
+      await widget.adminService.grantPlayerAchievement(
+        adminUid: admin?.uid ?? 'master_admin',
+        adminEmail: admin?.email ?? 'admin@mayarummy.com',
+        targetUid: _user.uid,
+        achievementId: def.id,
+        reason: reasonCtrl.text.trim().isEmpty ? 'Admin manual unlock' : reasonCtrl.text.trim(),
+      );
+
+      await _loadAchievements();
+      final updatedUsers = await widget.adminService.searchUsers(_user.uid);
+      if (updatedUsers.isNotEmpty && mounted) {
+        setState(() {
+          _user = updatedUsers.first;
+          _statusMessage = 'Unlocked achievement "${def.title}" with rewards credited!';
+        });
+      }
+      widget.onUserUpdated();
+    } catch (e) {
+      if (mounted) setState(() => _statusMessage = 'Error unlocking achievement: $e');
+    } finally {
+      if (mounted) setState(() => _isActionRunning = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final levelInfo = LevelProgression.getLevelInfo(_user.xp);
+    final size = MediaQuery.of(context).size;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: 680,
+          maxHeight: size.height * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1B2A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: levelInfo.tierColor.withValues(alpha: 0.8), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: levelInfo.tierColor.withValues(alpha: 0.25),
+              blurRadius: 30,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Modal Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: levelInfo.tierColor.withValues(alpha: 0.2),
+                    child: Text(
+                      _user.displayName.isNotEmpty ? _user.displayName[0].toUpperCase() : '👤',
+                      style: TextStyle(color: levelInfo.tierColor, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _user.displayName,
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${levelInfo.subLevel.toUpperCase()} (Lvl ${levelInfo.levelIndex}/20) • ${_user.email ?? "UID: ${_user.uid}"}',
+                          style: TextStyle(color: levelInfo.tierColor, fontSize: 11, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: AppColors.glassBorder, height: 1),
+
+            // Tab Bar
+            TabBar(
+              controller: _dialogTabController,
+              indicatorColor: levelInfo.tierColor,
+              indicatorWeight: 3,
+              labelColor: levelInfo.tierColor,
+              unselectedLabelColor: AppColors.textMuted,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              tabs: const [
+                Tab(icon: Icon(Icons.insights_rounded, size: 18), text: 'Career Stats & XP'),
+                Tab(icon: Icon(Icons.military_tech_rounded, size: 18), text: 'Achievements (14)'),
+              ],
+            ),
+
+            if (_isActionRunning)
+              const LinearProgressIndicator(color: AppColors.accent, minHeight: 3),
+
+            if (_statusMessage != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.green.withValues(alpha: 0.2),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_statusMessage!, style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.greenAccent, size: 14),
+                      onPressed: () => setState(() => _statusMessage = null),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Tab Content
+            Expanded(
+              child: TabBarView(
+                controller: _dialogTabController,
+                children: [
+                  // TAB 1: CAREER STATS & XP
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Level Progress Bar
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF081220),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: levelInfo.tierColor.withValues(alpha: 0.4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '${levelInfo.subLevel.toUpperCase()} (Level ${levelInfo.levelIndex}/20)',
+                                    style: TextStyle(color: levelInfo.tierColor, fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${levelInfo.currentXP} / ${levelInfo.nextLevelXP} XP',
+                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: LinearProgressIndicator(
+                                  value: levelInfo.progressPercent,
+                                  backgroundColor: Colors.white10,
+                                  valueColor: AlwaysStoppedAnimation<Color>(levelInfo.tierColor),
+                                  minHeight: 10,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Tier: ${levelInfo.tier}',
+                                    style: TextStyle(color: levelInfo.tierColor, fontSize: 11, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    '${(levelInfo.progressPercent * 100).toStringAsFixed(1)}% to Level ${levelInfo.levelIndex + 1}',
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Admin Grant XP Actions
+                        const Text('ADMIN XP MANAGEMENT', style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF142E54), foregroundColor: Colors.white),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('+100 XP'),
+                              onPressed: () => _grantXP(100, 'Admin +100 XP grant'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF142E54), foregroundColor: Colors.white),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('+500 XP'),
+                              onPressed: () => _grantXP(500, 'Admin +500 XP grant'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF142E54), foregroundColor: Colors.white),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('+1,000 XP'),
+                              onPressed: () => _grantXP(1000, 'Admin +1000 XP grant'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: const BorderSide(color: AppColors.accent)),
+                              icon: const Icon(Icons.tune_rounded, size: 16),
+                              label: const Text('Custom XP'),
+                              onPressed: _showCustomXPDialog,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Career Performance Metrics Grid
+                        const Text('CAREER PERFORMANCE METRICS', style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                        const SizedBox(height: 10),
+                        GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 2.3,
+                          children: [
+                            _buildStatCard('Matches Played', '${_user.gamesPlayed}', Icons.sports_esports_rounded),
+                            _buildStatCard('Matches Won', '${_user.gamesWon}', Icons.emoji_events_rounded),
+                            _buildStatCard('Matches Lost', '${_user.gamesLost}', Icons.close_rounded),
+                            _buildStatCard('Win Rate', _user.winRateFormatted, Icons.pie_chart_rounded),
+                            _buildStatCard('Total Score', '${_user.totalScore}', Icons.score_rounded),
+                            _buildStatCard('Highest Score', '${_user.highestScore}', Icons.auto_awesome_rounded),
+                            _buildStatCard('Best Win Streak', '${_user.bestWinStreak} Games', Icons.local_fire_department_rounded),
+                            _buildStatCard('Current Streak', '${_user.currentStreak} Games', Icons.bolt_rounded),
+                            _buildStatCard('Coins Vault', '${_user.coins} 🪙', Icons.monetization_on_rounded),
+                            _buildStatCard('Coins Spent', '${_user.lifetimeCoinsSpent} 🪙', Icons.shopping_cart_rounded),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // TAB 2: ACHIEVEMENTS (14 PREDEFINED)
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: AchievementDefinition.all.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (ctx, idx) {
+                            final def = AchievementDefinition.all[idx];
+                            final userAchiev = _achievements[def.id];
+                            final isUnlocked = userAchiev != null && userAchiev.completed;
+
+                            Color catColor = Colors.blueAccent;
+                            if (def.category == 'WINS') catColor = Colors.amberAccent;
+                            if (def.category == 'SKILL') catColor = Colors.purpleAccent;
+                            if (def.category == 'TIER') catColor = Colors.tealAccent;
+
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF081220),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isUnlocked ? Colors.greenAccent.withValues(alpha: 0.5) : Colors.white10,
+                                  width: isUnlocked ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: isUnlocked ? Colors.green.withValues(alpha: 0.2) : catColor.withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(def.icon, color: isUnlocked ? Colors.greenAccent : catColor, size: 22),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(def.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: catColor.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(def.category, style: TextStyle(color: catColor, fontSize: 8, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(def.description, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Reward: +${def.coinReward} 🪙 Coins • +${def.xpReward} XP',
+                                          style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+
+                                  if (isUnlocked)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.greenAccent),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 14),
+                                          SizedBox(width: 4),
+                                          Text('UNLOCKED', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    )
+                                  else
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.accent,
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      ),
+                                      icon: const Icon(Icons.lock_open_rounded, size: 14),
+                                      label: const Text('Admin Unlock', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                      onPressed: () => _unlockAchievement(def),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF081220),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.accent, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 9)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../auth/models/multiplayer_user.dart';
 import '../../multiplayer/models/table_models.dart';
+import '../../progression/models/progression_models.dart';
 import '../../wallet/services/wallet_service.dart';
 import '../../../../core/config/firebase_config.dart';
 
@@ -367,5 +368,187 @@ class AdminService {
   Future<String> exportGameLogJson(String gameId) async {
     final details = await getGameAuditDetails(gameId);
     return const JsonEncoder.withIndent('  ').convert(details);
+  }
+
+  /// Grant or adjust player XP authoritatively
+  Future<void> grantPlayerXP({
+    required String adminUid,
+    required String adminEmail,
+    required String targetUid,
+    required int xpAmount,
+    required String reason,
+  }) async {
+    final fs = _firestore;
+    if (fs == null) return;
+    if (xpAmount == 0) throw Exception('XP amount cannot be zero');
+    if (reason.trim().isEmpty) throw Exception('An audit reason is required for XP adjustments.');
+
+    final userRef = fs.collection('users').doc(targetUid);
+    final progressRef = fs.collection('playerProgress').doc(targetUid);
+    final auditId = 'audit_xp_${DateTime.now().millisecondsSinceEpoch}_${targetUid.substring(0, targetUid.length.clamp(0, 5))}';
+    final auditRef = fs.collection('adminAuditLogs').doc(auditId);
+
+    await fs.runTransaction((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) throw Exception('User $targetUid not found');
+
+      final currentXP = (snap.data()?['xp'] as num?)?.toInt() ?? 0;
+      final currentLifetimeXP = (snap.data()?['lifetimeXP'] as num?)?.toInt() ?? currentXP;
+
+      final newXP = (currentXP + xpAmount).clamp(0, 9999999);
+      final newLifetimeXP = (currentLifetimeXP + xpAmount).clamp(0, 9999999);
+      final levelInfo = LevelProgression.getLevelInfo(newXP);
+
+      tx.update(userRef, {
+        'xp': newXP,
+        'lifetimeXP': newLifetimeXP,
+        'currentTier': levelInfo.tier,
+        'currentLevel': levelInfo.subLevel,
+        'currentLevelIndex': levelInfo.levelIndex,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      tx.set(progressRef, {
+        'uid': targetUid,
+        'xp': newXP,
+        'lifetimeXP': newLifetimeXP,
+        'tier': levelInfo.tier,
+        'subLevel': levelInfo.subLevel,
+        'levelIndex': levelInfo.levelIndex,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      tx.set(auditRef, {
+        'auditId': auditId,
+        'adminUid': adminUid,
+        'adminEmail': adminEmail,
+        'targetUid': targetUid,
+        'action': 'XP_GRANT',
+        'amount': xpAmount,
+        'balanceBefore': currentXP,
+        'balanceAfter': newXP,
+        'reason': reason,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Manually unlock and grant an achievement to a player
+  Future<void> grantPlayerAchievement({
+    required String adminUid,
+    required String adminEmail,
+    required String targetUid,
+    required String achievementId,
+    required String reason,
+  }) async {
+    final fs = _firestore;
+    if (fs == null) return;
+
+    final def = AchievementDefinition.all.firstWhere(
+      (a) => a.id == achievementId,
+      orElse: () => throw Exception('Achievement $achievementId does not exist in definition registry'),
+    );
+
+    final achievRef = fs.collection('users').doc(targetUid).collection('achievements').doc(achievementId);
+    final auditId = 'audit_achiev_${DateTime.now().millisecondsSinceEpoch}_${targetUid.substring(0, targetUid.length.clamp(0, 5))}';
+    final auditRef = fs.collection('adminAuditLogs').doc(auditId);
+
+    await achievRef.set({
+      'achievementId': def.id,
+      'progress': def.target,
+      'target': def.target,
+      'completed': true,
+      'completedAt': FieldValue.serverTimestamp(),
+      'rewardClaimed': true,
+      'grantedByAdmin': adminEmail,
+    });
+
+    if (def.coinReward > 0) {
+      await _walletService.creditCoins(
+        uid: targetUid,
+        amount: def.coinReward,
+        type: 'ADMIN_ACHIEVEMENT_REWARD',
+        reason: 'Admin Granted: ${def.title} ($reason)',
+        referenceId: def.id,
+      );
+    }
+
+    if (def.xpReward > 0) {
+      await grantPlayerXP(
+        adminUid: adminUid,
+        adminEmail: adminEmail,
+        targetUid: targetUid,
+        xpAmount: def.xpReward,
+        reason: 'Achievement Reward: ${def.title}',
+      );
+    }
+
+    await auditRef.set({
+      'auditId': auditId,
+      'adminUid': adminUid,
+      'adminEmail': adminEmail,
+      'targetUid': targetUid,
+      'action': 'ACHIEVEMENT_UNLOCK',
+      'reason': reason,
+      'metadata': {
+        'achievementId': achievementId,
+        'title': def.title,
+        'coinReward': def.coinReward,
+        'xpReward': def.xpReward,
+      },
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Fetch all achievements unlocked by a user
+  Future<Map<String, UserAchievement>> fetchPlayerAchievements(String uid) async {
+    final fs = _firestore;
+    if (fs == null) return {};
+
+    try {
+      final snap = await fs.collection('users').doc(uid).collection('achievements').get();
+      final map = <String, UserAchievement>{};
+      for (final doc in snap.docs) {
+        final a = UserAchievement.fromJson(doc.data());
+        map[a.achievementId] = a;
+      }
+      return map;
+    } catch (e) {
+      debugPrint('[AdminService] fetchPlayerAchievements error: $e');
+      return {};
+    }
+  }
+
+  /// Fetch player detailed career stats
+  Future<PlayerStats?> fetchPlayerStats(String uid) async {
+    final fs = _firestore;
+    if (fs == null) return null;
+
+    try {
+      final snap = await fs.collection('playerStats').doc(uid).get();
+      if (snap.exists && snap.data() != null) {
+        return PlayerStats.fromJson(snap.data()!);
+      }
+      final userSnap = await fs.collection('users').doc(uid).get();
+      if (userSnap.exists && userSnap.data() != null) {
+        final d = userSnap.data()!;
+        return PlayerStats(
+          uid: uid,
+          gamesPlayed: (d['gamesPlayed'] as num?)?.toInt() ?? 0,
+          gamesWon: (d['gamesWon'] as num?)?.toInt() ?? 0,
+          gamesLost: (d['gamesLost'] as num?)?.toInt() ?? 0,
+          totalScore: (d['totalScore'] as num?)?.toInt() ?? 0,
+          highestScore: (d['highestScore'] as num?)?.toInt() ?? 0,
+          currentStreak: (d['currentStreak'] as num?)?.toInt() ?? 0,
+          bestWinStreak: (d['bestWinStreak'] as num?)?.toInt() ?? 0,
+          totalCoinsEarned: (d['lifetimeCoinsEarned'] as num?)?.toInt() ?? 0,
+          totalCoinsSpent: (d['lifetimeCoinsSpent'] as num?)?.toInt() ?? 0,
+        );
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[AdminService] fetchPlayerStats error: $e');
+      return null;
+    }
   }
 }

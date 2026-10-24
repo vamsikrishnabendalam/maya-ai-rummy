@@ -18,6 +18,7 @@ import '../widgets/profile_modal.dart';
 import '../../../rules/presentation/rule_book_modal.dart';
 import '../../../game/presentation/screens/game_table_screen.dart';
 import '../../../game/presentation/widgets/game_settings_modal.dart';
+import '../widgets/app_settings_modal.dart';
 import 'package:flutter/foundation.dart';
 import '../../../game/providers/game_provider.dart';
 
@@ -95,6 +96,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _openSettings(BuildContext context) {
+    AppSettingsModal.show(context);
+  }
+
+  void _openMayaGameSettings(BuildContext context) {
     final tableState = ref.read(gameTableProvider);
     final notifier = ref.read(gameTableProvider.notifier);
 
@@ -106,6 +111,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           notifier.updateSettings(newSettings);
         },
         onClose: () => Navigator.of(ctx).pop(),
+      ),
+    );
+  }
+
+  Widget _buildMayaSettingsButton(BuildContext context) {
+    final tableState = ref.watch(gameTableProvider);
+    final settings = tableState.gameSettings;
+    return InkWell(
+      onTap: () => _openMayaGameSettings(context),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF142E54).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.tune_rounded, color: AppColors.accent, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Maya AI Game Settings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    'Drop: ${settings.firstDropPenalty}/${settings.middleDropPenalty}/${settings.fullCountPenalty} • Elim: ${settings.eliminationScore}',
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.settings, color: AppColors.textMuted, size: 16),
+          ],
+        ),
       ),
     );
   }
@@ -212,6 +264,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const JokerModeSelector(),
           const SizedBox(height: 16),
           const DifficultySelector(isCompact: true),
+          const SizedBox(height: 12),
+          _buildMayaSettingsButton(context),
           const SizedBox(height: 18),
           const DailyChallengeCard(),
           const SizedBox(height: 18),
@@ -251,6 +305,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 18),
           const DifficultySelector(isCompact: false),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: 380,
+            child: _buildMayaSettingsButton(context),
+          ),
           const SizedBox(height: 24),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,6 +372,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             const JokerModeSelector(),
                             const SizedBox(height: 16),
                             const DifficultySelector(isCompact: true),
+                            const SizedBox(height: 14),
+                            _buildMayaSettingsButton(context),
                           ],
                         ),
                       ),
