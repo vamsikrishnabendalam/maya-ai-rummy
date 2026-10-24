@@ -1259,7 +1259,10 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         tableState.selectedCard != null &&
         !game.isDeclaring;
 
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final size = MediaQuery.of(context).size;
+    final isLandscape = size.width > size.height;
+    final isDesktop = size.width >= 850;
+    final isMobileLandscape = isLandscape && !isDesktop;
     final isFirstDrop = game.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
     final dropPenalty = isFirstDrop ? game.firstDropPenalty : game.middleDropPenalty;
     final canDrop = !game.isDeclaring && isMyTurn && isDrawPhase && !isDropped;
@@ -1280,7 +1283,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFF05080F),
-      body: SafeArea(
+      body: Stack(
+        children: [
+          SafeArea(
         child: Column(
           children: [
             // --- 1. Top Navigation Bar ---
@@ -1479,7 +1484,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   ),
 
                   // Landscape Left Thumb-Zone: Drop, Auto Group
-                  if (isLandscape)
+                  if (isMobileLandscape)
                     Positioned(
                       left: 8,
                       top: 0,
@@ -1593,7 +1598,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     ),
 
                   // Landscape Right Thumb-Zone: Group Multi-Select, Discard, Declare
-                  if (isLandscape)
+                  if (isMobileLandscape)
                     Positioned(
                       right: 8,
                       top: 0,
@@ -1752,10 +1757,6 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                       ),
                     ),
 
-                  // Card Animation Layer (Cascade 13-card deal distribution & card flight animations)
-                  const Positioned.fill(
-                    child: CardAnimationLayer(),
-                  ),
 
                   // Round Over Standings Overlay (Pool Rummy multi-round auto-progression)
                   if (game.isRoundOver)
@@ -1820,246 +1821,312 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 ),
               ),
 
-            // --- 3. Portrait 4-Button Action Grid (Drop, Auto Group, Discard, Declare) ---
-            if (!isLandscape)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                child: Row(
-                  children: [
-                    // Drop Button (or Sort during declaration)
-                    Expanded(
-                      child: InkWell(
-                        onTap: game.isDeclaring
-                            ? () => notifier.autoSortHand()
-                            : (canDrop ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop) : null),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: BoxDecoration(
-                            color: game.isDeclaring
-                                ? const Color(0xFF0F172A).withValues(alpha: 0.6)
-                                : (canDrop ? const Color(0xFF3E0A16) : const Color(0xFF0F172A).withValues(alpha: 0.6)),
+            // --- 3. Action Grid on Top of Player Cards (Drop, Sort, Auto Group, Discard, Declare) ---
+            if (!isLandscape || isDesktop)
+              Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: isDesktop ? 860 : double.infinity),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 16 : 10,
+                      vertical: isDesktop ? 5 : 3,
+                    ),
+                    child: Row(
+                      children: [
+                        // Drop Button (or Sort during declaration)
+                        Expanded(
+                          child: InkWell(
+                            onTap: game.isDeclaring
+                                ? () => notifier.autoSortHand()
+                                : (canDrop ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop) : null),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: game.isDeclaring
-                                  ? Colors.white24
-                                  : (canDrop ? const Color(0xFFF43F5E) : Colors.white12),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                game.isDeclaring ? Icons.sort_rounded : Icons.flag_rounded,
-                                size: 13,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                              decoration: BoxDecoration(
                                 color: game.isDeclaring
-                                    ? Colors.white70
-                                    : (canDrop ? const Color(0xFFFDA4AF) : Colors.white24),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                game.isDeclaring ? 'Sort' : 'Drop ($dropPenalty)',
-                                style: TextStyle(
+                                    ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+                                    : (canDrop ? const Color(0xFF3E0A16) : const Color(0xFF0F172A).withValues(alpha: 0.6)),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
                                   color: game.isDeclaring
-                                      ? Colors.white70
-                                      : (canDrop ? const Color(0xFFFDA4AF) : Colors.white30),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                                      ? Colors.white24
+                                      : (canDrop ? const Color(0xFFF43F5E) : Colors.white12),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-
-                    // Auto Group Button
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => notifier.autoGroupHand(),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF042F2E),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFF00E5FF)),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.auto_awesome, size: 13, color: Color(0xFF00E5FF)),
-                              SizedBox(width: 4),
-                              Text(
-                                'Auto Group',
-                                style: TextStyle(
-                                  color: Color(0xFF00E5FF),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    game.isDeclaring ? Icons.sort_rounded : Icons.flag_rounded,
+                                    size: isDesktop ? 15 : 13,
+                                    color: game.isDeclaring
+                                        ? Colors.white70
+                                        : (canDrop ? const Color(0xFFFDA4AF) : Colors.white24),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    game.isDeclaring ? 'Sort' : 'Drop ($dropPenalty)',
+                                    style: TextStyle(
+                                      color: game.isDeclaring
+                                          ? Colors.white70
+                                          : (canDrop ? const Color(0xFFFDA4AF) : Colors.white30),
+                                      fontSize: isDesktop ? 11 : 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
+                        const SizedBox(width: 5),
 
-                    // Manual Group or Discard
-                    if (tableState.selectedCards.length >= 2 || (tableState.selectedCard != null && !canDiscard))
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            if (tableState.selectedCards.length >= 2) {
-                              notifier.groupSelectedCards(tableState.selectedCards.toList());
-                            } else if (tableState.selectedCard != null) {
-                              notifier.groupSelectedCards([tableState.selectedCard!]);
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.accent),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.folder_shared_rounded, size: 13, color: AppColors.accent),
-                                const SizedBox(width: 4),
-                                Text(
-                                  tableState.selectedCards.length >= 2
-                                      ? 'Group (${tableState.selectedCards.length})'
-                                      : 'Group',
-                                  style: const TextStyle(
-                                    color: AppColors.accent,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Expanded(
-                        child: InkWell(
-                          onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              gradient: canDiscard
-                                  ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)])
-                                  : null,
-                              color: canDiscard ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: canDiscard ? const Color(0xFFFDE68A) : Colors.white12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.send_rounded, size: 13, color: canDiscard ? Colors.black : Colors.white24),
-                                const SizedBox(width: 4),
-                                Text(
-                                  canDiscard && tableState.selectedCard != null
-                                      ? 'Discard (${tableState.selectedCard!.label})'
-                                      : 'Discard',
-                                  style: TextStyle(
-                                    color: canDiscard ? Colors.black : Colors.white30,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 5),
-
-                    // Declare / Submit Button
-                    Expanded(
-                      child: Builder(
-                        builder: (_) {
-                          if (game.isDeclaring) {
-                            if (game.declaringPlayerId == user.uid) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.accent),
-                                ),
-                                child: const Center(
-                                  child: Text('0 PTS', style: TextStyle(color: AppColors.accent, fontSize: 9.5, fontWeight: FontWeight.bold)),
-                                ),
-                              );
-                            }
-                            final isSubmitted = game.submittedPlayerUids.contains(user.uid);
-                            return InkWell(
-                              onTap: isSubmitted ? null : () => notifier.submitFinalHand(),
+                        // Dedicated Sort Button on Desktop (when not declaring)
+                        if (isDesktop && !game.isDeclaring) ...[
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => notifier.autoSortHand(),
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 decoration: BoxDecoration(
-                                  gradient: isSubmitted ? null : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)]),
-                                  color: isSubmitted ? Colors.white12 : null,
+                                  color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: isSubmitted ? Colors.white24 : const Color(0xFFA7F3D0)),
+                                  border: Border.all(color: Colors.white24),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    isSubmitted ? 'Submitted' : 'Submit Hand',
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.sort_rounded, size: 15, color: Colors.white70),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Sort',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+
+                        // Auto Group Button
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => notifier.autoGroupHand(),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF042F2E),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF00E5FF)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.auto_awesome, size: isDesktop ? 15 : 13, color: const Color(0xFF00E5FF)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Auto Group',
                                     style: TextStyle(
-                                      color: isSubmitted ? Colors.white54 : Colors.black,
-                                      fontSize: 10,
+                                      color: const Color(0xFF00E5FF),
+                                      fontSize: isDesktop ? 11 : 10,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                            );
-                          }
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
 
-                            return InkWell(
-                              onTap: canDeclare ? _showDeclarationDialog : null,
+                        // Manual Group or Discard
+                        if (tableState.selectedCards.length >= 2 || (tableState.selectedCard != null && !canDiscard))
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                if (tableState.selectedCards.length >= 2) {
+                                  notifier.groupSelectedCards(tableState.selectedCards.toList());
+                                } else if (tableState.selectedCard != null) {
+                                  notifier.groupSelectedCards([tableState.selectedCard!]);
+                                }
+                              },
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
                                 decoration: BoxDecoration(
-                                  gradient: canDeclare
-                                      ? const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)])
-                                      : null,
-                                  color: canDeclare ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
+                                  color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: canDeclare ? const Color(0xFFA7F3D0) : Colors.white12),
+                                  border: Border.all(color: AppColors.accent),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.emoji_events_rounded, size: 13, color: canDeclare ? Colors.black : Colors.white24),
+                                    Icon(Icons.folder_shared_rounded, size: isDesktop ? 15 : 13, color: AppColors.accent),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Declare',
+                                      tableState.selectedCards.length >= 2
+                                          ? 'Group (${tableState.selectedCards.length})'
+                                          : 'Group',
                                       style: TextStyle(
-                                        color: canDeclare ? Colors.black : Colors.white30,
-                                        fontSize: 10,
+                                        color: AppColors.accent,
+                                        fontSize: isDesktop ? 11 : 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: InkWell(
+                              onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                decoration: BoxDecoration(
+                                  gradient: canDiscard
+                                      ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)])
+                                      : null,
+                                  color: canDiscard ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: canDiscard ? const Color(0xFFFDE68A) : Colors.white12),
+                                  boxShadow: canDiscard && isDesktop
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                                            blurRadius: 8,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.send_rounded, size: isDesktop ? 15 : 13, color: canDiscard ? Colors.black : Colors.white24),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      canDiscard && tableState.selectedCard != null
+                                          ? 'Discard (${tableState.selectedCard!.label})'
+                                          : 'Discard',
+                                      style: TextStyle(
+                                        color: canDiscard ? Colors.black : Colors.white30,
+                                        fontSize: isDesktop ? 11 : 10,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            );
-                        },
-                      ),
+                            ),
+                          ),
+                        const SizedBox(width: 5),
+
+                        // Declare / Submit Button
+                        Expanded(
+                          child: Builder(
+                            builder: (_) {
+                              if (game.isDeclaring) {
+                                if (game.declaringPlayerId == user.uid) {
+                                  return Container(
+                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accent.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppColors.accent),
+                                    ),
+                                    child: const Center(
+                                      child: Text('0 PTS', style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  );
+                                }
+                                final isSubmitted = game.submittedPlayerUids.contains(user.uid);
+                                return InkWell(
+                                  onTap: isSubmitted ? null : () => notifier.submitFinalHand(),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                    decoration: BoxDecoration(
+                                      gradient: isSubmitted ? null : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)]),
+                                      color: isSubmitted ? Colors.white12 : null,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: isSubmitted ? Colors.white24 : const Color(0xFFA7F3D0)),
+                                      boxShadow: !isSubmitted && isDesktop
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                                                blurRadius: 10,
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        isSubmitted ? 'Submitted' : 'Submit Hand',
+                                        style: TextStyle(
+                                          color: isSubmitted ? Colors.white54 : Colors.black,
+                                          fontSize: isDesktop ? 11 : 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              return InkWell(
+                                onTap: canDeclare ? _showDeclarationDialog : null,
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                  decoration: BoxDecoration(
+                                    gradient: canDeclare
+                                        ? const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)])
+                                        : null,
+                                    color: canDeclare ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: canDeclare ? const Color(0xFFA7F3D0) : Colors.white12),
+                                    boxShadow: canDeclare && isDesktop
+                                        ? [
+                                            BoxShadow(
+                                              color: const Color(0xFF10B981).withValues(alpha: 0.45),
+                                              blurRadius: 10,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.emoji_events_rounded, size: isDesktop ? 15 : 13, color: canDeclare ? Colors.black : Colors.white24),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Declare',
+                                        style: TextStyle(
+                                          color: canDeclare ? Colors.black : Colors.white30,
+                                          fontSize: isDesktop ? 11 : 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -2113,7 +2180,12 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
           ],
         ),
       ),
-    );
+      const Positioned.fill(
+        child: CardAnimationLayer(),
+      ),
+    ],
+  ),
+);
   }
 
   /// Builds orbital positioning for 1 to 5 opponents around the table

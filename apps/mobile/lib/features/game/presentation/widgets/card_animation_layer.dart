@@ -69,13 +69,19 @@ class _CardAnimationLayerState extends ConsumerState<CardAnimationLayer>
   @override
   Widget build(BuildContext context) {
     ref.listen<GameUIState>(gameUIProvider, (previous, next) {
-      if (previous?.lastAction != next.lastAction && next.lastAction != GameActionType.none) {
+      if (next.actionId != previous?.actionId && next.lastAction != GameActionType.none) {
         final size = MediaQuery.of(context).size;
-        final centerDeck = Offset(size.width * 0.42, size.height * 0.42);
-        final centerOpenPile = Offset(size.width * 0.58, size.height * 0.42);
-        final opponentHand = Offset(size.width * 0.50, size.height * 0.08);
-        final playerHand = Offset(size.width * 0.50, size.height * 0.85);
-        final playerDrawnSlot = Offset(size.width * 0.82, size.height * 0.85);
+        final isLandscape = size.width > size.height;
+
+        final centerDeck = isLandscape
+            ? Offset(size.width * 0.44, size.height * 0.44)
+            : Offset(size.width * 0.38, size.height * 0.42);
+        final centerOpenPile = isLandscape
+            ? Offset(size.width * 0.56, size.height * 0.44)
+            : Offset(size.width * 0.62, size.height * 0.42);
+        final opponentHand = Offset(size.width * 0.50, isLandscape ? size.height * 0.12 : size.height * 0.08);
+        final playerHand = Offset(size.width * 0.50, isLandscape ? size.height * 0.88 : size.height * 0.86);
+        final playerDrawnSlot = Offset(size.width * (isLandscape ? 0.75 : 0.82), isLandscape ? size.height * 0.88 : size.height * 0.86);
 
         switch (next.lastAction) {
           case GameActionType.dealing:
@@ -136,9 +142,12 @@ class _CardAnimationLayerState extends ConsumerState<CardAnimationLayer>
               if (!_dealController.isAnimating) return const SizedBox.shrink();
 
               final size = MediaQuery.of(context).size;
-              final deckPos = Offset(size.width * 0.42, size.height * 0.42);
-              final botPos = Offset(size.width * 0.50, size.height * 0.08);
-              final playerPos = Offset(size.width * 0.50, size.height * 0.85);
+              final isLandscape = size.width > size.height;
+              final deckPos = isLandscape
+                  ? Offset(size.width * 0.44, size.height * 0.44)
+                  : Offset(size.width * 0.38, size.height * 0.42);
+              final botPos = Offset(size.width * 0.50, isLandscape ? size.height * 0.12 : size.height * 0.08);
+              final playerPos = Offset(size.width * 0.50, isLandscape ? size.height * 0.88 : size.height * 0.86);
 
               const int totalCards = 13;
               final flyingWidgets = <Widget>[];

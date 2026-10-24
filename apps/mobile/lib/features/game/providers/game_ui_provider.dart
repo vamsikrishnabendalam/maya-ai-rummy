@@ -36,6 +36,7 @@ class GameUIState {
   final AnimationPhase animationPhase;
   final Card? animatingCard;
   final int? newCardIndex;
+  final int actionId;
 
   const GameUIState({
     this.isDragging = false,
@@ -48,6 +49,7 @@ class GameUIState {
     this.animationPhase = AnimationPhase.idle,
     this.animatingCard,
     this.newCardIndex,
+    this.actionId = 0,
   });
 
   GameUIState copyWith({
@@ -61,6 +63,7 @@ class GameUIState {
     AnimationPhase? animationPhase,
     Card? animatingCard,
     int? newCardIndex,
+    int? actionId,
   }) {
     return GameUIState(
       isDragging: isDragging ?? this.isDragging,
@@ -73,6 +76,7 @@ class GameUIState {
       animationPhase: animationPhase ?? this.animationPhase,
       animatingCard: animatingCard ?? this.animatingCard,
       newCardIndex: newCardIndex ?? this.newCardIndex,
+      actionId: actionId ?? this.actionId,
     );
   }
 
@@ -100,11 +104,13 @@ class GameUINotifier extends StateNotifier<GameUIState> {
   void endDrag() {
     state = GameUIState(
       lastAction: state.lastAction,
+      actionId: state.actionId,
     );
   }
 
   void triggerAction(GameActionType action, {Card? card}) {
     state = state.copyWith(
+      actionId: state.actionId + 1,
       lastAction: action,
       animationPhase: AnimationPhase.cardFlying,
       animatingCard: card,

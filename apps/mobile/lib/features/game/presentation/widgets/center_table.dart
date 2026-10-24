@@ -255,69 +255,78 @@ class CenterTable extends StatelessWidget {
     );
   }
 
-  /// Open deck showing top discarded card and Discard History button
+  /// Open deck showing last up to 5 discarded cards in an overlapping cascade,
+  /// exposing the rank and suit of each card with the top card interactive to draw.
   Widget _buildOpenDeck(BuildContext context, double cardW, double cardH) {
-    final topCard = openPile.isNotEmpty ? openPile.last : null;
+    if (openPile.isEmpty) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: cardW,
+            height: cardH,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+              color: const Color(0xFF042619).withValues(alpha: 0.5),
+            ),
+            child: const Center(
+              child: Text(
+                'EMPTY',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.white38,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'OPEN PILE',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFE2E8F0),
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final int count = openPile.length > 5 ? 5 : openPile.length;
+    final int startIndex = openPile.length - count;
+    final visibleCards = openPile.sublist(startIndex);
+    final double overlapOffset = isCompact ? 22.0 : 28.0;
+    final double totalW = cardW + (count - 1) * overlapOffset;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: cardW,
+          width: totalW,
           height: cardH,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              if (topCard != null)
-                GestureDetector(
-                  onTap: canDraw ? onDrawOpen : null,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        if (canDraw)
-                          BoxShadow(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
-                            blurRadius: 12,
-                            spreadRadius: 1,
-                          ),
-                      ],
-                    ),
-                    child: CardWidget(
-                      card: topCard,
-                      isWildJoker: JokerUtils.isWildJoker(topCard, wildJoker),
-                      width: cardW,
-                      height: cardH,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: cardW,
-                  height: cardH,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                      width: 1.5,
-                      style: BorderStyle.solid,
-                    ),
-                    color: const Color(0xFF042619).withValues(alpha: 0.5),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'EMPTY',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.white38,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+              for (int i = 0; i < count; i++)
+                Positioned(
+                  left: i * overlapOffset,
+                  top: 0,
+                  child: _buildOpenPileCardItem(
+                    context: context,
+                    card: visibleCards[i],
+                    isTop: i == count - 1,
+                    cardW: cardW,
+                    cardH: cardH,
                   ),
                 ),
 
-              // Discard Pile History Button (Pill at top-right)
+              // Discard Pile History Button (Pill at top-right of stack)
               Positioned(
                 top: -6,
                 right: -6,
@@ -359,16 +368,89 @@ class CenterTable extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'OPEN (${openPile.length})',
-          style: const TextStyle(
+          'OPEN PILE (${openPile.length})',
+          style: TextStyle(
             fontSize: 9.5,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFE2E8F0),
+            color: canDraw ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
             letterSpacing: 0.6,
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildOpenPileCardItem({
+    required BuildContext context,
+    required Card card,
+    required bool isTop,
+    required double cardW,
+    required double cardH,
+  }) {
+    final isWild = JokerUtils.isWildJoker(card, wildJoker);
+
+    final cardWidget = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 5,
+            offset: const Offset(1, 2),
+          ),
+          if (isTop && canDraw)
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+        ],
+        border: Border.all(
+          color: isTop && canDraw
+              ? const Color(0xFFFBBF24)
+              : Colors.black.withValues(alpha: 0.25),
+          width: isTop && canDraw ? 2.0 : 1.0,
+        ),
+      ),
+      child: Stack(
+        children: [
+          CardWidget(
+            card: card,
+            isWildJoker: isWild,
+            width: cardW,
+            height: cardH,
+          ),
+          if (isTop)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Text(
+                  'TOP',
+                  style: TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (isTop) {
+      return GestureDetector(
+        onTap: canDraw ? onDrawOpen : null,
+        child: cardWidget,
+      );
+    }
+    return cardWidget;
   }
 
   /// Finish slot for dropping 14th card to declare show
