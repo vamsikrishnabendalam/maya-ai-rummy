@@ -330,6 +330,9 @@ class MultiplayerGameState {
   final List<TablePlayer> players;
   final List<Card> myHand;
   final List<Map<String, dynamic>> actionLog;
+  final int currentRound;
+  final List<Map<String, dynamic>> roundHistory;
+  final DateTime? nextRoundStartTime;
   final DateTime? startedAt;
   final DateTime? endedAt;
 
@@ -371,6 +374,9 @@ class MultiplayerGameState {
     this.players = const [],
     this.myHand = const [],
     this.actionLog = const [],
+    this.currentRound = 1,
+    this.roundHistory = const [],
+    this.nextRoundStartTime,
     this.startedAt,
     this.endedAt,
   });
@@ -378,6 +384,7 @@ class MultiplayerGameState {
   bool get isDrawPhase => phase == 'DRAW_PHASE';
   bool get isDiscardPhase => phase == 'DISCARD_PHASE';
   bool get isDeclaring => status == 'DECLARING';
+  bool get isRoundOver => status == 'ROUND_OVER';
   bool get isGameOver => status == 'COMPLETED';
   bool get isCompleted => status == 'COMPLETED';
   bool get isClosedJoker => jokerMode == 'CLOSED';
@@ -428,6 +435,10 @@ class MultiplayerGameState {
     List<TablePlayer>? players,
     List<Card>? myHand,
     List<Map<String, dynamic>>? actionLog,
+    int? currentRound,
+    List<Map<String, dynamic>>? roundHistory,
+    DateTime? nextRoundStartTime,
+    bool clearNextRoundStartTime = false,
     DateTime? startedAt,
     DateTime? endedAt,
   }) {
@@ -469,6 +480,9 @@ class MultiplayerGameState {
       players: players ?? this.players,
       myHand: myHand ?? this.myHand,
       actionLog: actionLog ?? this.actionLog,
+      currentRound: currentRound ?? this.currentRound,
+      roundHistory: roundHistory ?? this.roundHistory,
+      nextRoundStartTime: clearNextRoundStartTime ? null : (nextRoundStartTime ?? this.nextRoundStartTime),
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
     );
@@ -481,6 +495,7 @@ class MultiplayerGameState {
     final rawResults = json['finalResults'] as List<dynamic>? ?? [];
     final rawActionLog = (json['actionLog'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
     final rawSubmitted = (json['submittedPlayerUids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final rawRoundHistory = (json['roundHistory'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
 
     Card? parsedJoker;
     if (json['openJoker'] != null) {
@@ -553,6 +568,9 @@ class MultiplayerGameState {
       players: rawPlayers.map((p) => TablePlayer.fromJson(p as Map<String, dynamic>)).toList(),
       myHand: myHand,
       actionLog: rawActionLog,
+      currentRound: json['currentRound'] ?? 1,
+      roundHistory: rawRoundHistory,
+      nextRoundStartTime: parseDate(json['nextRoundStartTime']),
       startedAt: parseDate(json['startedAt']),
       endedAt: parseDate(json['endedAt']),
     );
@@ -595,6 +613,9 @@ class MultiplayerGameState {
     'finalResults': finalResults.map((r) => r.toJson()).toList(),
     'players': players.map((p) => p.toJson()).toList(),
     'actionLog': actionLog,
+    'currentRound': currentRound,
+    'roundHistory': roundHistory,
+    'nextRoundStartTime': nextRoundStartTime?.toIso8601String(),
     'startedAt': startedAt?.toIso8601String(),
     'endedAt': endedAt?.toIso8601String(),
   };

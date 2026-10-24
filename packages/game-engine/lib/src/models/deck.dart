@@ -14,7 +14,8 @@ class Deck {
           initialCards.add(Card(suit: suit, rank: rank, deckIndex: d));
         }
       }
-      initialCards.add(Card(deckIndex: d, isPrintedJoker: true)); // 1 PJ per deck (53 cards per deck)
+      initialCards.add(Card(deckIndex: d, isPrintedJoker: true, jokerIndex: 0));
+      initialCards.add(Card(deckIndex: d, isPrintedJoker: true, jokerIndex: 1)); // 2 PJ per deck (54 cards per deck)
     }
     final rng = seed != null ? Random(seed) : Random.secure();
     initialCards.shuffle(rng);

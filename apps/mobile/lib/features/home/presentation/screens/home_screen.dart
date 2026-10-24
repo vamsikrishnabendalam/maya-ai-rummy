@@ -78,9 +78,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _launchGame(BuildContext context) {
     final homeState = ref.read(homeProvider);
-    // Set selected difficulty and joker mode in game provider
-    ref.read(gameTableProvider.notifier).setAILevel(homeState.selectedDifficulty);
-    ref.read(gameTableProvider.notifier).setJokerMode(homeState.selectedJokerMode);
+    final notifier = ref.read(gameTableProvider.notifier);
+    notifier.setAILevel(homeState.selectedDifficulty);
+    notifier.setJokerMode(homeState.selectedJokerMode);
+    notifier.startNewGame();
 
     Navigator.of(context).push(
       MaterialPageRoute(

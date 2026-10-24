@@ -873,6 +873,13 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     await _service.forceAdvanceTurnOnTimeout(game.gameId);
   }
 
+  /// Start next round immediately (e.g. host clicks 'Deal Now' during ROUND_OVER)
+  Future<void> startNextRound() async {
+    final game = state.gameState;
+    if (game == null || game.status != 'ROUND_OVER') return;
+    await _service.startNextRound(game.gameId);
+  }
+
   /// Host table owner action to conclude game at any moment
   Future<void> endGameByHost() async {
     final game = state.gameState;

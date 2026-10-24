@@ -20,13 +20,15 @@ const RANKS = [
  * }
  */
 function cardFromInt(val) {
-  const deckIndex = Math.floor(val / 53);
-  const remainder = val % 53;
-  if (remainder === 52) {
+  const deckIndex = Math.floor(val / 54);
+  const remainder = val % 54;
+  if (remainder >= 52) {
+    const jokerIndex = remainder - 52;
     return {
       suit: null,
       rank: null,
       deckIndex,
+      jokerIndex,
       isPrintedJoker: true,
       intVal: val,
     };
@@ -37,6 +39,7 @@ function cardFromInt(val) {
     suit: SUITS[suitIndex],
     rank: RANKS[rankIndex],
     deckIndex,
+    jokerIndex: 0,
     isPrintedJoker: false,
     intVal: val,
   };
@@ -44,11 +47,11 @@ function cardFromInt(val) {
 
 function cardToInt(card) {
   if (card.isPrintedJoker) {
-    return card.deckIndex * 53 + 52;
+    return card.deckIndex * 54 + 52 + (card.jokerIndex || 0);
   }
   const suitIndex = SUITS.indexOf(card.suit);
   const rankIndex = RANKS.indexOf(card.rank);
-  return card.deckIndex * 53 + suitIndex * 13 + rankIndex;
+  return card.deckIndex * 54 + suitIndex * 13 + rankIndex;
 }
 
 function getEffectiveWildRank(wildJokerCard) {
@@ -75,11 +78,13 @@ function isWildJoker(card, wildJokerCard) {
 }
 
 /**
- * Creates 2 standard decks (106 cards) and cryptographically shuffles them.
+ * Creates standard decks (54 cards for <= 2 players, 108 cards for 3+ players) and cryptographically shuffles them.
  */
-function createShuffledDeck() {
+function createShuffledDeck(playerCount = 2) {
+  const numDecks = playerCount <= 2 ? 1 : 2;
+  const totalCards = numDecks * 54;
   const deck = [];
-  for (let i = 0; i < 106; i++) {
+  for (let i = 0; i < totalCards; i++) {
     deck.push(cardFromInt(i));
   }
   // Fisher-Yates shuffle

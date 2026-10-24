@@ -270,8 +270,8 @@ exports.startGame = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('failed-precondition', 'Game is already running or completed.');
   }
 
-  // 1. Generate & shuffle 106 cards (2 full decks)
-  const fullDeck = createShuffledDeck();
+  // 1. Generate & shuffle cards (54 cards for 2 players, 108 cards for 3+ players)
+  const fullDeck = createShuffledDeck(tData.players.length);
 
   // 2. Select Open Joker (wild card cut)
   const openJoker = fullDeck.pop();

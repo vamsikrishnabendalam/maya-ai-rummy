@@ -8,26 +8,27 @@ import 'file_saver_stub.dart' if (dart.library.html) 'file_saver_web.dart';
 /// Fair-Play Audit & Game Log Exporter
 /// Generates verifiable cryptographic logs and card accounting reports for Rummy games.
 class GameLogExporter {
-  /// Verify the 106-card physical accounting invariant:
-  /// Total = sum(Player Hands) + Closed Deck + Discard Pile + Open Cut Joker == 106
+  /// Verify the physical card accounting invariant:
+  /// Total = sum(Player Hands) + Closed Deck + Discard Pile + Open Cut Joker == 54 (<=2 players) or 108 (3+ players)
   static Map<String, dynamic> performCardAccountingAudit(MultiplayerGameState game) {
+    final expectedTotalCards = game.playerCount <= 2 ? 54 : 108;
     final handsTotal = game.players.fold<int>(0, (sum, p) => sum + p.cardCount);
     final closedDeckCount = game.closedDeckRemaining;
     final discardPileCount = game.openPile.length;
     const openJokerCount = 1;
 
     final totalAccounted = handsTotal + closedDeckCount + discardPileCount + openJokerCount;
-    final isBalanced = totalAccounted == 106;
+    final isBalanced = totalAccounted == expectedTotalCards;
 
     return {
-      'expectedTotalCards': 106,
+      'expectedTotalCards': expectedTotalCards,
       'playerHandsTotalCards': handsTotal,
       'closedDeckRemaining': closedDeckCount,
       'discardPileCount': discardPileCount,
       'openJokerCount': openJokerCount,
       'totalAccountedCards': totalAccounted,
       'isInvariantBalanced': isBalanced,
-      'accountingDiscrepancy': 106 - totalAccounted,
+      'accountingDiscrepancy': expectedTotalCards - totalAccounted,
       'status': isBalanced ? 'VERIFIED_FAIR_PLAY' : 'INVARIANT_DISCREPANCY',
     };
   }
@@ -47,6 +48,7 @@ class GameLogExporter {
         'roomCode': game.roomCode,
         'gameMode': game.gameMode,
         'status': game.status,
+        'currentRound': game.currentRound,
         'playerCount': game.playerCount,
         'totalTurns': game.turnNumber,
         'dealerPlayerId': game.dealerPlayerId,
@@ -56,6 +58,10 @@ class GameLogExporter {
         'durationSeconds': (game.startedAt != null && game.endedAt != null)
             ? game.endedAt!.difference(game.startedAt!).inSeconds
             : null,
+      },
+      'tournamentRounds': {
+        'totalRoundsPlayed': game.currentRound,
+        'roundHistory': game.roundHistory,
       },
       'cardAccountingAudit': audit,
       'openJoker': game.openJoker != null

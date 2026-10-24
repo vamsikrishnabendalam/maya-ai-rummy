@@ -214,7 +214,18 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
   void setJokerMode(String mode) {
     final newSettings = state.gameSettings.copyWith(jokerMode: mode);
-    updateSettings(newSettings);
+    final bool isOpen = mode == 'OPEN';
+    state = state.copyWith(
+      gameSettings: newSettings,
+      hasHumanOpenedJoker: isOpen,
+      hasBotOpenedJoker: isOpen,
+    );
+    final newScore = Scoring.calculateHandDeadwood(
+      groups: state.cardGroups.map((g) => g.cards).toList(),
+      wildJoker: isOpen ? state.gameState.wildJoker : null,
+      maxPenalty: newSettings.fullCountPenalty,
+    );
+    state = state.copyWith(currentScore: newScore);
   }
 
   /// Whether the remaining 13 cards (after discarding selectedCard) form a valid declaration
@@ -254,7 +265,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       gameId: 'game_${DateTime.now().millisecondsSinceEpoch}',
       mode: GameMode.POOL_201,
       maxPlayers: 2,
-      deckCount: 2,
+      deckCount: 1, // 2 players: 1 deck = 54 cards (52 suited + 2 jokers)
       firstDropPenalty: state.gameSettings.firstDropPenalty,
       middleDropPenalty: state.gameSettings.middleDropPenalty,
       fullCountPenalty: state.gameSettings.fullCountPenalty,
@@ -344,7 +355,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       gameId: 'game_${DateTime.now().millisecondsSinceEpoch}',
       mode: GameMode.POOL_201,
       maxPlayers: 2,
-      deckCount: 2,
+      deckCount: 1, // 2 players: 1 deck = 54 cards (52 suited + 2 jokers)
       firstDropPenalty: state.gameSettings.firstDropPenalty,
       middleDropPenalty: state.gameSettings.middleDropPenalty,
       fullCountPenalty: state.gameSettings.fullCountPenalty,

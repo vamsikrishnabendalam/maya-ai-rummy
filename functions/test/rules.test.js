@@ -23,13 +23,18 @@ assert.strictEqual(c1.isPrintedJoker, false);
 assert.strictEqual(cardToInt(c1), 0);
 
 // 2. Printed Joker serialization
-const pj = cardFromInt(52); // Deck 0 Printed Joker
+const pj = cardFromInt(52); // Deck 0 Printed Joker 0
 assert.strictEqual(pj.isPrintedJoker, true);
 assert.strictEqual(cardToInt(pj), 52);
+const pj2 = cardFromInt(53); // Deck 0 Printed Joker 1
+assert.strictEqual(pj2.isPrintedJoker, true);
+assert.strictEqual(cardToInt(pj2), 53);
 
 // 3. Shuffled Deck length
-const deck = createShuffledDeck();
-assert.strictEqual(deck.length, 106);
+const deck2p = createShuffledDeck(2);
+assert.strictEqual(deck2p.length, 54);
+const deck4p = createShuffledDeck(4);
+assert.strictEqual(deck4p.length, 108);
 
 // 4. Wild Joker resolution: printed cut -> Ace is wild
 assert.strictEqual(getEffectiveWildRank(pj), 'ace');

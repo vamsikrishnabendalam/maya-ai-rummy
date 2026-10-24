@@ -561,8 +561,10 @@ class MultiplayerService {
 
     final gameId = 'game_${DateTime.now().millisecondsSinceEpoch}_${generateRoomCode(6)}';
 
-    // Deck & Cards: 2 standard decks = 106 cards, cryptographically shuffled using Random.secure()
-    final deck = Deck.initialize(2);
+    // Deck & Cards: 2 players = 1 deck (54 cards), 3+ players = 2 decks (108 cards)
+    final numDecks = lobby.players.length <= 2 ? 1 : 2;
+    final expectedTotalCards = numDecks * 54;
+    final deck = Deck.initialize(numDecks);
     final allCards = List<Card>.from(deck.cards);
 
     // 1. Cut Open Wild Joker
@@ -608,13 +610,13 @@ class MultiplayerService {
       allPhysicalCardsAccounted.addAll(playerHands[p.uid]!.map((c) => c.toInt()));
     }
 
-    if (allPhysicalCardsAccounted.length != 106) {
-      debugPrint('[MultiplayerService] DEAL_VALIDATION_FAILED: Total cards accounted ${allPhysicalCardsAccounted.length} != 106');
-      throw Exception('DEAL_VALIDATION_FAILED: Total accounted cards ${allPhysicalCardsAccounted.length} != 106.');
+    if (allPhysicalCardsAccounted.length != expectedTotalCards) {
+      debugPrint('[MultiplayerService] DEAL_VALIDATION_FAILED: Total cards accounted ${allPhysicalCardsAccounted.length} != $expectedTotalCards');
+      throw Exception('DEAL_VALIDATION_FAILED: Total accounted cards ${allPhysicalCardsAccounted.length} != $expectedTotalCards.');
     }
 
     final distinctAccounted = allPhysicalCardsAccounted.toSet();
-    if (distinctAccounted.length != 106) {
+    if (distinctAccounted.length != expectedTotalCards) {
       debugPrint('[MultiplayerService] DEAL_VALIDATION_FAILED: Duplicate card detected across table: distinct=${distinctAccounted.length}');
       throw Exception('DEAL_VALIDATION_FAILED: Duplicate physical card ownership detected across table.');
     }
@@ -1798,20 +1800,169 @@ class MultiplayerService {
       }
     }
 
+    final winnerId = game.declaringPlayerId;
+
+    // Multi-round progression rules for Pool 101, Pool 201, and Best of 2 Deals
+    final isPool101 = game.gameMode == 'Pool 101';
+    final isPool201 = game.gameMode == 'Pool 201';
+    final isPoolGame = isPool101 || isPool201;
+    final isDealsGame = game.gameMode == 'Best of 2 Deals';
+    final int elimLimit = isPool101 ? 101 : (isPool201 ? 201 : 9999);
+
+    final roundScoresMap = <String, int>{};
+    final cumulativeScoresMap = <String, int>{};
+
+    for (final p in game.players) {
+      int thisRoundScore = 80;
+      if (p.uid == winnerId) {
+        thisRoundScore = 0;
+      } else {
+        final existingRes = results.where((r) => r.uid == p.uid).toList();
+        if (existingRes.isNotEmpty) {
+          thisRoundScore = existingRes.first.score;
+        } else if (p.status == 'DROPPED') {
+          thisRoundScore = p.score > 0 ? p.score : 20;
+        } else if (p.status == 'ELIMINATED') {
+          thisRoundScore = p.score > 0 ? p.score : 80;
+        }
+      }
+      roundScoresMap[p.uid] = thisRoundScore;
+
+      // Cumulative score across rounds
+      int prevCumulative = 0;
+      if (game.roundHistory.isNotEmpty) {
+        final lastRoundResults = (game.roundHistory.last['results'] as List<dynamic>?) ?? [];
+        for (final lr in lastRoundResults) {
+          if (lr is Map && lr['uid'] == p.uid) {
+            prevCumulative = (lr['cumulativeScore'] as int?) ?? 0;
+            break;
+          }
+        }
+      }
+      final newCumulative = prevCumulative + thisRoundScore;
+      cumulativeScoresMap[p.uid] = newCumulative;
+    }
+
+    // Build this round's record for roundHistory
+    final thisRoundSummary = {
+      'round': game.currentRound,
+      'winnerUid': winnerId,
+      'winnerName': game.declaringPlayerName ??
+          (game.players.firstWhere((p) => p.uid == winnerId, orElse: () => game.players.first).displayName),
+      'results': game.players.map((p) {
+        final rScore = roundScoresMap[p.uid] ?? 0;
+        final cScore = cumulativeScoresMap[p.uid] ?? rScore;
+        final isElim = isPoolGame && cScore >= elimLimit;
+        return {
+          'uid': p.uid,
+          'displayName': p.displayName,
+          'roundScore': rScore,
+          'cumulativeScore': cScore,
+          'isEliminated': isElim,
+        };
+      }).toList(),
+    };
+
+    final updatedRoundHistory = List<Map<String, dynamic>>.from(game.roundHistory);
+    updatedRoundHistory.add(thisRoundSummary);
+
+    // Check whether the entire tournament/match is finished
+    bool isMatchComplete = false;
+    String? tournamentWinnerId;
+
+    if (!isPoolGame && !isDealsGame) {
+      // Points Rummy: Single-round game completes immediately
+      isMatchComplete = true;
+      tournamentWinnerId = winnerId;
+    } else if (isDealsGame) {
+      // Deals Rummy: 2 deals total; player with lowest cumulative score wins
+      if (game.currentRound >= 2) {
+        isMatchComplete = true;
+        TablePlayer? bestPlayer;
+        int lowestScore = 999999;
+        for (final p in game.players) {
+          final c = cumulativeScoresMap[p.uid] ?? 999999;
+          if (c < lowestScore) {
+            lowestScore = c;
+            bestPlayer = p;
+          }
+        }
+        tournamentWinnerId = bestPlayer?.uid ?? winnerId;
+      }
+    } else if (isPoolGame) {
+      // Pool Rummy: Non-eliminated players (where cumulative < elimLimit)
+      final nonEliminated = game.players.where((p) => (cumulativeScoresMap[p.uid] ?? 0) < elimLimit).toList();
+      if (nonEliminated.length <= 1) {
+        isMatchComplete = true;
+        tournamentWinnerId = nonEliminated.isNotEmpty ? nonEliminated.first.uid : winnerId;
+      }
+    }
+
+    final updatedPlayers = game.players.map((p) {
+      final cScore = cumulativeScoresMap[p.uid] ?? p.score;
+      final isElim = isPoolGame && cScore >= elimLimit;
+      return p.copyWith(
+        score: isPoolGame || isDealsGame ? cScore : (roundScoresMap[p.uid] ?? p.score),
+        status: isElim ? 'ELIMINATED' : 'ACTIVE',
+      );
+    }).toList();
+
+    final updatedFinalResults = game.players.map((p) {
+      final roundScore = roundScoresMap[p.uid] ?? 0;
+      final cumScore = cumulativeScoresMap[p.uid] ?? roundScore;
+      final isRoundWinner = p.uid == (isMatchComplete ? tournamentWinnerId : winnerId);
+      return MultiplayerFinalResult(
+        uid: p.uid,
+        displayName: p.displayName,
+        photoURL: p.photoURL,
+        seatIndex: p.seatIndex,
+        score: isPoolGame || isDealsGame ? cumScore : roundScore,
+        isWinner: isRoundWinner,
+      );
+    }).toList();
+
     final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
+
+    if (!isMatchComplete) {
+      // Advance to ROUND_OVER, show deal scores, and automatically queue next round
+      actionLog.add({
+        'seq': actionLog.length + 1,
+        'timestamp': now.toIso8601String(),
+        'type': 'ROUND_CONCLUDED',
+        'description': 'Round ${game.currentRound} finished. Cumulative scores updated. Next round dealing automatically in 6s.',
+      });
+
+      final nextRoundStart = now.add(const Duration(seconds: 6));
+      final roundOverGame = game.copyWith(
+        status: 'ROUND_OVER',
+        players: updatedPlayers,
+        finalResults: updatedFinalResults,
+        roundHistory: updatedRoundHistory,
+        actionLog: actionLog,
+        nextRoundStartTime: nextRoundStart,
+      );
+
+      // Automatic server timer to deal the next round
+      Timer(const Duration(seconds: 6), () {
+        startNextRound(game.gameId);
+      });
+
+      return roundOverGame;
+    }
+
+    // Match Complete (Tournament Finished)
     actionLog.add({
       'seq': actionLog.length + 1,
       'timestamp': now.toIso8601String(),
-      'type': 'ROUND_CONCLUDED',
-      'description': 'Round concluded. Final scores tallied.',
+      'type': 'GAME_COMPLETED',
+      'playerId': tournamentWinnerId,
+      'description': 'Tournament completed! Overall winner: ${updatedPlayers.firstWhere((p) => p.uid == tournamentWinnerId, orElse: () => updatedPlayers.first).displayName} 👑',
     });
 
-    final winnerId = game.declaringPlayerId;
-
     // 1. Award virtual coin prize pot if coin table
-    if (winnerId != null && game.entryType == 'COIN' && game.prizePool > 0) {
+    if (tournamentWinnerId != null && game.entryType == 'COIN' && game.prizePool > 0) {
       _walletService.creditCoins(
-        uid: winnerId,
+        uid: tournamentWinnerId,
         amount: game.prizePool,
         type: 'GAME_WIN_PRIZE',
         reason: 'Victory Pot: Won Match #${game.roomCode} (${game.prizePool} coins)',
@@ -1824,10 +1975,10 @@ class MultiplayerService {
 
     // 2. Authoritatively record match statistics and progression for all players
     final durationSeconds = (now.difference(game.startedAt ?? now)).inSeconds;
-    for (final r in results) {
+    for (final r in updatedFinalResults) {
       _progressionService.recordCompletedMatch(
         uid: r.uid,
-        won: r.uid == winnerId,
+        won: r.uid == tournamentWinnerId,
         score: r.score,
         madeDeclaration: r.uid == game.declaringPlayerId,
         matchDurationSeconds: durationSeconds,
@@ -1839,11 +1990,148 @@ class MultiplayerService {
 
     return game.copyWith(
       status: 'COMPLETED',
-      winnerPlayerId: winnerId,
-      finalResults: results,
+      winnerPlayerId: tournamentWinnerId,
+      players: updatedPlayers,
+      finalResults: updatedFinalResults,
+      roundHistory: updatedRoundHistory,
       actionLog: actionLog,
       endedAt: now,
     );
+  }
+
+  /// Deals the next round in a multi-round game (Pool 101, Pool 201, Best of 2 Deals)
+  Future<void> startNextRound(String gameId) async {
+    final game = _mockGames[gameId];
+    if (game == null || game.status != 'ROUND_OVER') return;
+
+    final now = DateTime.now();
+
+    // Determine surviving non-eliminated players
+    final survivingPlayers = game.players.where((p) => p.status != 'ELIMINATED').toList();
+    if (survivingPlayers.length <= 1) {
+      final updatedGame = game.copyWith(
+        status: 'COMPLETED',
+        winnerPlayerId: survivingPlayers.isNotEmpty ? survivingPlayers.first.uid : game.winnerPlayerId,
+        endedAt: now,
+      );
+      _mockGames[gameId] = updatedGame;
+      _getOrCreateGameController(gameId).add(updatedGame);
+      if (FirebaseConfig.isInitialized && _firestore != null) {
+        try {
+          await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
+          await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+        } catch (_) {}
+      }
+      return;
+    }
+
+    // Rotate dealer among surviving players
+    final currentDealerIdx = game.players.indexWhere((p) => p.uid == game.dealerPlayerId);
+    int nextDealerIdx = (currentDealerIdx >= 0 ? currentDealerIdx + 1 : 0) % game.players.length;
+    while (game.players[nextDealerIdx].status == 'ELIMINATED') {
+      nextDealerIdx = (nextDealerIdx + 1) % game.players.length;
+    }
+    final nextDealer = game.players[nextDealerIdx];
+
+    // First turn goes to player immediately after dealer
+    int firstTurnIdx = (nextDealerIdx + 1) % game.players.length;
+    while (game.players[firstTurnIdx].status == 'ELIMINATED') {
+      firstTurnIdx = (firstTurnIdx + 1) % game.players.length;
+    }
+    final firstTurnPlayer = game.players[firstTurnIdx];
+
+    // Deal cards: 2 players = 1 deck (54 cards), 3+ players = 2 decks (108 cards)
+    final numDecks = game.players.length <= 2 ? 1 : 2;
+    final deck = Deck.initialize(numDecks);
+    final allCards = List<Card>.from(deck.cards);
+
+    final openJoker = allCards.removeLast();
+    final effectiveWildRank = JokerUtils.getEffectiveWildRank(openJoker)?.name ?? 'ace';
+
+    final playerHands = <String, List<Card>>{};
+    for (final p in game.players) {
+      if (p.status != 'ELIMINATED') {
+        final hand = <Card>[];
+        for (int i = 0; i < 13; i++) {
+          hand.add(allCards.removeLast());
+        }
+        playerHands[p.uid] = hand;
+        _mockPrivateHands['${gameId}_${p.uid}'] = hand;
+      } else {
+        _mockPrivateHands['${gameId}_${p.uid}'] = [];
+      }
+    }
+
+    final firstOpenCard = allCards.removeLast();
+    final closedDeckInts = allCards.map((c) => c.toInt()).toList();
+
+    // Restore dropped players back to ACTIVE for the new round
+    final updatedPlayers = game.players.map((p) {
+      if (p.status == 'ELIMINATED') {
+        return p.copyWith(cardCount: 0);
+      }
+      return p.copyWith(
+        status: 'ACTIVE',
+        cardCount: 13,
+      );
+    }).toList();
+
+    final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
+    final nextRoundNum = game.currentRound + 1;
+    actionLog.add({
+      'seq': actionLog.length + 1,
+      'timestamp': now.toIso8601String(),
+      'type': 'ROUND_STARTED',
+      'playerId': nextDealer.uid,
+      'description': 'Round $nextRoundNum started. Dealer: ${nextDealer.displayName}. First turn: ${firstTurnPlayer.displayName}.',
+    });
+
+    final updatedGame = game.copyWith(
+      status: 'IN_PROGRESS',
+      phase: 'DRAW_PHASE',
+      currentRound: nextRoundNum,
+      currentTurnPlayerId: firstTurnPlayer.uid,
+      turnNumber: 0,
+      turnDeadline: game.turnTimerSeconds > 0 ? now.add(Duration(seconds: game.turnTimerSeconds + 5)) : null,
+      dealerPlayerId: nextDealer.uid,
+      openJoker: openJoker,
+      effectiveWildRank: effectiveWildRank,
+      openPile: [firstOpenCard],
+      closedDeck: closedDeckInts,
+      closedDeckRemaining: closedDeckInts.length,
+      clearCardDrawnFromOpen: true,
+      openedJokerPlayerUids: [],
+      clearDeclarer: true,
+      declarationDeadline: null,
+      submittedPlayerUids: [],
+      finalResults: [],
+      clearWinner: true,
+      clearNextRoundStartTime: true,
+      players: updatedPlayers,
+      actionLog: actionLog,
+    );
+
+    _mockGames[gameId] = updatedGame;
+    _getOrCreateGameController(gameId).add(updatedGame);
+
+    if (FirebaseConfig.isInitialized && _firestore != null) {
+      try {
+        await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
+        for (final entry in playerHands.entries) {
+          await _firestore!
+              .collection('games')
+              .doc(gameId)
+              .collection('privateHands')
+              .doc(entry.key)
+              .set({
+            'cards': entry.value.map((c) => c.toInt()).toList(),
+            'updatedAt': now.toIso8601String(),
+          });
+        }
+      } catch (e) {
+        debugPrint('[MultiplayerService] startNextRound Firestore update notice: $e');
+      }
+    }
   }
 
   // --------------- Connection & Turn Timeout Management ---------------

@@ -65,8 +65,8 @@ class ProbabilityEngine {
       record(openJoker);
     }
 
-    // 2-deck shoe has 106 cards total. Unseen cards count:
-    const totalShoeCards = 106;
+    // 2-deck shoe has 108 cards total (52*2 + 4 jokers). Unseen cards count:
+    const totalShoeCards = 108;
     final totalKnown = playerHand.length + openPile.length + (openJoker != null ? 1 : 0);
     final totalUnseen = (totalShoeCards - totalKnown).clamp(1, totalShoeCards);
 

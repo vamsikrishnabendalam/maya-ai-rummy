@@ -178,7 +178,8 @@ class _RuleBookModalState extends State<RuleBookModal> {
       children: [
         _buildSectionHeader('1. Objective of the Game', Icons.flag_rounded),
         const Text(
-          'Indian Rummy is played with 2 standard decks of 52 cards plus printed jokers (106 cards total). '
+          'Indian Rummy is played with 1 standard deck of cards (54 cards total with 2 jokers) for 2 players, '
+          'or 2 standard decks (108 cards total with 4 jokers) for 3 or more players. '
           'Each player is dealt 13 cards. The objective is to arrange all 13 cards into valid sequences and sets '
           'and make a valid declaration before your opponent.',
           style: TextStyle(color: AppColors.textSecondary, height: 1.5, fontSize: 13),

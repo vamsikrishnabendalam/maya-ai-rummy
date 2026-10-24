@@ -11,10 +11,10 @@ void main() {
     for (int numPlayers = 2; numPlayers <= 6; numPlayers++) {
       test('Simulate 100 complete games with $numPlayers players - Strict Invariant & Uniqueness Check', () {
         for (int gameIdx = 0; gameIdx < 100; gameIdx++) {
-          // 1. Initialize 2 decks (106 cards total: 52 * 2 + 2 jokers)
+          // 1. Initialize 2 decks (108 cards total: 52 * 2 + 4 jokers)
           final deck = Deck.initialize(2);
           final allCards = List<Card>.from(deck.cards);
-          expect(allCards.length, equals(106), reason: 'Two full decks must have 106 cards');
+          expect(allCards.length, equals(108), reason: 'Two full decks must have 108 cards');
 
           // 2. Cut Open Wild Joker
           final openJoker = allCards.removeLast();
@@ -38,8 +38,8 @@ void main() {
 
           // Invariant Check at Deal
           int initialTotal = (numPlayers * 13) + 1 + 1 + closedDeck.length;
-          expect(initialTotal, equals(106),
-              reason: 'Invariant failed at deal for $numPlayers players: expected 106, got $initialTotal');
+          expect(initialTotal, equals(108),
+              reason: 'Invariant failed at deal for $numPlayers players: expected 108, got $initialTotal');
 
           // 6. Simulate 20 gameplay turns
           Card? lastDrawnFromOpen;
@@ -85,8 +85,8 @@ void main() {
             totalCardsOnTable += closedDeck.length;
             totalCardsOnTable += openPile.length;
 
-            expect(totalCardsOnTable, equals(106),
-                reason: 'Turn $turn: 106-card physical invariant violated! Total: $totalCardsOnTable');
+            expect(totalCardsOnTable, equals(108),
+                reason: 'Turn $turn: 108-card physical invariant violated! Total: $totalCardsOnTable');
 
             // --- NO DUPLICATE CARD IDS CHECK ---
             final allCardIds = <String>{};
@@ -105,7 +105,7 @@ void main() {
               expect(allCardIds.add(card.cardId), isTrue,
                   reason: 'Duplicate card found in open pile: ${card.cardId}');
             }
-            expect(allCardIds.length, equals(106),
+            expect(allCardIds.length, equals(108),
                 reason: 'Every single card must have a distinct physical identity');
           }
         }
@@ -117,21 +117,21 @@ void main() {
           reason: 'Must have at least 3,000 recorded closed-deck draws across simulations');
 
       // 7 of Diamonds int values:
-      // Deck 0: suit=diamonds (index 1), rank=seven (index 6) -> 0*53 + 1*13 + 6 = 19
-      // Deck 1: deckIndex 1 -> 1*53 + 1*13 + 6 = 72
+      // Deck 0: suit=diamonds (index 1), rank=seven (index 6) -> 0*54 + 1*13 + 6 = 19
+      // Deck 1: deckIndex 1 -> 1*54 + 1*13 + 6 = 73
       final card7D_Deck0 = Card.fromInt(19);
-      final card7D_Deck1 = Card.fromInt(72);
+      final card7D_Deck1 = Card.fromInt(73);
       expect(card7D_Deck0.suit, equals(Suit.diamonds));
       expect(card7D_Deck0.rank, equals(Rank.seven));
       expect(card7D_Deck1.suit, equals(Suit.diamonds));
       expect(card7D_Deck1.rank, equals(Rank.seven));
 
       final count7D_0 = drawFrequencyMap[19] ?? 0;
-      final count7D_1 = drawFrequencyMap[72] ?? 0;
+      final count7D_1 = drawFrequencyMap[73] ?? 0;
       final total7D = count7D_0 + count7D_1;
 
-      final expectedRatioPerCard = 1.0 / 106.0; // ~0.0094
-      final expected7DRatio = 2.0 / 106.0; // ~0.0188 (since there are two 7♦ in 106 cards)
+      final expectedRatioPerCard = 1.0 / 108.0; // ~0.0092
+      final expected7DRatio = 2.0 / 108.0; // ~0.0185 (since there are two 7♦ in 108 cards)
       final actual7DRatio = total7D / totalClosedDeckDraws;
 
       // In the bug, actual7DRatio was 1.0 (100% of draws were 7♦!).
@@ -144,7 +144,7 @@ void main() {
       // Verify that the draws are broadly distributed across distinct cards
       final distinctCardsDrawn = drawFrequencyMap.keys.length;
       expect(distinctCardsDrawn, greaterThanOrEqualTo(100),
-          reason: 'Almost all 106 unique card slots should be drawn across 3000+ draws');
+          reason: 'Almost all 108 unique card slots should be drawn across 3000+ draws');
     });
 
     test('Deck Reshuffle When Closed Deck is Exhausted', () {
@@ -157,12 +157,12 @@ void main() {
       final p2Hand = allCards.sublist(13, 26);
       final remaining = allCards.sublist(26);
 
-      // Put 78 cards in open pile, leaving closed deck with only 1 card
+      // Put 80 cards in open pile, leaving closed deck with only 1 card
       final closedDeck = [remaining.removeLast()];
       final openPile = List<Card>.from(remaining);
 
       expect(closedDeck.length, equals(1));
-      expect(openPile.length, equals(78));
+      expect(openPile.length, equals(80));
 
       // Draw the last card from closed deck
       final drawn = closedDeck.removeLast();
@@ -170,17 +170,17 @@ void main() {
       expect(closedDeck.isEmpty, isTrue);
 
       // Indian Rummy Reshuffle rule:
-      // Keep the top card of open pile, shuffle remaining 77 cards to make new closed deck
+      // Keep the top card of open pile, shuffle remaining 79 cards to make new closed deck
       final topOpen = openPile.removeLast();
       final reshuffledClosedDeck = List<Card>.from(openPile)..shuffle(Random.secure());
       final newOpenPile = [topOpen];
 
-      expect(reshuffledClosedDeck.length, equals(77));
+      expect(reshuffledClosedDeck.length, equals(79));
       expect(newOpenPile.length, equals(1));
 
       // Check invariant after reshuffle
       final total = p1Hand.length + p2Hand.length + 1 + 1 + reshuffledClosedDeck.length + newOpenPile.length;
-      expect(total, equals(106), reason: 'Invariant must remain exactly 106 after closed deck reshuffle');
+      expect(total, equals(108), reason: 'Invariant must remain exactly 108 after closed deck reshuffle');
     });
 
     test('Multiplayer Declaration Lifecycle & Opponent Final Hand Deadwood Minimization', () {

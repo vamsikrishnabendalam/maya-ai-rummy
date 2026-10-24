@@ -612,6 +612,182 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     );
   }
 
+  Widget _buildRoundOverOverlay(MultiplayerGameState game, String myUid, MultiplayerGameNotifier notifier) {
+    final isHost = game.players.any((p) => p.uid == myUid && p.isHost);
+    final lastRound = game.roundHistory.isNotEmpty ? game.roundHistory.last : null;
+    final winnerName = lastRound != null ? (lastRound['winnerName'] ?? 'Round Winner') : 'Round Winner';
+    final isPool = game.gameMode == 'Pool 101' || game.gameMode == 'Pool 201';
+    final elimLimit = game.gameMode == 'Pool 101' ? 101 : 201;
+
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.78),
+        alignment: Alignment.center,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(maxWidth: 480),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1E36),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.accent, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.style_rounded, color: AppColors.accent, size: 26),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ROUND ${game.currentRound} CONCLUDED',
+                          style: const TextStyle(color: AppColors.accent, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                        ),
+                        Text(
+                          '$winnerName won this round with 0 pts',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(color: Colors.white12, height: 20),
+              const Text(
+                'TOURNAMENT STANDINGS',
+                style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+              ),
+              const SizedBox(height: 8),
+              ...game.players.map((p) {
+                final isElim = p.status == 'ELIMINATED';
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isElim ? Colors.red.withValues(alpha: 0.12) : const Color(0xFF142948),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isElim ? Colors.redAccent.withValues(alpha: 0.4) : Colors.white12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            p.displayName,
+                            style: TextStyle(
+                              color: isElim ? Colors.redAccent : Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (p.uid == myUid) ...[
+                            const SizedBox(width: 4),
+                            const Text('(You)', style: TextStyle(color: AppColors.accent, fontSize: 11)),
+                          ],
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          if (isElim)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isPool ? 'ELIMINATED (≥$elimLimit)' : 'OUT',
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          Text(
+                            '${p.score} pts',
+                            style: TextStyle(
+                              color: isElim ? Colors.redAccent : AppColors.accent,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.accent),
+                      foregroundColor: AppColors.accent,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                    icon: const Icon(Icons.download_rounded, size: 14),
+                    label: const Text('Audit Log', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: () async {
+                      final fileName = await GameLogExporter.downloadGameLogJson(game);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: const Color(0xFF1E3A2E),
+                            content: Text('Downloaded: $fileName (copied to clipboard)'),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  if (isHost)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                      label: const Text('Deal Next Round', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      onPressed: () => notifier.startNextRound(),
+                    )
+                  else
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Next round starting...',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showEndGameConfirmationDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1457,6 +1633,10 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   const Positioned.fill(
                     child: CardAnimationLayer(),
                   ),
+
+                  // Round Over Standings Overlay (Pool Rummy multi-round auto-progression)
+                  if (game.isRoundOver)
+                    _buildRoundOverOverlay(game, myUid, notifier),
                 ],
               ),
             ),
