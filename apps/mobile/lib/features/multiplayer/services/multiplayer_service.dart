@@ -1762,7 +1762,9 @@ class MultiplayerService {
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
         await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
-        await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+        if (updatedGame.status == 'COMPLETED') {
+          await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+        }
       } catch (e) {
         debugPrint('[MultiplayerService] checkDeclarationTimeout Firestore update notice: $e');
       }
@@ -2001,17 +2003,29 @@ class MultiplayerService {
 
   /// Deals the next round in a multi-round game (Pool 101, Pool 201, Best of 2 Deals)
   Future<void> startNextRound(String gameId) async {
-    final game = _mockGames[gameId];
+    MultiplayerGameState? game = _mockGames[gameId];
+    if (FirebaseConfig.isInitialized && _firestore != null) {
+      try {
+        final doc = await _firestore!.collection('games').doc(gameId).get();
+        if (doc.exists && doc.data() != null) {
+          game = MultiplayerGameState.fromJson(doc.data()!);
+          _mockGames[gameId] = game;
+        }
+      } catch (e) {
+        debugPrint('[MultiplayerService] startNextRound Firestore fetch notice: $e');
+      }
+    }
     if (game == null || game.status != 'ROUND_OVER') return;
+    final activeGame = game;
 
     final now = DateTime.now();
 
     // Determine surviving non-eliminated players
-    final survivingPlayers = game.players.where((p) => p.status != 'ELIMINATED').toList();
+    final survivingPlayers = activeGame.players.where((p) => p.status != 'ELIMINATED').toList();
     if (survivingPlayers.length <= 1) {
-      final updatedGame = game.copyWith(
+      final updatedGame = activeGame.copyWith(
         status: 'COMPLETED',
-        winnerPlayerId: survivingPlayers.isNotEmpty ? survivingPlayers.first.uid : game.winnerPlayerId,
+        winnerPlayerId: survivingPlayers.isNotEmpty ? survivingPlayers.first.uid : activeGame.winnerPlayerId,
         endedAt: now,
       );
       _mockGames[gameId] = updatedGame;
@@ -2019,29 +2033,29 @@ class MultiplayerService {
       if (FirebaseConfig.isInitialized && _firestore != null) {
         try {
           await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
-          await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+          await _firestore!.collection('tables').doc(activeGame.tableId).update({'status': 'FINISHED'});
         } catch (_) {}
       }
       return;
     }
 
     // Rotate dealer among surviving players
-    final currentDealerIdx = game.players.indexWhere((p) => p.uid == game.dealerPlayerId);
-    int nextDealerIdx = (currentDealerIdx >= 0 ? currentDealerIdx + 1 : 0) % game.players.length;
-    while (game.players[nextDealerIdx].status == 'ELIMINATED') {
-      nextDealerIdx = (nextDealerIdx + 1) % game.players.length;
+    final currentDealerIdx = activeGame.players.indexWhere((p) => p.uid == activeGame.dealerPlayerId);
+    int nextDealerIdx = (currentDealerIdx >= 0 ? currentDealerIdx + 1 : 0) % activeGame.players.length;
+    while (activeGame.players[nextDealerIdx].status == 'ELIMINATED') {
+      nextDealerIdx = (nextDealerIdx + 1) % activeGame.players.length;
     }
-    final nextDealer = game.players[nextDealerIdx];
+    final nextDealer = activeGame.players[nextDealerIdx];
 
     // First turn goes to player immediately after dealer
-    int firstTurnIdx = (nextDealerIdx + 1) % game.players.length;
-    while (game.players[firstTurnIdx].status == 'ELIMINATED') {
-      firstTurnIdx = (firstTurnIdx + 1) % game.players.length;
+    int firstTurnIdx = (nextDealerIdx + 1) % activeGame.players.length;
+    while (activeGame.players[firstTurnIdx].status == 'ELIMINATED') {
+      firstTurnIdx = (firstTurnIdx + 1) % activeGame.players.length;
     }
-    final firstTurnPlayer = game.players[firstTurnIdx];
+    final firstTurnPlayer = activeGame.players[firstTurnIdx];
 
     // Deal cards: 2 players = 1 deck (54 cards), 3+ players = 2 decks (108 cards)
-    final numDecks = game.players.length <= 2 ? 1 : 2;
+    final numDecks = activeGame.players.length <= 2 ? 1 : 2;
     final deck = Deck.initialize(numDecks);
     final allCards = List<Card>.from(deck.cards);
 
@@ -2049,7 +2063,7 @@ class MultiplayerService {
     final effectiveWildRank = JokerUtils.getEffectiveWildRank(openJoker)?.name ?? 'ace';
 
     final playerHands = <String, List<Card>>{};
-    for (final p in game.players) {
+    for (final p in activeGame.players) {
       if (p.status != 'ELIMINATED') {
         final hand = <Card>[];
         for (int i = 0; i < 13; i++) {
@@ -2066,7 +2080,7 @@ class MultiplayerService {
     final closedDeckInts = allCards.map((c) => c.toInt()).toList();
 
     // Restore dropped players back to ACTIVE for the new round
-    final updatedPlayers = game.players.map((p) {
+    final updatedPlayers = activeGame.players.map((p) {
       if (p.status == 'ELIMINATED') {
         return p.copyWith(cardCount: 0);
       }
@@ -2076,8 +2090,8 @@ class MultiplayerService {
       );
     }).toList();
 
-    final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
-    final nextRoundNum = game.currentRound + 1;
+    final actionLog = List<Map<String, dynamic>>.from(activeGame.actionLog);
+    final nextRoundNum = activeGame.currentRound + 1;
     actionLog.add({
       'seq': actionLog.length + 1,
       'timestamp': now.toIso8601String(),
@@ -2086,13 +2100,13 @@ class MultiplayerService {
       'description': 'Round $nextRoundNum started. Dealer: ${nextDealer.displayName}. First turn: ${firstTurnPlayer.displayName}.',
     });
 
-    final updatedGame = game.copyWith(
+    final updatedGame = activeGame.copyWith(
       status: 'IN_PROGRESS',
       phase: 'DRAW_PHASE',
       currentRound: nextRoundNum,
       currentTurnPlayerId: firstTurnPlayer.uid,
       turnNumber: 0,
-      turnDeadline: game.turnTimerSeconds > 0 ? now.add(Duration(seconds: game.turnTimerSeconds + 5)) : null,
+      turnDeadline: activeGame.turnTimerSeconds > 0 ? now.add(Duration(seconds: activeGame.turnTimerSeconds + 5)) : null,
       dealerPlayerId: nextDealer.uid,
       openJoker: openJoker,
       effectiveWildRank: effectiveWildRank,
@@ -2117,6 +2131,10 @@ class MultiplayerService {
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
         await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
+        await _firestore!.collection('tables').doc(activeGame.tableId).update({
+          'status': 'PLAYING',
+          'activeGameId': gameId,
+        });
         for (final entry in playerHands.entries) {
           await _firestore!
               .collection('games')

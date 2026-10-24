@@ -227,7 +227,7 @@ class DeclarationResultModal extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: onNewGame,
-                      child: const Text('NEW GAME', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('NEXT ROUND / DEAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                     ),
                   ),
                 ],

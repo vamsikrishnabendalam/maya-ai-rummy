@@ -198,6 +198,18 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
   MultiplayerGameNotifier(this._service, this._ref) : super(const MultiplayerGameTableState());
 
+  bool get hasFirstLife {
+    final allCards = state.cardGroups.expand((g) => g.cards).toList();
+    return state.cardGroups.any((g) => g.type == CardGroupType.pureSequence) ||
+        SequenceValidator.hasPureSequenceInHand(allCards);
+  }
+
+  bool get hasSecondLife {
+    final pureCount = state.cardGroups.where((g) => g.type == CardGroupType.pureSequence).length;
+    final impureCount = state.cardGroups.where((g) => g.type == CardGroupType.impureSequence).length;
+    return pureCount >= 1 && (pureCount + impureCount) >= 2;
+  }
+
   void _persistGroups(String gameId, String uid, List<CardGroup> groups) {
     try {
       final jsonList = groups.map((g) => g.toJson()).toList();
@@ -237,14 +249,24 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     }
 
     _sub = _service.watchGame(gameId, user.uid).listen((g) {
+      final prevGame = state.gameState;
+      final isNewRound = prevGame != null && g.currentRound > prevGame.currentRound;
+
       List<CardGroup> groups = state.cardGroups;
+      if (isNewRound) {
+        // Clear cached groups from previous round so fresh 13 cards are clean-dealt
+        _storage.setString('saved_groups_${gameId}_${user.uid}', '');
+        _storage.setBool('dealt_${gameId}_${user.uid}', false);
+        _hasTriggeredInitialDeal = false;
+        groups = [];
+      }
 
       final effectiveJoker = g.effectiveJokerForPlayer(user.uid);
 
       // Section 7: Authoritative Hand State Synchronization (localHand = serverHand)
       // When 13 cards first arrive on initial deal or on page reload / tab shift:
       if (groups.isEmpty && g.myHand.isNotEmpty) {
-        final saved = _loadSavedGroups(gameId, user.uid);
+        final saved = isNewRound ? null : _loadSavedGroups(gameId, user.uid);
         if (saved != null && saved.isNotEmpty) {
           _hasTriggeredInitialDeal = true;
           _storage.setBool('dealt_${gameId}_${user.uid}', true);

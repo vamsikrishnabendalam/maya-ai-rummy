@@ -1,46 +1,34 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:game_engine/game_engine.dart';
-import '../../../../core/theme/app_colors.dart';
 import 'card_widget.dart';
 import 'card_back_widget.dart';
+import 'discard_history_modal.dart';
 
-/// Center table widget displaying the closed deck, wild joker, and open discard pile.
+/// Royal Rummy Center Table Wells:
+/// 1. Closed Deck stack with perpendicular wild joker peeking underneath.
+/// 2. Open Discard Pile with Discard History button.
+/// 3. Finish / Declare Slot for dropping the 14th card to declare show.
 class CenterTable extends StatelessWidget {
-  /// Number of cards remaining in the closed deck.
   final int closedDeckCount;
-
-  /// Cards currently in the open discard pile.
   final List<Card> openPile;
-
-  /// The wild joker card turned face-up for the current round.
-  final Card wildJoker;
-
-  /// Whether the table is playing with closed joker rule.
+  final Card? wildJoker;
   final bool isClosedJoker;
-
-  /// Whether the player has opened and revealed the joker.
   final bool isJokerOpened;
-
-  /// Whether the player holds a valid Pure Sequence (Life) to view joker.
   final bool hasLife;
-
-  /// Callback when player taps to open/view the closed joker.
   final VoidCallback? onOpenClosedJoker;
-
-  /// Whether the player can tap either deck to draw a card.
   final bool canDraw;
-
-  /// Callback invoked when the closed deck is tapped.
   final VoidCallback? onDrawClosed;
-
-  /// Callback invoked when the open discard pile top card is tapped.
   final VoidCallback? onDrawOpen;
+  final bool canDeclare;
+  final VoidCallback? onDeclare;
+  final VoidCallback? onShowDiscardHistory;
+  final bool isCompact;
 
   const CenterTable({
     super.key,
     required this.closedDeckCount,
     required this.openPile,
-    required this.wildJoker,
+    this.wildJoker,
     this.isClosedJoker = false,
     this.isJokerOpened = true,
     this.hasLife = false,
@@ -48,296 +36,409 @@ class CenterTable extends StatelessWidget {
     this.canDraw = false,
     this.onDrawClosed,
     this.onDrawOpen,
+    this.canDeclare = false,
+    this.onDeclare,
+    this.onShowDiscardHistory,
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final double cardW = isCompact ? 48.0 : 58.0;
+    final double cardH = isCompact ? 70.0 : 84.0;
+    final double spacing = isCompact ? 16.0 : 28.0;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24.0),
+      padding: EdgeInsets.symmetric(vertical: isCompact ? 4.0 : 12.0),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _buildClosedDeck(),
-          const SizedBox(width: 24),
-          _buildWildJoker(),
-          const SizedBox(width: 24),
-          _buildOpenPile(),
+          // A. CLOSED DECK + PERPENDICULAR WILD JOKER
+          _buildClosedDeckWithTuckedJoker(context, cardW, cardH),
+          SizedBox(width: spacing),
+
+          // B. OPEN DECK + DISCARD HISTORY
+          _buildOpenDeck(context, cardW, cardH),
+          SizedBox(width: spacing),
+
+          // C. FINISH / DECLARE SLOT
+          _buildFinishSlot(context, cardW, cardH),
         ],
       ),
     );
   }
 
-  /// Builds the closed deck stack with depth effect and pulse indicator when drawable.
-  Widget _buildClosedDeck() {
+  static String _cardRank(Card card) {
+    if (card.isPrintedJoker) return 'A';
+    switch (card.rank) {
+      case Rank.ace: return 'A';
+      case Rank.king: return 'K';
+      case Rank.queen: return 'Q';
+      case Rank.jack: return 'J';
+      case Rank.ten: return '10';
+      case Rank.nine: return '9';
+      case Rank.eight: return '8';
+      case Rank.seven: return '7';
+      case Rank.six: return '6';
+      case Rank.five: return '5';
+      case Rank.four: return '4';
+      case Rank.three: return '3';
+      case Rank.two: return '2';
+      default: return 'A';
+    }
+  }
+
+  /// Closed deck stack with perpendicular wild joker tucked horizontally underneath
+  Widget _buildClosedDeckWithTuckedJoker(BuildContext context, double cardW, double cardH) {
+    final bool showJokerFace = !isClosedJoker || isJokerOpened;
+    final double tuckedW = isCompact ? 40.0 : 48.0;
+    final double tuckedH = isCompact ? 58.0 : 70.0;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 64,
-          height: 94,
-          child: Center(
-            child: SizedBox(
-              width: 62,
-              height: 92,
-              child: Stack(
-                children: [
-                  const Positioned(
-                    left: 0,
-                    top: 0,
-                    child: CardBackWidget(
-                      width: 60,
-                      height: 90,
+          width: cardW + (isCompact ? 22.0 : 30.0),
+          height: cardH + (isCompact ? 6.0 : 8.0),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.centerRight,
+            children: [
+              // 1. Perpendicular Wild Joker peeking horizontally to the left (-90 deg rotation)
+              Positioned(
+                left: -(isCompact ? 12.0 : 18.0),
+                top: (cardH - tuckedW) / 2 + (isCompact ? 4.0 : 6.0),
+                child: Transform.rotate(
+                  angle: -1.5708, // -90 degrees in radians
+                  child: GestureDetector(
+                    onTap: (!showJokerFace && hasLife) ? onOpenClosedJoker : null,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            blurRadius: 6,
+                            offset: const Offset(2, 2),
+                          ),
+                        ],
+                      ),
+                      child: (showJokerFace && wildJoker != null)
+                          ? CardWidget(
+                              card: wildJoker!,
+                              isWildJoker: true,
+                              width: tuckedW,
+                              height: tuckedH,
+                            )
+                          : Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CardBackWidget(
+                                  width: tuckedW,
+                                  height: tuckedH,
+                                  showPulse: hasLife,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: hasLife ? const Color(0xFFF59E0B) : Colors.black87,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: hasLife ? Colors.white : Colors.amber.shade700,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                                    size: 11,
+                                    color: hasLife ? Colors.black : Colors.amber.shade200,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
-                  const Positioned(
-                    left: 1,
-                    top: 1,
-                    child: CardBackWidget(
-                      width: 60,
-                      height: 90,
-                    ),
-                  ),
-                  Positioned(
-                    left: 2,
-                    top: 2,
-                    child: CardBackWidget(
-                      width: 60,
-                      height: 90,
+                ),
+              ),
+
+              // 2. Closed Deck Stack (3 layered cards)
+              Positioned(
+                right: 4,
+                top: 4,
+                child: CardBackWidget(width: cardW, height: cardH),
+              ),
+              Positioned(
+                right: 2,
+                top: 2,
+                child: CardBackWidget(width: cardW, height: cardH),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CardBackWidget(
+                      width: cardW,
+                      height: cardH,
                       showPulse: canDraw,
                       onTap: canDraw ? onDrawClosed : null,
                     ),
-                  ),
-                ],
+                    // Deck Count Badge
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFBBF24), width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '$closedDeckCount',
+                          style: const TextStyle(
+                            color: Color(0xFFFDE68A),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'CLOSED',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFE2E8F0),
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4), width: 0.6),
+              ),
+              child: Text(
+                (showJokerFace && wildJoker != null) ? 'JOKER: ${_cardRank(wildJoker!)}' : 'LOCKED',
+                style: const TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFFDE68A),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Open deck showing top discarded card and Discard History button
+  Widget _buildOpenDeck(BuildContext context, double cardW, double cardH) {
+    final topCard = openPile.isNotEmpty ? openPile.last : null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: cardW,
+          height: cardH,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (topCard != null)
+                GestureDetector(
+                  onTap: canDraw ? onDrawOpen : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        if (canDraw)
+                          BoxShadow(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                            blurRadius: 12,
+                            spreadRadius: 1,
+                          ),
+                      ],
+                    ),
+                    child: CardWidget(
+                      card: topCard,
+                      isWildJoker: JokerUtils.isWildJoker(topCard, wildJoker),
+                      width: cardW,
+                      height: cardH,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: cardW,
+                  height: cardH,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                      width: 1.5,
+                      style: BorderStyle.solid,
+                    ),
+                    color: const Color(0xFF042619).withValues(alpha: 0.5),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'EMPTY',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.white38,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Discard Pile History Button (Pill at top-right)
+              Positioned(
+                top: -6,
+                right: -6,
+                child: GestureDetector(
+                  onTap: () {
+                    if (onShowDiscardHistory != null) {
+                      onShowDiscardHistory!();
+                    } else {
+                      DiscardHistoryModal.show(
+                        context,
+                        discardPile: openPile,
+                        wildJoker: wildJoker,
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFBBF24), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.history_rounded,
+                      size: 11,
+                      color: Color(0xFFFDE68A),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
         Text(
-          'Deck ($closedDeckCount)',
+          'OPEN (${openPile.length})',
           style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textSecondary,
+            fontSize: 9.5,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFE2E8F0),
+            letterSpacing: 0.6,
           ),
         ),
       ],
     );
   }
 
-  /// Builds the wild joker display with surrounding golden glow and label.
-  Widget _buildWildJoker() {
-    if (isClosedJoker && !isJokerOpened) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 64,
-            height: 94,
-            child: Center(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CardBackWidget(
-                    width: 56,
-                    height: 84,
-                    showPulse: hasLife,
-                    onTap: hasLife ? onOpenClosedJoker : null,
-                  ),
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: hasLife ? AppColors.accent : Colors.black87,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: hasLife ? Colors.white : Colors.amber.shade700,
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          if (hasLife)
-                            BoxShadow(
-                              color: AppColors.accent.withValues(alpha: 0.8),
-                              blurRadius: 8,
-                            ),
-                        ],
-                      ),
-                      child: Icon(
-                        hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
-                        size: 13,
-                        color: hasLife ? Colors.black : Colors.amber.shade200,
-                      ),
-                    ),
-                  ),
-                ],
+  /// Finish slot for dropping 14th card to declare show
+  Widget _buildFinishSlot(BuildContext context, double cardW, double cardH) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: canDeclare ? onDeclare : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            width: cardW,
+            height: cardH,
+            decoration: BoxDecoration(
+              color: canDeclare
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.22)
+                  : const Color(0xFF042619).withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: canDeclare
+                    ? const Color(0xFFFBBF24)
+                    : const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                width: canDeclare ? 2.0 : 1.2,
               ),
+              boxShadow: [
+                if (canDeclare)
+                  BoxShadow(
+                    color: const Color(0xFFFBBF24).withValues(alpha: 0.6),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: 6),
-          if (hasLife)
-            GestureDetector(
-              onTap: onOpenClosedJoker,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.accent,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'VIEW JOKER',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            )
-          else
-            const Column(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Icon(
+                  Icons.emoji_events_rounded,
+                  color: canDeclare ? const Color(0xFFFBBF24) : const Color(0xFFFBBF24).withValues(alpha: 0.65),
+                  size: isCompact ? 18 : 22,
+                ),
+                const SizedBox(height: 3),
                 Text(
-                  'CLOSED JOKER',
+                  'FINISH',
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMuted,
-                    letterSpacing: 0.5,
+                    fontSize: isCompact ? 8 : 9,
+                    fontWeight: FontWeight.w900,
+                    color: canDeclare ? const Color(0xFFFDE68A) : Colors.white70,
+                    letterSpacing: 0.6,
                   ),
                 ),
                 Text(
-                  '(Need Life)',
+                  '14th Card',
                   style: TextStyle(
-                    fontSize: 9,
-                    color: Colors.white38,
+                    fontSize: isCompact ? 6.5 : 7.5,
+                    color: canDeclare ? Colors.white : Colors.white38,
                   ),
                 ),
               ],
             ),
-        ],
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 64,
-          height: 94,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: const [
-                  BoxShadow(
-                    color: AppColors.accentGlow,
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: CardWidget(
-                card: wildJoker,
-                isWildJoker: true,
-                width: 56,
-                height: 84,
-              ),
-            ),
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          wildJoker.isPrintedJoker ? 'OPEN JOKER: A' : 'OPEN JOKER',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: AppColors.accent,
-            letterSpacing: 1,
-          ),
-        ),
-        if (wildJoker.isPrintedJoker)
-          const Text(
-            '(Ace is Wild)',
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textGold,
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// Builds the open discard pile displaying at least 3 cards fanned diagonally,
-  /// with only the top card interactive for drawing.
-  Widget _buildOpenPile() {
-    Widget pileContent;
-
-    if (openPile.isEmpty) {
-      pileContent = Container(
-        width: 60,
-        height: 90,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: const Center(
-          child: Text(
-            'Empty',
-            style: TextStyle(
-              fontSize: 11,
-              color: Color(0x66FFFFFF),
-            ),
-          ),
-        ),
-      );
-    } else {
-      // Display up to 3 latest discarded cards
-      final count = openPile.length > 5 ? 5 : openPile.length;
-      final startIndex = openPile.length - count;
-      final visibleCards = openPile.sublist(startIndex);
-
-      pileContent = SizedBox(
-        width: 60.0 + (count - 1) * 22.0,
-        height: 90.0 + (count - 1) * 6.0,
-        child: Stack(
-          children: List.generate(count, (index) {
-            final isTop = index == count - 1;
-            final card = visibleCards[index];
-            final xOffset = index * 22.0;
-            final yOffset = index * 6.0;
-
-            return Positioned(
-              left: xOffset,
-              top: yOffset,
-              child: CardWidget(
-                card: card,
-                isWildJoker: JokerUtils.isWildJoker(card, wildJoker),
-                width: 60,
-                height: 90,
-                onTap: isTop && canDraw ? onDrawOpen : null,
-              ),
-            );
-          }),
-        ),
-      );
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Center(child: pileContent),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         const Text(
-          'OPEN PILE',
+          'DECLARE',
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-            letterSpacing: 0.5,
+            fontSize: 9.5,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFFBBF24),
+            letterSpacing: 0.6,
           ),
         ),
       ],

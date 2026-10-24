@@ -41,24 +41,39 @@ class CardGroupWidget extends StatelessWidget {
   Color _groupColor() {
     switch (group.type) {
       case CardGroupType.pureSequence:
-        return AppColors.groupPure;
+        return const Color(0xFF10B981); // Emerald
       case CardGroupType.impureSequence:
-        return AppColors.groupImpure;
+        return const Color(0xFFF59E0B); // Amber
       case CardGroupType.set:
-        return AppColors.groupSet;
+        return const Color(0xFF38BDF8); // Sky
       case CardGroupType.deadwood:
-        return AppColors.groupDeadwood;
+        return const Color(0xFFF43F5E); // Rose
+    }
+  }
+
+  Color _groupBgColor() {
+    switch (group.type) {
+      case CardGroupType.pureSequence:
+        return const Color(0xFF042F2E);
+      case CardGroupType.impureSequence:
+        return const Color(0xFF3F1905);
+      case CardGroupType.set:
+        return const Color(0xFF082F49);
+      case CardGroupType.deadwood:
+        return const Color(0xFF3E0A16);
     }
   }
 
   IconData _groupIcon() {
     switch (group.type) {
       case CardGroupType.pureSequence:
+        return Icons.check_circle_rounded;
       case CardGroupType.impureSequence:
+        return Icons.check_circle_outline_rounded;
       case CardGroupType.set:
-        return Icons.check_circle;
+        return Icons.layers_outlined;
       case CardGroupType.deadwood:
-        return Icons.warning_amber_rounded;
+        return Icons.error_outline_rounded;
     }
   }
 
@@ -114,23 +129,31 @@ class CardGroupWidget extends StatelessWidget {
 
   Widget _buildGroupLabel(Color color) {
     if (group.isEmpty) return const SizedBox.shrink();
+    final bgColor = _groupBgColor();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: color.withValues(alpha: 0.5),
+          color: color.withValues(alpha: 0.8),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.25),
+            blurRadius: 6,
+            spreadRadius: 0.5,
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             _groupIcon(),
-            size: 11,
+            size: 10,
             color: color,
           ),
           const SizedBox(width: 4),
@@ -139,8 +162,8 @@ class CardGroupWidget extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
             ),
           ),
         ],

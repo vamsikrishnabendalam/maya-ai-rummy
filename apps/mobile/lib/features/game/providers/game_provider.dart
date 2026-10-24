@@ -199,6 +199,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
   bool get hasHumanLife => SequenceValidator.hasPureSequenceInHand(humanPlayer.hand);
 
+  bool get hasHumanSecondLife {
+    final pureCount = state.cardGroups.where((g) => g.type == CardGroupType.pureSequence).length;
+    final impureCount = state.cardGroups.where((g) => g.type == CardGroupType.impureSequence).length;
+    return pureCount >= 1 && (pureCount + impureCount) >= 2;
+  }
+
   bool get canHumanOpenJoker =>
       state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker && hasHumanLife;
 
