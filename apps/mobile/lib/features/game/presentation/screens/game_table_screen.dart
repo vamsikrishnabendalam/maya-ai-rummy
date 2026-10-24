@@ -11,7 +11,6 @@ import '../widgets/turn_indicator.dart';
 import '../widgets/action_bar.dart';
 import '../widgets/player_hand.dart';
 import '../widgets/score_bottom_left.dart';
-import '../widgets/group_suggestions_modal.dart';
 import '../widgets/declaration_result_modal.dart';
 import '../widgets/score_card_modal.dart';
 import '../widgets/game_settings_modal.dart';
@@ -217,7 +216,7 @@ class GameTableScreen extends ConsumerWidget {
               // --- Action Bar (Sort, Group, Discard, Discard & Declare, Drop, New, Submit Show) ---
               ActionBar(
                 onSort: () => notifier.autoSortHand(),
-                onAutoGroup: () => _openGroupSuggestions(context, ref),
+                onAutoGroup: () => notifier.autoGroupHand(),
                 onDiscard: () => notifier.discardSelectedCard(),
                 canDiscard: notifier.canDiscard,
                 canOpenClosedJoker: notifier.canHumanOpenJoker,
@@ -301,29 +300,6 @@ class GameTableScreen extends ConsumerWidget {
     ),
   ),
 );
-  }
-
-  void _openGroupSuggestions(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(gameTableProvider.notifier);
-    final openJoker = notifier.wildJokerCard;
-    final suggestions = notifier.getGroupSuggestions();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return GroupSuggestionsModal(
-          suggestions: suggestions,
-          openJoker: openJoker,
-          onApplyBestGrouping: () {
-            Navigator.of(ctx).pop();
-            notifier.autoGroupHand();
-          },
-          onClose: () => Navigator.of(ctx).pop(),
-        );
-      },
-    );
   }
 
   void _openScoreCard(BuildContext context, WidgetRef ref) {

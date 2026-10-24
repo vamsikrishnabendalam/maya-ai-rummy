@@ -98,8 +98,9 @@ class ActionBar extends StatelessWidget {
                   highlightColor: AppColors.accent,
                 ),
                 _ActionButton(
-                  icon: Icons.auto_fix_high,
-                  label: 'Group',
+                  icon: Icons.auto_awesome,
+                  label: 'Auto Group',
+                  color: const Color(0xFF00E5FF),
                   onTap: onAutoGroup,
                 ),
                 _ActionButton(
@@ -122,8 +123,9 @@ class ActionBar extends StatelessWidget {
                   onTap: onSort,
                 ),
                 _ActionButton(
-                  icon: Icons.auto_fix_high,
-                  label: 'Group',
+                  icon: Icons.auto_awesome,
+                  label: 'Auto Group',
+                  color: const Color(0xFF00E5FF),
                   onTap: onAutoGroup,
                 ),
                 if (canOpenClosedJoker)
@@ -200,7 +202,7 @@ class _ActionButton extends StatelessWidget {
         ? const Color(0x33FFFFFF)
         : isHighlighted
             ? (highlightColor ?? AppColors.success)
-            : (color != null ? color!.withValues(alpha: 0.85) : const Color(0x99FFFFFF));
+            : (color ?? const Color(0x99FFFFFF));
 
     Widget iconWidget = Icon(
       icon,
