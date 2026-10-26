@@ -109,26 +109,31 @@ class GameUINotifier extends StateNotifier<GameUIState> {
   }
 
   void triggerAction(GameActionType action, {Card? card}) {
-    state = state.copyWith(
-      actionId: state.actionId + 1,
-      lastAction: action,
-      animationPhase: AnimationPhase.cardFlying,
-      animatingCard: card,
-    );
+    Future.microtask(() {
+      if (!mounted) return;
+      state = state.copyWith(
+        actionId: state.actionId + 1,
+        lastAction: action,
+        animationPhase: AnimationPhase.cardFlying,
+        animatingCard: card,
+      );
 
-    // Auto-advance animation phase after delay
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (state.animationPhase == AnimationPhase.cardFlying) {
-        state = state.copyWith(animationPhase: AnimationPhase.cardLanding);
-      }
-    });
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (state.animationPhase == AnimationPhase.cardLanding) {
-        state = state.copyWith(
-          animationPhase: AnimationPhase.idle,
-          lastAction: GameActionType.none,
-        );
-      }
+      // Auto-advance animation phase after delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        if (state.animationPhase == AnimationPhase.cardFlying) {
+          state = state.copyWith(animationPhase: AnimationPhase.cardLanding);
+        }
+      });
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        if (state.animationPhase == AnimationPhase.cardLanding) {
+          state = state.copyWith(
+            animationPhase: AnimationPhase.idle,
+            lastAction: GameActionType.none,
+          );
+        }
+      });
     });
   }
 
@@ -136,6 +141,7 @@ class GameUINotifier extends StateNotifier<GameUIState> {
     state = state.copyWith(newCardIndex: index);
     // Clear highlight after animation
     Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
       if (state.newCardIndex == index) {
         state = state.copyWith(newCardIndex: -1);
       }
@@ -151,7 +157,10 @@ class GameUINotifier extends StateNotifier<GameUIState> {
   }
 
   void resetUI() {
-    state = const GameUIState();
+    Future.microtask(() {
+      if (!mounted) return;
+      state = const GameUIState();
+    });
   }
 }
 

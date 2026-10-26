@@ -1,4 +1,4 @@
-import 'package:game_engine/game_engine.dart' show Card;
+import 'package:game_engine/game_engine.dart' show Card, Rank;
 
 /// Types of card groupings in Indian Rummy
 enum CardGroupType {
@@ -62,6 +62,34 @@ class CardGroup {
 
   /// Number of cards in this group
   int get length => cards.length;
+
+  /// Total deadwood penalty points for this group
+  int get points {
+    if (isValid && type != CardGroupType.deadwood) return 0;
+    int sum = 0;
+    for (final card in cards) {
+      if (card.isPrintedJoker) continue;
+      switch (card.rank) {
+        case Rank.ace:
+        case Rank.jack:
+        case Rank.queen:
+        case Rank.king:
+        case Rank.ten:
+          sum += 10;
+          break;
+        case Rank.nine: sum += 9; break;
+        case Rank.eight: sum += 8; break;
+        case Rank.seven: sum += 7; break;
+        case Rank.six: sum += 6; break;
+        case Rank.five: sum += 5; break;
+        case Rank.four: sum += 4; break;
+        case Rank.three: sum += 3; break;
+        case Rank.two: sum += 2; break;
+        case null: break;
+      }
+    }
+    return sum;
+  }
 
   /// Create a copy with optional field overrides
   CardGroup copyWith({

@@ -149,24 +149,24 @@ class _CardWidgetState extends State<CardWidget>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: AppColors.cardFace,
+            color: const Color(0xFFFAF7F2), // HTML reference card face #FAF7F2
             borderRadius: BorderRadius.circular(8.0),
             border: Border.all(
               color: widget.isSelected
-                  ? AppColors.accent
+                  ? const Color(0xFFF2CA50)
                   : _isHovered
-                      ? AppColors.accent.withValues(alpha: 0.6)
-                      : AppColors.cardBorder,
-              width: widget.isSelected ? 3.0 : 1.0,
+                      ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
+                      : const Color(0xFFE2E8F0),
+              width: widget.isSelected ? 2.5 : 1.0,
             ),
             boxShadow: [
               BoxShadow(
                 color: widget.isSelected
-                    ? AppColors.accentGlow.withValues(alpha: 0.8)
-                    : AppColors.cardShadow,
+                    ? const Color(0xFFF2CA50).withValues(alpha: 0.45)
+                    : Colors.black.withValues(alpha: 0.35),
                 blurRadius: widget.isSelected ? 16.0 : (isLifted ? 8.0 : 4.0),
-                offset: Offset(0, widget.isSelected ? 8 : (isLifted ? 4 : 2)),
-                spreadRadius: widget.isSelected ? 2.5 : 0.0,
+                offset: Offset(0, widget.isSelected ? -4 : (isLifted ? 4 : 2)),
+                spreadRadius: widget.isSelected ? 1.5 : 0.0,
               ),
             ],
           ),
@@ -342,10 +342,10 @@ class _CardWidgetState extends State<CardWidget>
       top: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFFFB300), Color(0xFFFF8F00)],
+            colors: [Color(0xFFF2CA50), Color(0xFFD4AF37)],
           ),
           borderRadius: BorderRadius.only(
             topRight: Radius.circular(7),
@@ -353,20 +353,27 @@ class _CardWidgetState extends State<CardWidget>
           ),
           boxShadow: [
             BoxShadow(
-              color: Color(0x40FFB300),
+              color: Color(0x66D4AF37),
               blurRadius: 4,
               offset: Offset(0, 1),
             ),
           ],
         ),
-        child: const Text(
-          'JOKER',
-          style: TextStyle(
-            fontSize: 7,
-            fontWeight: FontWeight.w900,
-            color: Colors.black87,
-            letterSpacing: 0.5,
-          ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.workspace_premium_rounded, size: 8, color: Color(0xFF241A00)),
+            SizedBox(width: 1),
+            Text(
+              'JOKER',
+              style: TextStyle(
+                fontSize: 6.5,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF241A00),
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );

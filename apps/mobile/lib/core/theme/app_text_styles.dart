@@ -1,98 +1,130 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
 /// Typography and text styles for Maya AI Rummy.
 ///
-/// Provides specialized type scales optimized for compact mobile game tables,
-/// crisp card faces, opponent status indicators, meld labels, and scores.
+/// Provides specialized type scales using Google Fonts:
+/// - [Outfit] for luxury headlines, brand badges, and card ranks
+/// - [Plus Jakarta Sans] for UI titles, body text, and meld statuses
+/// - [JetBrains Mono] for timer countdowns, chips, points, and numeric stats
 class AppTextStyles {
   const AppTextStyles._();
 
-  /// Primary card rank label for standard hand and table cards (e.g. 'A', 'K', '10').
-  static TextStyle get cardRank => const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w800,
+  // --- Reference HTML Typography Styles ---
+
+  /// Primary card rank label (Outfit font, heavy black weight).
+  static TextStyle get cardRank => GoogleFonts.outfit(
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
         height: 1.0,
         letterSpacing: -0.5,
       );
 
-  /// Compact card rank label used on overlapping cards or smaller hand views.
-  static TextStyle get cardRankSmall => const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
+  /// Compact card rank label.
+  static TextStyle get cardRankSmall => GoogleFonts.outfit(
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
         height: 1.0,
       );
 
-  /// Primary suit symbol glyph (♠, ♥, ♦, ♣) on standard cards.
+  /// Primary suit symbol glyph.
   static TextStyle get cardSuit => const TextStyle(
-        fontSize: 24,
+        fontSize: 22,
         height: 1.0,
       );
 
-  /// Small suit symbol glyph for corner indicators and compact views.
+  /// Small suit symbol glyph for corner indicators.
   static TextStyle get cardSuitSmall => const TextStyle(
         fontSize: 12,
         height: 1.0,
       );
 
-  /// Group tag label displayed atop melded card sequences (e.g. 'PURE', 'SET').
-  static TextStyle get groupLabel => const TextStyle(
-        fontSize: 10,
+  /// Numeric values, pot size, points, currency (JetBrains Mono).
+  static TextStyle get labelNumeric => GoogleFonts.jetBrainsMono(
+        fontSize: 13,
         fontWeight: FontWeight.w700,
+        color: AppColors.primary,
+        letterSpacing: 0.2,
+      );
+
+  /// Timer countdown font (JetBrains Mono).
+  static TextStyle get labelTimer => GoogleFonts.jetBrainsMono(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
         letterSpacing: 0.5,
       );
 
-  /// Prominent score point counter displayed in gold.
-  static TextStyle get scoreValue => const TextStyle(
-        fontSize: 20,
+  /// Group tag label displayed atop melded card sequences.
+  static TextStyle get groupLabel => GoogleFonts.outfit(
+        fontSize: 9,
         fontWeight: FontWeight.w800,
-        color: AppColors.accent,
+        letterSpacing: 0.6,
+      );
+
+  /// Brand Title (Outfit).
+  static TextStyle get brandTitle => GoogleFonts.outfit(
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
+        color: AppColors.primary,
+        letterSpacing: 1.2,
+      );
+
+  /// Prominent score point counter displayed in gold.
+  static TextStyle get scoreValue => GoogleFonts.jetBrainsMono(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: AppColors.primary,
       );
 
   /// Label accompanying score metrics (e.g. 'POINTS', 'DEADWOOD').
-  static TextStyle get scoreLabel => const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textSecondary,
+  static TextStyle get scoreLabel => GoogleFonts.plusJakartaSans(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: AppColors.onSurfaceVariant,
+        letterSpacing: 0.5,
       );
 
-  /// Current turn state indicator text (e.g. 'Your Turn', 'Maya is thinking...').
-  static TextStyle get turnStatus => const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: AppColors.accent,
+  /// Current turn state indicator text.
+  static TextStyle get turnStatus => GoogleFonts.plusJakartaSans(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.primary,
       );
 
   /// Opponent avatar display name header.
-  static TextStyle get opponentName => const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
+  static TextStyle get opponentName => GoogleFonts.plusJakartaSans(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.onSurface,
       );
 
-  /// Secondary opponent metadata (e.g. card count, meld status).
-  static TextStyle get opponentDetail => const TextStyle(
-        fontSize: 11,
-        color: AppColors.textSecondary,
+  /// Secondary opponent metadata.
+  static TextStyle get opponentDetail => GoogleFonts.jetBrainsMono(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primary,
       );
 
-  /// Compact action button text (e.g. 'Sort', 'Declare', 'Drop').
-  static TextStyle get buttonLabel => const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
+  /// Action button label (Drop, Sort, Discard, Declare).
+  static TextStyle get buttonLabel => GoogleFonts.outfit(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
       );
 
   /// Micro tag / badge text for wild joker markers and status chips.
-  static TextStyle get badgeText => const TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w700,
+  static TextStyle get badgeText => GoogleFonts.outfit(
+        fontSize: 8.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
       );
 
   /// Section heading or modal title style.
-  static TextStyle get heading => const TextStyle(
+  static TextStyle get heading => GoogleFonts.outfit(
         fontSize: 18,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w800,
+        color: AppColors.onSurface,
       );
 }

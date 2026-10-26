@@ -94,41 +94,53 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
           children: [
             // Top Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
                       color: AppColors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
                     ),
-                    child: const Icon(Icons.card_giftcard_rounded, color: AppColors.accent, size: 22),
+                    child: const Icon(Icons.card_giftcard_rounded, color: AppColors.accent, size: 20),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'REWARD & PROGRESSION CENTER',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'REWARD & PROGRESSION CENTER',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
                         ),
-                      ),
-                      Text(
-                        user != null ? '${user.coins} Virtual Coins • ${levelInfo.subLevel}' : 'Sign in to earn rewards',
-                        style: const TextStyle(color: AppColors.textGold, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          user != null ? '${user.coins} Virtual Coins • ${levelInfo.subLevel}' : 'Sign in to earn rewards',
+                          style: const TextStyle(color: AppColors.textGold, fontSize: 11, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
                     onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
@@ -140,6 +152,9 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
               indicatorColor: AppColors.accent,
               labelColor: AppColors.accent,
               unselectedLabelColor: Colors.white60,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+              labelStyle: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+              unselectedLabelStyle: const TextStyle(fontSize: 10.5),
               tabs: const [
                 Tab(icon: Icon(Icons.calendar_today_rounded, size: 16), text: 'DAILY REWARDS'),
                 Tab(icon: Icon(Icons.military_tech_rounded, size: 16), text: 'LEVELS (20)'),
@@ -174,12 +189,12 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
     final streak = user?.loginStreak ?? 1;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF1B3A60), Color(0xFF0F2643)],
@@ -189,15 +204,15 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
             ),
             child: Row(
               children: [
-                const Text('🔥', style: TextStyle(fontSize: 36)),
-                const SizedBox(width: 14),
+                const Text('🔥', style: TextStyle(fontSize: 32)),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Day $streak Login Streak',
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 2),
                       const Text(
@@ -207,11 +222,12 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isClaimedToday ? Colors.grey.shade700 : AppColors.accent,
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   onPressed: (_isClaiming || isClaimedToday || user == null || user.isGuest)
                       ? null
@@ -220,7 +236,7 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : Text(
                           isClaimedToday ? 'CLAIMED' : 'CLAIM TODAY',
-                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5),
                         ),
                 ),
               ],
@@ -238,22 +254,22 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
               child: Text(_statusMessage!, style: const TextStyle(color: Colors.amberAccent, fontSize: 12)),
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           const Text(
             '7-DAY REWARD CYCLE',
             style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.1,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 0.72,
             ),
             itemCount: RewardsService.schedule.length,
             itemBuilder: (ctx, i) {
@@ -262,7 +278,7 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
               final isPast = streak > tier.day;
 
               return Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 decoration: BoxDecoration(
                   color: isCurrent
                       ? AppColors.accent.withValues(alpha: 0.15)
@@ -273,16 +289,19 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
                     width: isCurrent ? 1.5 : 1.0,
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Day ${tier.day}', style: TextStyle(color: isCurrent ? AppColors.accent : Colors.white60, fontSize: 10, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(tier.isBonus ? '🏆' : '🪙', style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 4),
-                    Text('+${tier.coins}', style: const TextStyle(color: AppColors.textGold, fontSize: 12, fontWeight: FontWeight.bold)),
-                    Text('+${tier.xp} XP', style: const TextStyle(color: Colors.white54, fontSize: 9)),
-                  ],
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Day ${tier.day}', style: TextStyle(color: isCurrent ? AppColors.accent : Colors.white60, fontSize: 10, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 3),
+                      Text(tier.isBonus ? '🏆' : '🪙', style: const TextStyle(fontSize: 18)),
+                      const SizedBox(height: 3),
+                      Text('+${tier.coins}', style: const TextStyle(color: AppColors.textGold, fontSize: 11, fontWeight: FontWeight.bold)),
+                      Text('+${tier.xp} XP', style: const TextStyle(color: Colors.white54, fontSize: 9)),
+                    ],
+                  ),
                 ),
               );
             },
@@ -429,8 +448,15 @@ class _RewardsModalState extends ConsumerState<RewardsModal> with SingleTickerPr
                       children: [
                         Row(
                           children: [
-                            Text(def.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                            const Spacer(),
+                            Expanded(
+                              child: Text(
+                                def.title,
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text('+${def.coinReward} 🪙 • +${def.xpReward} XP', style: const TextStyle(color: AppColors.textGold, fontSize: 10, fontWeight: FontWeight.bold)),
                           ],
                         ),

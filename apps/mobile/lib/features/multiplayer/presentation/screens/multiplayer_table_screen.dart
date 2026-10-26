@@ -11,6 +11,7 @@ import '../../../game/presentation/widgets/card_animation_layer.dart';
 import '../../../game/presentation/widgets/royal_rummy_oval_table.dart';
 import '../../../game/presentation/widgets/royal_life_checklist_bar.dart';
 import '../../../game/presentation/widgets/center_table.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../utils/game_log_exporter.dart';
 
 class MultiplayerTableScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,13 @@ class MultiplayerTableScreen extends ConsumerStatefulWidget {
 class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen> with WidgetsBindingObserver {
   Timer? _countdownTimer;
   bool _hasShownResultDialog = false;
+
+  static String _formatCoins(int amount) {
+    return amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+  }
 
   @override
   void initState() {
@@ -1261,7 +1269,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
 
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
-    final isDesktop = size.width >= 850;
+    final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
     final isMobileLandscape = isLandscape && !isDesktop;
     final isFirstDrop = game.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
     final dropPenalty = isFirstDrop ? game.firstDropPenalty : game.middleDropPenalty;
@@ -1290,7 +1298,10 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
           children: [
             // --- 1. Top Navigation Bar ---
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 18 : 12,
+                vertical: isDesktop ? 8 : 6,
+              ),
               decoration: const BoxDecoration(
                 color: Color(0xFF070D17),
                 border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
@@ -1300,26 +1311,44 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   InkWell(
                     onTap: () => context.go('/multiplayer'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 12 : 8,
+                        vertical: isDesktop ? 6 : 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 12),
-                          SizedBox(width: 4),
-                          Text('Lobby', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          Icon(Icons.arrow_back_ios_new, color: Colors.white, size: isDesktop ? 14 : 12),
+                          const SizedBox(width: 4),
+                          Text('Lobby', style: TextStyle(color: Colors.white, fontSize: isDesktop ? 13 : 11, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: isDesktop ? 12 : 8),
+
+                  // Brand Title
+                  Text(
+                    'MAYA AI RUMMY',
+                    style: TextStyle(
+                      fontSize: isDesktop ? 15 : 12,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFFF2CA50),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 10 : 8),
 
                   // Room Code Badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 11 : 8,
+                      vertical: isDesktop ? 5 : 3.5,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
@@ -1328,13 +1357,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B), size: 13),
+                        Icon(Icons.workspace_premium_rounded, color: const Color(0xFFF59E0B), size: isDesktop ? 15 : 13),
                         const SizedBox(width: 4),
                         Text(
                           '#${game.roomCode}',
-                          style: const TextStyle(
-                            color: Color(0xFFFDE68A),
-                            fontSize: 10.5,
+                          style: TextStyle(
+                            color: const Color(0xFFFDE68A),
+                            fontSize: isDesktop ? 12 : 10.5,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.6,
                           ),
@@ -1342,11 +1371,14 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: isDesktop ? 8 : 6),
 
                   // Drop Rules Badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 10 : 7,
+                      vertical: isDesktop ? 5 : 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.amber.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
@@ -1354,9 +1386,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     ),
                     child: Text(
                       'DROP: ${game.firstDropPenalty}/${game.middleDropPenalty}/${game.maxPenalty}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.amberAccent,
-                        fontSize: 9.5,
+                        fontSize: isDesktop ? 11 : 9.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -1377,29 +1409,35 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                         backgroundColor: const Color(0xFF1E293B),
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white24, width: 1),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 12 : 8,
+                          vertical: isDesktop ? 7 : 4,
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         visualDensity: VisualDensity.compact,
                       ),
-                      icon: const Icon(Icons.manage_accounts_rounded, color: AppColors.accent, size: 14),
-                      label: const Text('PLAYERS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      icon: Icon(Icons.manage_accounts_rounded, color: AppColors.accent, size: isDesktop ? 16 : 14),
+                      label: Text('PLAYERS', style: TextStyle(fontSize: isDesktop ? 11.5 : 10, fontWeight: FontWeight.bold)),
                       onPressed: () => _showManagePlayersModal(context, game, myUid),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: isDesktop ? 8 : 6),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3E1414),
                         foregroundColor: const Color(0xFFFF8A80),
                         side: const BorderSide(color: Color(0xFFD32F2F), width: 1),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 12 : 8,
+                          vertical: isDesktop ? 7 : 4,
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         visualDensity: VisualDensity.compact,
                       ),
-                      icon: const Icon(Icons.cancel_outlined, color: Color(0xFFFF8A80), size: 14),
-                      label: const Text('END', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      icon: Icon(Icons.cancel_outlined, color: const Color(0xFFFF8A80), size: isDesktop ? 16 : 14),
+                      label: Text('END', style: TextStyle(fontSize: isDesktop ? 11.5 : 10, fontWeight: FontWeight.bold)),
                       onPressed: () => _showEndGameConfirmationDialog(context),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: isDesktop ? 8 : 6),
                   ],
 
                   // Scoreboard Button
@@ -1407,13 +1445,57 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF142E54),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 12 : 8,
+                        vertical: isDesktop ? 7 : 4,
+                      ),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       visualDensity: VisualDensity.compact,
                     ),
-                    icon: const Icon(Icons.leaderboard_rounded, color: AppColors.accent, size: 16),
-                    label: const Text('SCOREBOARD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    icon: Icon(Icons.leaderboard_rounded, color: AppColors.accent, size: isDesktop ? 17 : 16),
+                    label: Text('SCOREBOARD', style: TextStyle(fontSize: isDesktop ? 11.5 : 10, fontWeight: FontWeight.bold)),
                     onPressed: () => _showScoreboardModal(context, game),
+                  ),
+                  SizedBox(width: isDesktop ? 10 : 6),
+
+                  // Available Coins Pill (User Virtual Coins)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 12 : 8,
+                      vertical: isDesktop ? 6 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF182128),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFF2CA50).withValues(alpha: 0.4),
+                        width: 0.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '🪙',
+                          style: TextStyle(fontSize: isDesktop ? 15 : 12),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatCoins(user.coins),
+                          style: TextStyle(
+                            fontSize: isDesktop ? 13 : 11,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFF2CA50),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1455,6 +1537,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                               isClosedJoker: game.isClosedJoker,
                               isJokerOpened: game.hasPlayerOpenedJoker(user.uid),
                               hasLife: notifier.hasFirstLife,
+                              isCompact: isMobileLandscape || (!isLandscape && MediaQuery.of(context).size.height < 720),
+                              potAmount: '🪙 ${(game.players.length * 100).clamp(100, 99900)}',
+                              pointValue: '${game.firstDropPenalty} pts',
                               onOpenClosedJoker: () {
                                 if (notifier.hasFirstLife) {
                                   notifier.openClosedJoker();
@@ -1825,11 +1910,11 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
             if (!isLandscape || isDesktop)
               Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: isDesktop ? 860 : double.infinity),
+                  constraints: BoxConstraints(maxWidth: isDesktop ? 960 : double.infinity),
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: isDesktop ? 16 : 10,
-                      vertical: isDesktop ? 5 : 3,
+                      vertical: isDesktop ? 6 : 3,
                     ),
                     child: Row(
                       children: [
@@ -1841,7 +1926,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 : (canDrop ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop) : null),
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
-                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                               decoration: BoxDecoration(
                                 color: game.isDeclaring
                                     ? const Color(0xFF0F172A).withValues(alpha: 0.6)
@@ -1858,7 +1943,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 children: [
                                   Icon(
                                     game.isDeclaring ? Icons.sort_rounded : Icons.flag_rounded,
-                                    size: isDesktop ? 15 : 13,
+                                    size: isDesktop ? 17 : 13,
                                     color: game.isDeclaring
                                         ? Colors.white70
                                         : (canDrop ? const Color(0xFFFDA4AF) : Colors.white24),
@@ -1870,7 +1955,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                       color: game.isDeclaring
                                           ? Colors.white70
                                           : (canDrop ? const Color(0xFFFDA4AF) : Colors.white30),
-                                      fontSize: isDesktop ? 11 : 10,
+                                      fontSize: isDesktop ? 13 : 10,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -1888,7 +1973,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                               onTap: () => notifier.autoSortHand(),
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(10),
@@ -1897,13 +1982,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.sort_rounded, size: 15, color: Colors.white70),
+                                    Icon(Icons.sort_rounded, size: 17, color: Colors.white70),
                                     SizedBox(width: 4),
                                     Text(
                                       'Sort',
                                       style: TextStyle(
                                         color: Colors.white70,
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -1921,7 +2006,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                             onTap: () => notifier.autoGroupHand(),
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
-                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF042F2E),
                                 borderRadius: BorderRadius.circular(10),
@@ -1930,13 +2015,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.auto_awesome, size: isDesktop ? 15 : 13, color: const Color(0xFF00E5FF)),
+                                  Icon(Icons.auto_awesome, size: isDesktop ? 17 : 13, color: const Color(0xFF00E5FF)),
                                   const SizedBox(width: 4),
                                   Text(
                                     'Auto Group',
                                     style: TextStyle(
                                       color: const Color(0xFF00E5FF),
-                                      fontSize: isDesktop ? 11 : 10,
+                                      fontSize: isDesktop ? 13 : 10,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -1960,7 +2045,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                               },
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1E293B),
                                   borderRadius: BorderRadius.circular(10),
@@ -1969,7 +2054,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.folder_shared_rounded, size: isDesktop ? 15 : 13, color: AppColors.accent),
+                                    Icon(Icons.folder_shared_rounded, size: isDesktop ? 17 : 13, color: AppColors.accent),
                                     const SizedBox(width: 4),
                                     Text(
                                       tableState.selectedCards.length >= 2
@@ -1977,7 +2062,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                           : 'Group',
                                       style: TextStyle(
                                         color: AppColors.accent,
-                                        fontSize: isDesktop ? 11 : 10,
+                                        fontSize: isDesktop ? 13 : 10,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -1992,7 +2077,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                               onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                                 decoration: BoxDecoration(
                                   gradient: canDiscard
                                       ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)])
@@ -2012,7 +2097,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.send_rounded, size: isDesktop ? 15 : 13, color: canDiscard ? Colors.black : Colors.white24),
+                                    Icon(Icons.send_rounded, size: isDesktop ? 17 : 13, color: canDiscard ? Colors.black : Colors.white24),
                                     const SizedBox(width: 4),
                                     Text(
                                       canDiscard && tableState.selectedCard != null
@@ -2020,7 +2105,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                           : 'Discard',
                                       style: TextStyle(
                                         color: canDiscard ? Colors.black : Colors.white30,
-                                        fontSize: isDesktop ? 11 : 10,
+                                        fontSize: isDesktop ? 13 : 10,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -2038,7 +2123,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                               if (game.isDeclaring) {
                                 if (game.declaringPlayerId == user.uid) {
                                   return Container(
-                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                                     decoration: BoxDecoration(
                                       color: AppColors.accent.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(10),
@@ -2054,7 +2139,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                   onTap: isSubmitted ? null : () => notifier.submitFinalHand(),
                                   borderRadius: BorderRadius.circular(10),
                                   child: Container(
-                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                                     decoration: BoxDecoration(
                                       gradient: isSubmitted ? null : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)]),
                                       color: isSubmitted ? Colors.white12 : null,
@@ -2074,7 +2159,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                         isSubmitted ? 'Submitted' : 'Submit Hand',
                                         style: TextStyle(
                                           color: isSubmitted ? Colors.white54 : Colors.black,
-                                          fontSize: isDesktop ? 11 : 10,
+                                          fontSize: isDesktop ? 13 : 10,
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
@@ -2087,7 +2172,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 onTap: canDeclare ? _showDeclarationDialog : null,
                                 borderRadius: BorderRadius.circular(10),
                                 child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: isDesktop ? 8 : 6),
+                                  padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
                                   decoration: BoxDecoration(
                                     gradient: canDeclare
                                         ? const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)])
@@ -2107,13 +2192,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.emoji_events_rounded, size: isDesktop ? 15 : 13, color: canDeclare ? Colors.black : Colors.white24),
+                                      Icon(Icons.emoji_events_rounded, size: isDesktop ? 18 : 13, color: canDeclare ? Colors.black : Colors.white24),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Declare',
                                         style: TextStyle(
                                           color: canDeclare ? Colors.black : Colors.white30,
-                                          fontSize: isDesktop ? 11 : 10,
+                                          fontSize: isDesktop ? 13.5 : 10,
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
@@ -2245,10 +2330,16 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
           bgColor = Colors.amber.withValues(alpha: 0.15);
         }
 
+        final screenH = MediaQuery.of(context).size.height;
+        final isCompactH = screenH < 550;
+
         return Align(
           alignment: alignment,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompactH ? 7 : 10,
+              vertical: isCompactH ? 3.5 : 6,
+            ),
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(14),
@@ -2264,7 +2355,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 CircleAvatar(
-                  radius: 14,
+                  radius: isCompactH ? 11 : 14,
                   backgroundColor: isEliminated
                       ? Colors.redAccent
                       : (isDropped
@@ -2279,10 +2370,10 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                             ? Icons.exit_to_app
                             : (isDisconnected ? Icons.wifi_off : Icons.person)),
                     color: (isTheirTurn || isEliminated || isDropped || isDisconnected) ? Colors.black : Colors.white70,
-                    size: 16,
+                    size: isCompactH ? 13 : 16,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isCompactH ? 5 : 8),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

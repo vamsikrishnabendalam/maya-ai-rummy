@@ -93,6 +93,47 @@ class AppColors {
 
   // --- Typography & Content ---
 
+  // --- Luxury Stadium & HTML Reference Palette ---
+  static const Color surface = Color(0xFF0B141B);
+  static const Color surfaceContainerLowest = Color(0xFF060F16);
+  static const Color surfaceContainerLow = Color(0xFF141D24);
+  static const Color surfaceContainer = Color(0xFF182128);
+  static const Color surfaceContainerHigh = Color(0xFF222B32);
+  static const Color surfaceContainerHighest = Color(0xFF2D363D);
+
+  // Gold Primary Tokens
+  static const Color primary = Color(0xFFF2CA50);
+  static const Color primaryContainer = Color(0xFFD4AF37);
+  static const Color onPrimary = Color(0xFF3C2F00);
+  static const Color onPrimaryContainer = Color(0xFF554300);
+
+  // Mint / Green Tertiary & Secondary Tokens
+  static const Color secondary = Color(0xFF9AD3B0);
+  static const Color secondaryContainer = Color(0xFF1C5338);
+  static const Color onSecondaryContainer = Color(0xFF8DC5A2);
+  static const Color tertiary = Color(0xFF58E7AA);
+  static const Color tertiaryContainer = Color(0xFF33CA90);
+  static const Color onTertiaryContainer = Color(0xFF005035);
+
+  // Error Tokens
+  static const Color error = Color(0xFFFFB4AB);
+  static const Color errorContainer = Color(0xFF93000A);
+  static const Color onError = Color(0xFF690005);
+  static const Color onErrorContainer = Color(0xFFFFDAD6);
+
+  // Surface Text & Outline
+  static const Color onSurface = Color(0xFFDAE4ED);
+  static const Color onSurfaceVariant = Color(0xFFD0C5AF);
+  static const Color outline = Color(0xFF99907C);
+  static const Color outlineVariant = Color(0xFF4D4635);
+
+  // Felt Luxury Stadium Backdrop
+  static const Color feltGradientTop = Color(0xFF0E3A24);
+  static const Color feltGradientMid = Color(0xFF082A1A);
+  static const Color feltGradientBottom = Color(0xFF04160D);
+  static const Color feltGoldBoundary = Color(0x59D4AF37); // rgba(212,175,55,0.35)
+  static const Color feltAmbientSpotlight = Color(0x14F2CA50); // rgba(242,202,80,0.08)
+
   /// Primary white text with maximum contrast.
   static const Color textPrimary = Color(0xFFFFFFFF);
 

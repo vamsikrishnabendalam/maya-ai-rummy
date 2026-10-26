@@ -18,145 +18,115 @@ class RoyalRummyOvalTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double tableRadius = isPortrait ? 90.0 : 160.0;
-    final double innerRadius = isPortrait ? 82.0 : 150.0;
-    final double feltRadius = isPortrait ? 74.0 : 142.0;
+    // Stadium corner radius matching rounded-[4.5rem] (72px)
+    final double outerRadius = isPortrait ? 72.0 : 64.0;
+    final double boundaryRadius = isPortrait ? 65.0 : 58.0;
 
     return Center(
       child: Container(
         width: width,
         height: height,
-        padding: const EdgeInsets.all(4.0),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(tableRadius),
+          borderRadius: BorderRadius.circular(outerRadius),
+          // Deep Stadium Felt Luxury Gradient
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF613415), // Top golden mahogany
-              Color(0xFF2C1506), // Deep shadow mahogany
-              Color(0xFF4A260E), // Base rim
+              Color(0xFF0E3A24), // from-[#0e3a24]
+              Color(0xFF082A1A), // via-[#082a1a]
+              Color(0xFF04160D), // to-[#04160d]
             ],
+            stops: [0.0, 0.5, 1.0],
           ),
           border: Border.all(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.55),
-            width: 2.8,
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.28),
+            width: 1.5,
           ),
           boxShadow: [
+            // Outer 3D Rim drop shadow
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.95),
-              blurRadius: 28,
-              spreadRadius: 2,
-              offset: const Offset(0, 14),
+              blurRadius: 36,
+              spreadRadius: 4,
+              offset: const Offset(0, 10),
             ),
+            // Vignette depth shadow
             BoxShadow(
-              color: const Color(0xFFFDE047).withValues(alpha: 0.25),
-              blurRadius: 3,
-              spreadRadius: -1,
-              offset: const Offset(0, 1),
+              color: const Color(0xFF000000).withValues(alpha: 0.8),
+              blurRadius: 50,
+              spreadRadius: -10,
             ),
           ],
         ),
-        child: Container(
-          padding: const EdgeInsets.all(3.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(innerRadius),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF070B12),
-                Color(0xFF1C1917),
-                Color(0xFF070B12),
-              ],
-            ),
-            border: Border.all(
-              color: const Color(0xFFFBBF24).withValues(alpha: 0.42),
-              width: 1.2,
-            ),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(feltRadius),
-              gradient: const RadialGradient(
-                center: Alignment.center,
-                radius: 0.92,
-                colors: [
-                  Color(0xFF147550), // Center bright emerald
-                  Color(0xFF0A4730), // Mid felt
-                  Color(0xFF042619), // Deep edge felt
-                ],
-                stops: [0.0, 0.62, 1.0],
-              ),
-              border: Border.all(
-                color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.85),
-                  blurRadius: 20,
-                  spreadRadius: -4,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Center Ambient Table Spotlight
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(outerRadius),
+                  gradient: const RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.75,
+                    colors: [
+                      Color(0x14F2CA50), // rgba(242,202,80,0.08)
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.65],
+                  ),
                 ),
-              ],
+              ),
             ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Inner Felt Betting Oval Ring
-                Positioned.fill(
-                  child: Padding(
-                    padding: EdgeInsets.all(isPortrait ? 8.0 : 12.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(feltRadius - 10),
-                        border: Border.all(
-                          color: const Color(0xFFFDE68A).withValues(alpha: 0.15),
-                          width: 1.0,
-                        ),
+
+            // Felt Gold Boundary Inlay Line
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(boundaryRadius),
+                    border: Border.all(
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.35), // shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)]
+                      width: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Watermark subtle branding
+            Positioned(
+              top: isPortrait ? 12 : 8,
+              child: Opacity(
+                opacity: 0.18,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '♠  MAYA AI RUMMY  ♥',
+                      style: TextStyle(
+                        color: Color(0xFFF2CA50),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-
-                // Table Watermark Branding
-                Positioned(
-                  top: isPortrait ? 10 : 14,
-                  child: Opacity(
-                    opacity: 0.22,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '♠ ROYAL RUMMY - 13 CARDS ♥',
-                          style: TextStyle(
-                            color: const Color(0xFFFDE68A),
-                            fontSize: isPortrait ? 9.5 : 11.5,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.2,
-                            fontFamily: 'serif',
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          '1st Life Pure Sequence • 2nd Life Sequence Required',
-                          style: TextStyle(
-                            color: const Color(0xFFA7F3D0),
-                            fontSize: isPortrait ? 7 : 8,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Child Contents (Center Wells: Decks, Joker, Finish Slot)
-                Center(child: child),
-              ],
+              ),
             ),
-          ),
+
+            // Child Content (Opponents, Center Decks, etc.)
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+                child: child,
+              ),
+            ),
+          ],
         ),
       ),
     );

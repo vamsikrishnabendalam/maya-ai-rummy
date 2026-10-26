@@ -1,12 +1,14 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart' hide Card;
 import 'package:game_engine/game_engine.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import 'card_back_widget.dart';
+import '../../../../core/utils/responsive.dart';
 
-/// Glass-morphism horizontal bar at the top of the game table showing the AI opponent's info.
+/// Luxury circular Opponent Pod matching the HTML reference design:
+/// - Circular avatar pod with pulsing radial countdown/timer ring during active turn
+/// - Dealer 'D' badge in rich gold container
+/// - Hand count badge with cards icon (e.g. '13 🎴')
+/// - Opponent name and score / stake status in Outfit/Plus Jakarta Sans
 class OpponentPanel extends StatefulWidget {
   /// The AI opponent player state.
   final Player opponent;
@@ -20,280 +22,235 @@ class OpponentPanel extends StatefulWidget {
   /// Whether the AI opponent is the dealer for the current deal.
   final bool isDealer;
 
+  /// Chips or tournament score string (e.g. '₹18,400' or '0 pts').
+  final String? scoreText;
+
   const OpponentPanel({
     Key? key,
     required this.opponent,
     this.isThinking = false,
     this.difficultyLabel = 'Expert',
     this.isDealer = false,
+    this.scoreText,
   }) : super(key: key);
 
   @override
   State<OpponentPanel> createState() => _OpponentPanelState();
 }
 
-class _OpponentPanelState extends State<OpponentPanel> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.glass,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.glassBorder,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildLeftSection(),
-          _buildCenterSection(),
-          _buildRightSection(),
-        ],
-      ),
-    );
-  }
-
-  /// Builds the left section with the avatar, name, and difficulty badge.
-  Widget _buildLeftSection() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.deckBack,
-                AppColors.groupImpure,
-              ],
-            ),
-          ),
-          child: const CircleAvatar(
-            backgroundColor: Colors.transparent,
-            radius: 19,
-            child: Text(
-              '🤖',
-              style: TextStyle(fontSize: 20),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Maya Bot',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentSubtle,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    widget.difficultyLabel,
-                    style: const TextStyle(
-                      color: AppColors.accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (widget.isDealer) ...[
-                  const SizedBox(width: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: Colors.amber,
-                        width: 1,
-                      ),
-                    ),
-                    child: const Text(
-                      '🅳 DEALER',
-                      style: TextStyle(
-                        color: Colors.amberAccent,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// Builds the center section with miniature overlapping face-down cards and hand count.
-  Widget _buildCenterSection() {
-    final int cardCount = math.min(widget.opponent.hand.length, 5);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 38,
-          child: cardCount > 0
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 0; i < cardCount; i++)
-                      Align(
-                        widthFactor: i == cardCount - 1 ? 1.0 : 0.45,
-                        alignment: Alignment.centerLeft,
-                        child: CardBackWidget(
-                          width: 24,
-                          height: 36,
-                          rotation: _getCardRotation(i, cardCount),
-                        ),
-                      ),
-                  ],
-                )
-              : const SizedBox.shrink(),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '${widget.opponent.hand.length} cards',
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 11,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Calculates slight rotation variations for fanned miniature cards (-2, -1, 0, 1, 2 degrees).
-  double _getCardRotation(int index, int count) {
-    if (count <= 1) return 0.0;
-    if (count == 5) {
-      const rotations = [-2.0, -1.0, 0.0, 1.0, 2.0];
-      return rotations[index];
-    }
-    return -2.0 + (4.0 * index / (count - 1));
-  }
-
-  /// Builds the right section showing either animated thinking dots or 'Waiting' label.
-  Widget _buildRightSection() {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: widget.isThinking
-          ? const _ThinkingDots(key: ValueKey('thinking_dots'))
-          : const Text(
-              'Waiting',
-              key: ValueKey('waiting_text'),
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
-              ),
-            ),
-    );
-  }
-}
-
-/// Animated thinking indicator with 3 sequential pulsing dots and amber/gold text.
-class _ThinkingDots extends StatefulWidget {
-  const _ThinkingDots({Key? key}) : super(key: key);
-
-  @override
-  State<_ThinkingDots> createState() => _ThinkingDotsState();
-}
-
-class _ThinkingDotsState extends State<_ThinkingDots>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+class _OpponentPanelState extends State<OpponentPanel> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
+    _pulseController = AnimationController(
       vsync: this,
-    )..repeat();
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+    final isDesktop = Responsive.isDesktop(context);
+    final double avatarSize = isDesktop ? 60.0 : 48.0;
+    final double glowSize = isDesktop ? 66.0 : 52.0;
+    final double emojiSize = isDesktop ? 28.0 : 22.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // 1. Circular Avatar Pod with Timer Ring
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
           children: [
-            const Text(
-              'Thinking...',
-              style: TextStyle(
-                color: AppColors.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+            // Active Turn Radial Pulsing Glow
+            if (widget.isThinking)
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return Container(
+                    width: glowSize,
+                    height: glowSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFF2CA50).withValues(
+                            alpha: 0.35 + _pulseController.value * 0.35,
+                          ),
+                          blurRadius: 16 + _pulseController.value * 8,
+                          spreadRadius: 2 + _pulseController.value * 4,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+            // Base Avatar Container with Timer Border
+            Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF182128),
+                    Color(0xFF0B141B),
+                  ],
+                ),
+                border: Border.all(
+                  color: widget.isThinking
+                      ? const Color(0xFFF2CA50)
+                      : const Color(0xFF2D363D),
+                  width: widget.isThinking ? 2.5 : 1.5,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  '🤖',
+                  style: TextStyle(fontSize: emojiSize),
+                ),
               ),
             ),
-            const SizedBox(width: 5),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (int i = 0; i < 3; i++) ...[
-                  if (i > 0) const SizedBox(width: 3),
-                  _buildDot(i),
-                ],
-              ],
+
+            // Top Timer Pill (when thinking)
+            if (widget.isThinking)
+              Positioned(
+                top: -8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2CA50),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timer_outlined, size: 9, color: Color(0xFF241A00)),
+                      const SizedBox(width: 2),
+                      Text(
+                        '12s',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF241A00),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Bottom-Left Dealer Badge
+            if (widget.isDealer)
+              Positioned(
+                bottom: -4,
+                left: -4,
+                child: Container(
+                  width: 17,
+                  height: 17,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'D',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF241A00),
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Bottom-Right Card Count Badge
+            Positioned(
+              bottom: -4,
+              right: -6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D363D),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFF2CA50).withValues(alpha: 0.5),
+                    width: 0.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${widget.opponent.hand.length}',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFF2CA50),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.style, size: 8.5, color: Color(0xFFF2CA50)),
+                  ],
+                ),
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
+        ),
+        const SizedBox(height: 3),
 
-  /// Builds an individual pulsing dot with animated opacity.
-  Widget _buildDot(int dotIndex) {
-    // Opacity formula: sin(controller.value * pi + dotIndex * pi/3).abs().clamp(0.3, 1.0)
-    final double opacity =
-        math.sin(_controller.value * math.pi + dotIndex * math.pi / 3)
-            .abs()
-            .clamp(0.3, 1.0);
-
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: opacity),
-        shape: BoxShape.circle,
-      ),
+        // 2. Name & Stakes Status
+        Text(
+          'Maya Bot',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: isDesktop ? 13.5 : 11.0,
+            fontWeight: FontWeight.w700,
+            color: widget.isThinking ? const Color(0xFFF2CA50) : const Color(0xFFDAE4ED),
+          ),
+        ),
+        Text(
+          widget.scoreText ?? widget.difficultyLabel,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: isDesktop ? 11.0 : 9.0,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFFD0C5AF),
+          ),
+        ),
+      ],
     );
   }
 }

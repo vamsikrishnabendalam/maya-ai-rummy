@@ -25,24 +25,32 @@ class Responsive {
   // ---------------------------------------------------------------------------
 
   /// Whether the current screen is mobile portrait (width < 600).
-  static bool isMobilePortrait(BuildContext context) =>
-      screenWidth(context) < 600;
+  static bool isMobilePortrait(BuildContext context) {
+    final width = screenWidth(context);
+    final height = screenHeight(context);
+    return height >= width || width < 600;
+  }
 
-  /// Whether the current screen is mobile landscape (width >= 600 && width < 900).
+  /// Whether the current screen is mobile landscape (width > height && height < 550).
   static bool isMobileLandscape(BuildContext context) {
     final width = screenWidth(context);
-    return width >= 600 && width < 900;
+    final height = screenHeight(context);
+    return width > height && height < 550;
   }
 
-  /// Whether the current screen is a tablet (width >= 900 && width < 1200).
+  /// Whether the current screen is a tablet (width >= 900 && width < 1200, height >= 550).
   static bool isTablet(BuildContext context) {
     final width = screenWidth(context);
-    return width >= 900 && width < 1200;
+    final height = screenHeight(context);
+    return (width >= 900 && width < 1200 && height >= 550) || (height >= 550 && height < 900 && width >= 600);
   }
 
-  /// Whether the current screen is a desktop (width >= 1200).
-  static bool isDesktop(BuildContext context) =>
-      screenWidth(context) >= 1200;
+  /// Whether the current screen is a desktop (width >= 1024 && height >= 550).
+  static bool isDesktop(BuildContext context) {
+    final width = screenWidth(context);
+    final height = screenHeight(context);
+    return width >= 1024 && height >= 550;
+  }
 
   // ---------------------------------------------------------------------------
   // Sizing Methods
@@ -50,7 +58,7 @@ class Responsive {
 
   /// Returns card width based on screen size:
   /// - 52 on mobile portrait
-  /// - 60 on landscape
+  /// - 46 on mobile landscape
   /// - 68 on tablet
   /// - 72 on desktop
   static double cardWidth(BuildContext context) {
@@ -61,9 +69,9 @@ class Responsive {
       return 68.0;
     }
     if (isMobileLandscape(context)) {
-      return 60.0;
+      return 58.0;
     }
-    return 52.0;
+    return 54.0;
   }
 
   /// Returns card height calculated as `cardWidth * 1.5`.
@@ -71,7 +79,7 @@ class Responsive {
 
   /// Returns the amount of card visible horizontally when fanned:
   /// - 28 on mobile portrait
-  /// - 32 on landscape
+  /// - 32 on mobile landscape
   /// - 36 on tablet / desktop
   static double cardOverlap(BuildContext context) {
     if (isDesktop(context) || isTablet(context)) {

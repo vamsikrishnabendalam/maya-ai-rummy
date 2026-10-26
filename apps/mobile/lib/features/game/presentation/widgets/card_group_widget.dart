@@ -41,39 +41,52 @@ class CardGroupWidget extends StatelessWidget {
   Color _groupColor() {
     switch (group.type) {
       case CardGroupType.pureSequence:
-        return const Color(0xFF10B981); // Emerald
+        return const Color(0xFF005035); // on-tertiary-container
       case CardGroupType.impureSequence:
-        return const Color(0xFFF59E0B); // Amber
+        return const Color(0xFF8DC5A2); // on-secondary-container
       case CardGroupType.set:
-        return const Color(0xFF38BDF8); // Sky
+        return const Color(0xFFDAE4ED); // on-surface
       case CardGroupType.deadwood:
-        return const Color(0xFFF43F5E); // Rose
+        return const Color(0xFFFFDAD6); // on-error-container
     }
   }
 
   Color _groupBgColor() {
     switch (group.type) {
       case CardGroupType.pureSequence:
-        return const Color(0xFF042F2E);
+        return const Color(0xFF33CA90); // tertiary-container
       case CardGroupType.impureSequence:
-        return const Color(0xFF3F1905);
+        return const Color(0xFF1C5338); // secondary-container
       case CardGroupType.set:
-        return const Color(0xFF082F49);
+        return const Color(0xFF222B32); // surface-container-high
       case CardGroupType.deadwood:
-        return const Color(0xFF3E0A16);
+        return const Color(0xFF93000A); // error-container
+    }
+  }
+
+  String _formatGroupBadgeText() {
+    switch (group.type) {
+      case CardGroupType.pureSequence:
+        return 'Pure Seq • 0 pts';
+      case CardGroupType.impureSequence:
+        return 'Impure • 0 pts';
+      case CardGroupType.set:
+        return 'Set • 0 pts';
+      case CardGroupType.deadwood:
+        return 'Deadwood • ${group.points} pts';
     }
   }
 
   IconData _groupIcon() {
     switch (group.type) {
       case CardGroupType.pureSequence:
-        return Icons.check_circle_rounded;
+        return Icons.verified;
       case CardGroupType.impureSequence:
         return Icons.check_circle_outline_rounded;
       case CardGroupType.set:
         return Icons.layers_outlined;
       case CardGroupType.deadwood:
-        return Icons.error_outline_rounded;
+        return Icons.warning_amber_rounded;
     }
   }
 
@@ -103,7 +116,7 @@ class CardGroupWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isAccepting || isHovered
-                  ? AppColors.accent.withValues(alpha: 0.6)
+                  ? AppColors.primary.withValues(alpha: 0.6)
                   : Colors.transparent,
               width: isAccepting ? 2.0 : 1.0,
             ),
@@ -111,15 +124,15 @@ class CardGroupWidget extends StatelessWidget {
                 ? AppColors.accentSubtle
                 : Colors.transparent,
           ),
-          padding: const EdgeInsets.only(top: 2, left: 4, right: 4, bottom: 4),
+          padding: const EdgeInsets.only(top: 2, left: 2, right: 2, bottom: 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Group label pill
-              _buildGroupLabel(color),
-              const SizedBox(height: 4),
               // Fanned cards
               _buildCardFan(),
+              const SizedBox(height: 3),
+              // Group label badge below cards matching HTML reference
+              _buildGroupLabel(color),
             ],
           ),
         );
@@ -130,43 +143,43 @@ class CardGroupWidget extends StatelessWidget {
   Widget _buildGroupLabel(Color color) {
     if (group.isEmpty) return const SizedBox.shrink();
     final bgColor = _groupBgColor();
+    final fanWidth = cardWidth + (group.cards.length - 1) * cardOverlap;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
+      constraints: BoxConstraints(maxWidth: fanWidth.clamp(50.0, double.infinity)),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(alpha: 0.8),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.25),
-            blurRadius: 6,
-            spreadRadius: 0.5,
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 4,
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _groupIcon(),
-            size: 10,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            group.label,
-            style: TextStyle(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _groupIcon(),
+              size: 9,
               color: color,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
             ),
-          ),
-        ],
+            const SizedBox(width: 2.5),
+            Text(
+              _formatGroupBadgeText(),
+              style: TextStyle(
+                color: color,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

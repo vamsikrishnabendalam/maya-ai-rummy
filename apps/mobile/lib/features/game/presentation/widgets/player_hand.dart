@@ -44,38 +44,83 @@ class PlayerHand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cw = Responsive.cardWidth(context);
-    final ch = Responsive.cardHeight(context);
-    final overlap = Responsive.cardOverlap(context);
-    final spacing = Responsive.groupSpacing(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final totalCards = cardGroups.fold<int>(0, (sum, g) => sum + g.cards.length);
+        final groupCount = cardGroups.length;
 
-    return Container(
-      constraints: BoxConstraints(
-        minHeight: ch + 40,
-        maxHeight: ch + 48,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Discard drop zone (appears during discard phase when dragging)
-          if (isDiscardPhase) _buildDiscardZone(context),
-          // Card groups in scrollable row
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.tablePadding(context),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: _buildGroupsWithDividers(
-                  cw, ch, overlap, spacing,
+        // Is compact mode (only when very narrow portrait container < 480)
+        final isCompact = availableWidth < 480;
+
+        // Base metrics
+        double cw = isCompact ? 46.0 : Responsive.cardWidth(context);
+        double overlap = isCompact ? 24.0 : Responsive.cardOverlap(context);
+        double spacing = isCompact ? 8.0 : Responsive.groupSpacing(context);
+
+        // Auto-fit calculation to make all cards visible in one go
+        final showAddGroupTarget = availableWidth >= 280;
+        final addGroupWidth = showAddGroupTarget ? (isCompact ? 24.0 : cw * 0.7) : 0.0;
+
+        if (groupCount > 0 && totalCards > 0) {
+          final horizontalPadding = isCompact ? 6.0 : 16.0;
+          final availableForRack = availableWidth - (horizontalPadding * 2);
+          final gapsCount = groupCount - 1;
+          final spacingNeeded = (gapsCount * spacing) + (showAddGroupTarget ? spacing + addGroupWidth : 0.0);
+          final availableForCards = availableForRack - spacingNeeded;
+
+          final nonFirstCards = (totalCards - groupCount).clamp(0, 99);
+          final requiredWidth = (groupCount * cw) + (nonFirstCards * overlap);
+
+          if (requiredWidth > availableForCards && availableForCards > 60) {
+            // Compress cards smoothly to fit in one go!
+            if (isCompact) {
+              cw = (availableForCards * 0.38 / groupCount).clamp(38.0, 48.0);
+            } else {
+              cw = (availableForCards * 0.35 / groupCount).clamp(48.0, 62.0);
+            }
+            final remainingForOverlap = availableForCards - (groupCount * cw);
+            if (nonFirstCards > 0) {
+              overlap = (remainingForOverlap / nonFirstCards).clamp(16.0, isCompact ? 24.0 : 36.0);
+            }
+          }
+        }
+
+        final ch = cw * 1.45;
+
+        return Container(
+          constraints: BoxConstraints(
+            minHeight: ch + 28,
+            maxHeight: ch + (isCompact ? 36 : 46),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Discard drop zone (appears during discard phase when dragging)
+              if (isDiscardPhase) _buildDiscardZone(context),
+              // Card groups centered and auto-fitted in one go
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const ClampingScrollPhysics(),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 4.0 : Responsive.tablePadding(context),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: _buildGroupsWithDividers(
+                        cw, ch, overlap, spacing, showAddGroupTarget, isCompact,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -84,26 +129,28 @@ class PlayerHand extends StatelessWidget {
     double ch,
     double overlap,
     double spacing,
+    bool showAddGroupTarget,
+    bool isCompact,
   ) {
     final widgets = <Widget>[];
 
     for (var i = 0; i < cardGroups.length; i++) {
       if (i > 0) {
-        // Gold divider between groups
+        // Divider between groups
         widgets.add(
           Padding(
             padding: EdgeInsets.symmetric(horizontal: spacing / 2),
             child: Container(
-              width: 2,
-              height: ch * 0.6,
+              width: 1.5,
+              height: ch * 0.55,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    AppColors.accent.withValues(alpha: 0.4),
-                    AppColors.accent.withValues(alpha: 0.4),
+                    AppColors.accent.withValues(alpha: 0.35),
+                    AppColors.accent.withValues(alpha: 0.35),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.2, 0.8, 1.0],
@@ -144,17 +191,20 @@ class PlayerHand extends StatelessWidget {
     }
 
     // "Add group" target at the end
-    widgets.add(
-      Padding(
-        padding: EdgeInsets.only(left: spacing),
-        child: _buildAddGroupTarget(cw, ch),
-      ),
-    );
+    if (showAddGroupTarget) {
+      widgets.add(
+        Padding(
+          padding: EdgeInsets.only(left: spacing),
+          child: _buildAddGroupTarget(cw, ch, isCompact),
+        ),
+      );
+    }
 
     return widgets;
   }
 
-  Widget _buildAddGroupTarget(double cw, double ch) {
+  Widget _buildAddGroupTarget(double cw, double ch, bool isCompact) {
+    final targetWidth = isCompact ? 24.0 : cw * 0.7;
     return DragTarget<CardDragData>(
       onWillAcceptWithDetails: (_) => true,
       onAcceptWithDetails: (details) {
@@ -164,39 +214,41 @@ class PlayerHand extends StatelessWidget {
         final isAccepting = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: cw * 0.7,
+          width: targetWidth,
           height: ch,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isAccepting
                   ? AppColors.accent.withValues(alpha: 0.5)
-                  : Colors.white.withValues(alpha: 0.08),
+                  : Colors.white.withValues(alpha: 0.12),
               width: isAccepting ? 2 : 1,
             ),
-            color: isAccepting ? AppColors.accentSubtle : Colors.transparent,
+            color: isAccepting ? AppColors.accentSubtle : Colors.white.withValues(alpha: 0.03),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.add_circle_outline,
-                size: 18,
+                size: isCompact ? 15 : 18,
                 color: isAccepting
                     ? AppColors.accent
-                    : Colors.white.withValues(alpha: 0.15),
+                    : Colors.white.withValues(alpha: 0.35),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'New\nGroup',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 8,
-                  color: isAccepting
-                      ? AppColors.accent
-                      : Colors.white.withValues(alpha: 0.15),
+              if (!isCompact) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'New\nGroup',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: isAccepting
+                        ? AppColors.accent
+                        : Colors.white.withValues(alpha: 0.35),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         );
@@ -218,8 +270,9 @@ class PlayerHand extends StatelessWidget {
         final isAccepting = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          height: isAccepting ? 36 : 24,
-          margin: const EdgeInsets.only(bottom: 4),
+          height: isAccepting ? 32 : 0,
+          margin: EdgeInsets.only(bottom: isAccepting ? 4 : 0),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: isAccepting
@@ -229,16 +282,18 @@ class PlayerHand extends StatelessWidget {
                 ? Border.all(color: AppColors.danger.withValues(alpha: 0.5))
                 : null,
           ),
-          child: Center(
-            child: Text(
-              isAccepting ? '↑ Drop here to discard ↑' : '',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.danger.withValues(alpha: 0.8),
-              ),
-            ),
-          ),
+          child: isAccepting
+              ? Center(
+                  child: Text(
+                    '↑ Drop here to discard ↑',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.danger.withValues(alpha: 0.8),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
         );
       },
     );

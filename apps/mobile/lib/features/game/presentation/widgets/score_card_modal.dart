@@ -12,6 +12,8 @@ class ScoreCardModal extends StatelessWidget {
   final bool isAiEliminated;
   final VoidCallback onClose;
   final VoidCallback onResetTournament;
+  final VoidCallback? onNextDeal;
+  final bool isRoundComplete;
 
   const ScoreCardModal({
     super.key,
@@ -23,6 +25,8 @@ class ScoreCardModal extends StatelessWidget {
     required this.isAiEliminated,
     required this.onClose,
     required this.onResetTournament,
+    this.onNextDeal,
+    this.isRoundComplete = false,
   });
 
   @override
@@ -86,12 +90,15 @@ class ScoreCardModal extends StatelessWidget {
                 children: [
                   const Icon(Icons.info_outline, size: 14, color: AppColors.accent),
                   const SizedBox(width: 6),
-                  Text(
-                    'Elimination Threshold: $eliminationScore pts (Player with > ${eliminationScore - 1} pts is eliminated)',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      'Elimination Threshold: $eliminationScore pts (Player with > ${eliminationScore - 1} pts is eliminated)',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
@@ -203,31 +210,86 @@ class ScoreCardModal extends StatelessWidget {
 
             // --- Footer Actions ---
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.glassBorder)),
               ),
               child: Row(
                 children: [
-                  TextButton.icon(
-                    icon: const Icon(Icons.restart_alt, size: 16, color: AppColors.danger),
-                    label: const Text(
-                      'Reset Tournament',
-                      style: TextStyle(color: AppColors.danger, fontSize: 12),
+                  if (!isHumanEliminated && !isAiEliminated)
+                    TextButton.icon(
+                      icon: const Icon(Icons.restart_alt, size: 14, color: AppColors.danger),
+                      label: const Text(
+                        'Reset',
+                        style: TextStyle(color: AppColors.danger, fontSize: 11),
+                      ),
+                      onPressed: onResetTournament,
                     ),
-                    onPressed: onResetTournament,
-                  ),
                   const Spacer(),
-                  ElevatedButton(
-                    onPressed: onClose,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  if (onNextDeal != null && !isHumanEliminated && !isAiEliminated) ...[
+                    OutlinedButton(
+                      onPressed: onClose,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Review Table', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
-                    child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.black),
+                      label: Text(
+                        'Next Deal (#${roundScores.length + 1})',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: onNextDeal,
+                    ),
+                  ] else if (isRoundComplete && (isHumanEliminated || isAiEliminated)) ...[
+                    OutlinedButton(
+                      onPressed: onClose,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Review Table', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.restart_alt_rounded, size: 16, color: Colors.black),
+                      label: const Text(
+                        'New Tournament',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: onResetTournament,
+                    ),
+                  ] else ...[
+                    ElevatedButton(
+                      onPressed: onClose,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                    ),
+                  ],
                 ],
               ),
             ),

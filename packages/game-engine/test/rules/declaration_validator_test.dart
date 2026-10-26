@@ -88,5 +88,34 @@ void main() {
       final res = SetValidator.validate(invalidSet, wild5H);
       expect(res.isValid, isFalse);
     });
+
+    test('User Hand from screenshot: 6D 4D 5D, 9D 10D JD, 5H PJ 6H, AS 2S AD AH with 2D wild joker', () {
+      final g1 = [
+        Card(suit: Suit.diamonds, rank: Rank.six, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.four, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.five, deckIndex: 0),
+      ];
+      final g2 = [
+        Card(suit: Suit.diamonds, rank: Rank.nine, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.ten, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.jack, deckIndex: 0),
+      ];
+      final g3 = [
+        Card(suit: Suit.hearts, rank: Rank.five, deckIndex: 0),
+        Card(isPrintedJoker: true, deckIndex: 0),
+        Card(suit: Suit.hearts, rank: Rank.six, deckIndex: 0),
+      ];
+      final g4 = [
+        Card(suit: Suit.spades, rank: Rank.ace, deckIndex: 0),
+        Card(suit: Suit.spades, rank: Rank.two, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.ace, deckIndex: 0),
+        Card(suit: Suit.hearts, rank: Rank.ace, deckIndex: 0),
+      ];
+      final wild2D = Card(suit: Suit.diamonds, rank: Rank.two, deckIndex: 0);
+
+      final result = validator.validate([g1, g2, g3, g4], wild2D);
+      expect(result.isValid, isTrue);
+      expect(result.penaltyScore, equals(0));
+    });
   });
 }

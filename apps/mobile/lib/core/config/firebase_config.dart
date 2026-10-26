@@ -28,7 +28,19 @@ class FirebaseConfig {
       if (kIsWeb) {
         await Firebase.initializeApp(options: webOptions);
       } else {
-        await Firebase.initializeApp();
+        try {
+          await Firebase.initializeApp();
+        } catch (_) {
+          await Firebase.initializeApp(
+            options: const FirebaseOptions(
+              apiKey: 'AIzaSyCZPnOUntPGcJPQ2tOrAs_p6NZtSnIWTNo',
+              appId: '1:1017354829104:android:60e7b7d88caac5a0479cf5',
+              messagingSenderId: '1017354829104',
+              projectId: projectId,
+              storageBucket: storageBucket,
+            ),
+          );
+        }
       }
       _isInitialized = true;
       return true;

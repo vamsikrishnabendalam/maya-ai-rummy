@@ -9,6 +9,7 @@ class DeclarationResultModal extends StatelessWidget {
   final Card openJoker;
   final VoidCallback onDismiss;
   final VoidCallback onNewGame;
+  final VoidCallback? onViewScoreCard;
 
   const DeclarationResultModal({
     super.key,
@@ -16,6 +17,7 @@ class DeclarationResultModal extends StatelessWidget {
     required this.openJoker,
     required this.onDismiss,
     required this.onNewGame,
+    this.onViewScoreCard,
   });
 
   @override
@@ -206,29 +208,39 @@ class DeclarationResultModal extends StatelessWidget {
             // Actions
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                if (onViewScoreCard != null) ...[
+                  TextButton.icon(
+                    icon: const Icon(Icons.table_chart_outlined, size: 16, color: AppColors.accent),
+                    label: const Text(
+                      'Scorecard',
+                      style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
-                    onPressed: onDismiss,
-                    child: Text(isValid ? 'CLOSE' : 'CONTINUE'),
+                    onPressed: onViewScoreCard,
                   ),
+                  const Spacer(),
+                ],
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: onDismiss,
+                  child: Text(isValid ? 'Review Table' : 'Continue', style: const TextStyle(fontSize: 11)),
                 ),
                 if (isValid) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: onNewGame,
-                      child: const Text('NEXT ROUND / DEAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.play_arrow_rounded, size: 16, color: Colors.black),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
+                    onPressed: onNewGame,
+                    label: const Text('Next Deal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                   ),
                 ],
               ],

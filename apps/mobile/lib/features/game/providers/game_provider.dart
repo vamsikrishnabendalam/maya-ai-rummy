@@ -132,7 +132,9 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           ),
           cardGroups: [],
         )) {
-    startNewGame();
+    Future.microtask(() {
+      startNewGame();
+    });
   }
 
   // --------------- Getters ---------------
@@ -164,9 +166,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       isDiscardPhase &&
       state.selectedCard != null &&
       !state.isRoundOver &&
-      !state.isAwaitingHumanDeclarationShow &&
-      (state.gameState.cardDrawnFromOpenThisTurn == null ||
-          state.selectedCard != state.gameState.cardDrawnFromOpenThisTurn);
+      !state.isAwaitingHumanDeclarationShow;
 
   Player get humanPlayer {
     return state.gameState.players.firstWhere(

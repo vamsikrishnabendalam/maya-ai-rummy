@@ -364,24 +364,30 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        titleSpacing: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
           onPressed: () => context.go('/'),
         ),
-        title: const Row(
-          children: [
-            Icon(Icons.group_rounded, color: AppColors.accent, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'PLAY WITH FRIENDS',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.1),
-            ),
-          ],
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.group_rounded, color: AppColors.accent, size: 20),
+              SizedBox(width: 6),
+              Text(
+                'PLAY WITH FRIENDS',
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+              ),
+            ],
+          ),
         ),
         actions: [
           if (user != null)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 12),
               child: Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -390,45 +396,52 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
                       onTap: user.isGuest ? () => _promptChangeGuestName(user.displayName) : null,
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.glass,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.glassBorder),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.person, color: AppColors.accent, size: 16),
-                            const SizedBox(width: 6),
-                            Text(
-                              user.displayName,
-                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                            const Icon(Icons.person, color: AppColors.accent, size: 15),
+                            const SizedBox(width: 4),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 75),
+                              child: Text(
+                                user.displayName,
+                                style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             if (user.isGuest) ...[
                               const SizedBox(width: 4),
-                              const Icon(Icons.edit, color: Colors.white54, size: 12),
+                              const Icon(Icons.edit, color: Colors.white54, size: 11),
                             ],
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFD700).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('🪙', style: TextStyle(fontSize: 13)),
-                          const SizedBox(width: 4),
+                          const Text('🪙', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 3),
                           Text(
                             '${user.coins}',
                             style: const TextStyle(
                               color: Color(0xFFFFD700),
-                              fontSize: 12,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
