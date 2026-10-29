@@ -2,7 +2,15 @@ import 'package:flutter/material.dart' hide Card;
 import 'package:game_engine/game_engine.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Premium card widget with selection, drag, wild joker badge, and hover effects.
+/// Premium playing card widget displaying the authentic original playing-card artwork.
+///
+/// Directly maps each functional [Card] in the game to the extracted original
+/// card artwork assets from the complete deck sheet, preserving:
+/// - Original vector quality, proportions, and authentic typography
+/// - Authentic number and arrangement of suit pips
+/// - Canonical corner indices with suit below rank
+/// - Authentic face-card illustrations (J, Q, K) and ornate Ace designs
+/// - Reversible double-headed Jester Joker artwork
 class CardWidget extends StatefulWidget {
   final Card card;
   final bool isSelected;
@@ -66,74 +74,22 @@ class _CardWidgetState extends State<CardWidget>
     super.dispose();
   }
 
-  String _getSuitSymbol(Suit? suit) {
-    switch (suit) {
-      case Suit.hearts:
-        return '♥';
-      case Suit.diamonds:
-        return '♦';
-      case Suit.clubs:
-        return '♣';
-      case Suit.spades:
-        return '♠';
-      default:
-        return '★';
+  /// Maps a game [Card] directly to its original artwork asset.
+  String _getCardAssetPath(Card card) {
+    if (card.isPrintedJoker) {
+      return card.jokerIndex == 1
+          ? 'assets/cards/joker_blue.png'
+          : 'assets/cards/joker_color.png';
     }
-  }
-
-  Color _getSuitColor(Suit? suit) {
-    if (widget.card.isPrintedJoker) return Colors.deepPurple;
-    switch (suit) {
-      case Suit.hearts:
-      case Suit.diamonds:
-        return AppColors.suitRed;
-      case Suit.clubs:
-      case Suit.spades:
-      default:
-        return AppColors.suitBlack;
-    }
-  }
-
-  String _getRankSymbol(Rank? rank) {
-    if (widget.card.isPrintedJoker) return 'JKR';
-    switch (rank) {
-      case Rank.ace:
-        return 'A';
-      case Rank.jack:
-        return 'J';
-      case Rank.queen:
-        return 'Q';
-      case Rank.king:
-        return 'K';
-      case Rank.ten:
-        return '10';
-      case Rank.nine:
-        return '9';
-      case Rank.eight:
-        return '8';
-      case Rank.seven:
-        return '7';
-      case Rank.six:
-        return '6';
-      case Rank.five:
-        return '5';
-      case Rank.four:
-        return '4';
-      case Rank.three:
-        return '3';
-      case Rank.two:
-        return '2';
-      default:
-        return '';
-    }
+    final suitName = card.suit?.name ?? 'hearts';
+    final rankName = card.rank?.name ?? 'ace';
+    return 'assets/cards/${suitName}_$rankName.png';
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _getSuitColor(widget.card.suit);
-    final rankText = _getRankSymbol(widget.card.rank);
-    final suitText = _getSuitSymbol(widget.card.suit);
     final isLifted = widget.isSelected || _isHovered;
+    final assetPath = _getCardAssetPath(widget.card);
 
     Widget cardContent = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -149,7 +105,7 @@ class _CardWidgetState extends State<CardWidget>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: const Color(0xFFFAF7F2), // HTML reference card face #FAF7F2
+            color: Colors.white,
             borderRadius: BorderRadius.circular(8.0),
             border: Border.all(
               color: widget.isSelected
@@ -174,17 +130,31 @@ class _CardWidgetState extends State<CardWidget>
             borderRadius: BorderRadius.circular(7.0),
             child: Stack(
               children: [
-                // Card face content
-                if (widget.card.isPrintedJoker)
-                  _buildPrintedJoker()
-                else
-                  _buildNormalCard(rankText, suitText, color),
+                // 1. Original authentic card artwork
+                Positioned.fill(
+                  child: Image.asset(
+                    assetPath,
+                    fit: BoxFit.fill,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          widget.card.isPrintedJoker
+                              ? '🃏 JOKER'
+                              : '${widget.card.rank?.name ?? ""} of ${widget.card.suit?.name ?? ""}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 10, color: Colors.black87),
+                        ),
+                      );
+                    },
+                  ),
+                ),
 
-                // Wild Joker badge
+                // 2. Wild Joker badge (positioned in top-right)
                 if (widget.isWildJoker && !widget.card.isPrintedJoker)
                   _buildWildJokerBadge(),
 
-                // New card shimmer effect
+                // 3. New card shimmer effect
                 if (widget.isNewCard)
                   AnimatedBuilder(
                     animation: _shimmerAnimation,
@@ -217,124 +187,6 @@ class _CardWidgetState extends State<CardWidget>
     );
 
     return cardContent;
-  }
-
-  Widget _buildNormalCard(String rankText, String suitText, Color color) {
-    final isHeart = widget.card.suit == Suit.hearts;
-    return Padding(
-      padding: const EdgeInsets.all(4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top-left rank + suit
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                rankText,
-                style: TextStyle(
-                  fontSize: widget.width * 0.26,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                  height: 1.0,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(width: 1),
-              Text(
-                suitText,
-                style: TextStyle(
-                  fontSize: isHeart ? widget.width * 0.16 : widget.width * 0.2,
-                  color: color,
-                  height: 1.2,
-                ),
-              ),
-            ],
-          ),
-          // Center suit (balanced proportions, 100% solid opacity)
-          Expanded(
-            child: Center(
-              child: Text(
-                suitText,
-                style: TextStyle(
-                  fontSize: isHeart ? widget.width * 0.36 : widget.width * 0.42,
-                  color: color,
-                  height: 1.0,
-                ),
-              ),
-            ),
-          ),
-          // Bottom-right rank
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(3.14159),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    rankText,
-                    style: TextStyle(
-                      fontSize: widget.width * 0.22,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                      height: 1.0,
-                    ),
-                  ),
-                  const SizedBox(width: 1),
-                  Text(
-                    suitText,
-                    style: TextStyle(
-                      fontSize: isHeart ? widget.width * 0.13 : widget.width * 0.17,
-                      color: color,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPrintedJoker() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.purple.shade100,
-            Colors.blue.shade50,
-            Colors.amber.shade50,
-          ],
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '🃏',
-              style: TextStyle(fontSize: widget.width * 0.35),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'JOKER',
-              style: TextStyle(
-                fontSize: widget.width * 0.15,
-                fontWeight: FontWeight.w900,
-                color: Colors.deepPurple,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildWildJokerBadge() {
@@ -379,5 +231,3 @@ class _CardWidgetState extends State<CardWidget>
     );
   }
 }
-
-

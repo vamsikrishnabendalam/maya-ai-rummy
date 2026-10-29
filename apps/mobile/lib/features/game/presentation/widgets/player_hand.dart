@@ -77,11 +77,11 @@ class PlayerHand extends StatelessWidget {
             if (isCompact) {
               cw = (availableForCards * 0.38 / groupCount).clamp(38.0, 48.0);
             } else {
-              cw = (availableForCards * 0.35 / groupCount).clamp(48.0, 62.0);
+              cw = (availableForCards * 0.35 / groupCount).clamp(48.0, 82.0);
             }
             final remainingForOverlap = availableForCards - (groupCount * cw);
             if (nonFirstCards > 0) {
-              overlap = (remainingForOverlap / nonFirstCards).clamp(16.0, isCompact ? 24.0 : 36.0);
+              overlap = (remainingForOverlap / nonFirstCards).clamp(16.0, isCompact ? 24.0 : 40.0);
             }
           }
         }
@@ -89,9 +89,10 @@ class PlayerHand extends StatelessWidget {
         final ch = cw * 1.45;
 
         return Container(
+          clipBehavior: Clip.none,
           constraints: BoxConstraints(
-            minHeight: ch + 28,
-            maxHeight: ch + (isCompact ? 36 : 46),
+            minHeight: ch + (isCompact ? 56 : 78),
+            maxHeight: ch + (isCompact ? 76 : 96),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -102,6 +103,7 @@ class PlayerHand extends StatelessWidget {
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
+                    clipBehavior: Clip.none,
                     scrollDirection: Axis.horizontal,
                     physics: const ClampingScrollPhysics(),
                     padding: EdgeInsets.symmetric(
@@ -111,7 +113,7 @@ class PlayerHand extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: _buildGroupsWithDividers(
-                        cw, ch, overlap, spacing, showAddGroupTarget, isCompact,
+                        cw, ch, overlap, spacing, showAddGroupTarget, isCompact, totalCards,
                       ),
                     ),
                   ),
@@ -131,40 +133,25 @@ class PlayerHand extends StatelessWidget {
     double spacing,
     bool showAddGroupTarget,
     bool isCompact,
+    int totalCards,
   ) {
     final widgets = <Widget>[];
+    int cardOffset = 0;
 
     for (var i = 0; i < cardGroups.length; i++) {
+      final startIdx = cardOffset;
+      cardOffset += cardGroups[i].cards.length;
+
       if (i > 0) {
-        // Divider between groups
-        widgets.add(
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: spacing / 2),
-            child: Container(
-              width: 1.5,
-              height: ch * 0.55,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    AppColors.accent.withValues(alpha: 0.35),
-                    AppColors.accent.withValues(alpha: 0.35),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.2, 0.8, 1.0],
-                ),
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-          ),
-        );
+        widgets.add(SizedBox(width: spacing));
       }
 
       widgets.add(
         CardGroupWidget(
           group: cardGroups[i],
+          groupIndex: i,
+          globalStartIndex: startIdx,
+          totalHandCards: totalCards,
           wildJokerCard: wildJokerCard,
           cardWidth: cw,
           cardHeight: ch,
@@ -190,12 +177,21 @@ class PlayerHand extends StatelessWidget {
       );
     }
 
-    // "Add group" target at the end
+    // "Add group" target at the end — wrapped in zero-width box so the card fan centers perfectly on table center axis
     if (showAddGroupTarget) {
+      final targetWidth = isCompact ? 24.0 : cw * 0.7;
       widgets.add(
-        Padding(
-          padding: EdgeInsets.only(left: spacing),
-          child: _buildAddGroupTarget(cw, ch, isCompact),
+        SizedBox(
+          width: 0,
+          child: OverflowBox(
+            alignment: Alignment.bottomLeft,
+            minWidth: 0,
+            maxWidth: targetWidth + spacing * 2,
+            child: Padding(
+              padding: EdgeInsets.only(left: spacing),
+              child: _buildAddGroupTarget(cw, ch, isCompact),
+            ),
+          ),
         ),
       );
     }

@@ -1,73 +1,43 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 
-/// Full-screen background with dark navy gradient and center spotlight effect.
+/// Full-screen background displaying the Glamorous Saree Host at Gaming Table artwork
+/// for the Maya AI single-player game table.
 class GameTableBackground extends StatelessWidget {
   final Widget child;
 
-  const GameTableBackground({Key? key, required this.child}) : super(key: key);
+  const GameTableBackground({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.tableGradientTop,
-            AppColors.tableGradientBottom,
-          ],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 1. Glamorous Saree Host at Gaming Table Background Image
+        Image.asset(
+          'assets/images/maya_ai_table_bg.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          errorBuilder: (context, error, stackTrace) {
+            // Fallback gradient if asset not yet available
+            return Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF1E0836),
+                    Color(0xFF0F051D),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
-      ),
-      child: CustomPaint(
-        painter: _TableSpotlightPainter(),
-        child: child,
-      ),
-    );
-  }
-}
 
-/// Paints a subtle warm radial spotlight in the center of the table.
-class _TableSpotlightPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.4);
-    final radius = size.width * 0.6;
-
-    final gradient = RadialGradient(
-      center: Alignment(
-        (center.dx / size.width) * 2 - 1,
-        (center.dy / size.height) * 2 - 1,
-      ),
-      radius: radius / size.width,
-      colors: [
-        AppColors.tableSpotlight,
-        Colors.transparent,
+        // 2. Foreground Game Table Content (Cards, HUD, Controls)
+        child,
       ],
     );
-
-    final paint = Paint()
-      ..shader = gradient.createShader(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-      );
-
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-
-    // Subtle felt texture — thin noise lines
-    final linePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.008)
-      ..strokeWidth = 0.5;
-
-    for (double y = 0; y < size.height; y += 3) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        linePaint,
-      );
-    }
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

@@ -7,6 +7,7 @@ class RoyalRummyOvalTable extends StatelessWidget {
   final double? width;
   final double? height;
   final bool isPortrait;
+  final bool isTransparent;
 
   const RoyalRummyOvalTable({
     super.key,
@@ -14,10 +15,25 @@ class RoyalRummyOvalTable extends StatelessWidget {
     this.width,
     this.height,
     this.isPortrait = false,
+    this.isTransparent = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isTransparent) {
+      return Center(
+        child: Container(
+          width: width,
+          height: height,
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+            child: child,
+          ),
+        ),
+      );
+    }
+
     // Stadium corner radius matching rounded-[4.5rem] (72px)
     final double outerRadius = isPortrait ? 72.0 : 64.0;
     final double boundaryRadius = isPortrait ? 65.0 : 58.0;

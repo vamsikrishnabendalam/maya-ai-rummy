@@ -8,6 +8,9 @@ import 'card_widget.dart';
 /// Accepts dropped cards from other groups and supports intra-group reordering.
 class CardGroupWidget extends StatelessWidget {
   final CardGroup group;
+  final int groupIndex;
+  final int globalStartIndex;
+  final int totalHandCards;
   final Card? wildJokerCard;
   final double cardWidth;
   final double cardHeight;
@@ -24,6 +27,9 @@ class CardGroupWidget extends StatelessWidget {
   const CardGroupWidget({
     Key? key,
     required this.group,
+    this.groupIndex = 0,
+    this.globalStartIndex = 0,
+    this.totalHandCards = 13,
     this.wildJokerCard,
     this.cardWidth = 52,
     this.cardHeight = 78,
@@ -130,7 +136,7 @@ class CardGroupWidget extends StatelessWidget {
             children: [
               // Fanned cards
               _buildCardFan(),
-              const SizedBox(height: 3),
+              const SizedBox(height: 8.0),
               // Group label badge below cards matching HTML reference
               _buildGroupLabel(color),
             ],
@@ -283,9 +289,24 @@ class CardGroupWidget extends StatelessWidget {
             },
           );
 
+          final int globalIndex = globalStartIndex + index;
+          final double t = totalHandCards > 1
+              ? (globalIndex - (totalHandCards - 1) / 2.0) / ((totalHandCards - 1) / 2.0)
+              : 0.0;
+          final double theta = t * 0.28; // Heavily skews outer cards to match the sweeping real-world layout angle
+          final double dx = t * 6.0; // Drastically reduce horizontal displacement to pack roots tightly
+          final double dy = (1.0 - (t * t).abs()) * -22.0; // Heighten center dome arch lift so cards sweep upward
+          final double groupHeightDelta = (groupIndex % 2 == 1) ? -10.0 : 0.0; // Staggers alternate melds for easy tracking
+          final double finalY = dy + groupHeightDelta;
+
           return Positioned(
             left: index * cardOverlap,
-            child: targetSlot,
+            child: Transform(
+              alignment: Alignment.bottomCenter,
+              transform: Matrix4.translationValues(dx, finalY, 0.0)
+                ..rotateZ(theta),
+              child: targetSlot,
+            ),
           );
         }),
       ),

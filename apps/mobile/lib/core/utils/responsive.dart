@@ -63,13 +63,13 @@ class Responsive {
   /// - 72 on desktop
   static double cardWidth(BuildContext context) {
     if (isDesktop(context)) {
-      return 72.0;
+      return 82.0;
     }
     if (isTablet(context)) {
-      return 68.0;
+      return 76.0;
     }
     if (isMobileLandscape(context)) {
-      return 58.0;
+      return 66.0;
     }
     return 54.0;
   }

@@ -1,9 +1,9 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:game_engine/game_engine.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/google_ad_banner.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../home/providers/home_provider.dart';
 import '../../models/card_group.dart';
@@ -11,13 +11,14 @@ import '../../providers/game_provider.dart';
 import '../../providers/game_ui_provider.dart';
 import '../widgets/game_table_background.dart';
 import '../widgets/opponent_panel.dart';
-import '../widgets/center_table.dart';
+import '../widgets/card_widget.dart';
+import '../widgets/card_back_widget.dart';
+import '../widgets/discard_history_modal.dart';
 import '../widgets/player_hand.dart';
 import '../widgets/declaration_result_modal.dart';
 import '../widgets/score_card_modal.dart';
 import '../widgets/game_settings_modal.dart';
 import '../widgets/card_animation_layer.dart';
-import '../widgets/royal_rummy_oval_table.dart';
 import '../widgets/royal_life_checklist_bar.dart';
 import '../../../../core/utils/responsive.dart';
 
@@ -152,228 +153,322 @@ class GameTableScreen extends ConsumerWidget {
     final nextDealNumber = tableState.roundScores.length + 1;
     final isPortrait = !isLandscape;
 
-    // Game Table Content
-    final tableContent = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 1360),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF060F16), // surface-container-lowest
-        ),
-        child: Column(
-          children: [
-            // 1. Top HUD Bar
-            _buildTopHudBar(
-              context,
-              ref,
-              tableState: tableState,
-              notifier: notifier,
-              toastMessage: toastMessage,
-              isGameComplete: isGameComplete,
-              isTournamentOver: isTournamentOver,
-              wildJoker: wildJoker,
-            ),
+    // Virtual Design Canvas (1754 x 896 native reference space)
+    final mayaAiCanvas = Center(
+      child: AspectRatio(
+        aspectRatio: 1754 / 896,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 1754,
+            height: 896,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // -------------------------------------------------------------
+                // 1. LAYER 1: 3D PERSPECTIVE WARPED TABLE SURFACE (THE FLAT CARDS)
+                // -------------------------------------------------------------
+                Positioned.fill(
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.0016)
+                      ..rotateX(-1.15)
+                      ..translate(0.0, 200.0),
+                    child: SizedBox(
+                      width: 1754,
+                      height: 896,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Central Table Cards Row: Decreased compact size, Wild Joker tucked under Closed Deck, perfectly even horizontal alignment
+                          Positioned(
+                            top: 365,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // 1. Closed Deck Stack with Perpendicular Wild Joker Tucked Underneath
+                                  _buildPerspectiveClosedDeckWithTuckedJoker(
+                                    context: context,
+                                    count: gameState.closedDeck.length,
+                                    wildJoker: wildJoker,
+                                    isClosedJoker: tableState.gameSettings.isClosedJoker,
+                                    isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
+                                    hasLife: notifier.hasHumanLife,
+                                    onOpenClosedJoker: () => notifier.openClosedJoker(),
+                                    canDraw: isHumanTurn && isDrawPhase,
+                                    onDraw: () => notifier.drawFromClosedDeck(),
+                                  ),
 
-            // 2. Main Stadium Perimeter (Opponent Pod, Center Table Action & Landscape Thumb Zones)
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobileLandscape ? 48.0 : (isPortrait ? 6.0 : 14.0),
-                        vertical: 2.0,
-                      ),
-                      child: RoyalRummyOvalTable(
-                        isPortrait: isPortrait,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Opponent Upper Rail
-                            OpponentPanel(
-                              opponent: aiPlayer,
-                              isThinking: !isHumanTurn && !isGameComplete,
-                              difficultyLabel: tableState.aiDifficultyLabel,
-                              isDealer: tableState.isAiDealer,
-                              scoreText: '${tableState.totalAiScore} pts',
-                            ),
+                                  const SizedBox(width: 32),
 
-                            // Center Table Bay
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: CenterTable(
-                                  closedDeckCount: gameState.closedDeck.length,
-                                  openPile: gameState.openPile,
-                                  wildJoker: wildJoker,
-                                  isClosedJoker: tableState.gameSettings.isClosedJoker,
-                                  isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
-                                  hasLife: notifier.hasHumanLife,
-                                  onOpenClosedJoker: () => notifier.openClosedJoker(),
-                                  canDraw: isHumanTurn && isDrawPhase,
-                                  onDrawClosed: () => notifier.drawFromClosedDeck(),
-                                  onDrawOpen: () => notifier.drawFromOpenDeck(),
-                                  canDeclare: canDeclare,
-                                  isCompact: isMobileLandscape || (isPortrait && MediaQuery.of(context).size.height < 720),
-                                  potAmount: '🪙 1,200',
-                                  pointValue: '10 pts',
-                                  lastDiscardFrom: gameState.openPile.isNotEmpty ? 'Maya' : null,
-                                  onDeclare: canDeclare ? () {
-                                    if (tableState.isAwaitingHumanDeclarationShow) {
-                                      _handleSubmitDeclarationShow(context, ref);
-                                    } else {
-                                      _handleDiscardAndDeclare(context, ref);
-                                    }
-                                  } : null,
-                                  onCardDeclared: canDeclare ? (card) {
-                                    notifier.selectCard(card);
-                                    if (tableState.isAwaitingHumanDeclarationShow) {
-                                      _handleSubmitDeclarationShow(context, ref);
-                                    } else {
-                                      _handleDiscardAndDeclare(context, ref);
-                                    }
-                                  } : null,
-                                ),
+                                  // 2. Open Discard Pile
+                                  _buildPerspectiveOpenPile(
+                                    context: context,
+                                    topCard: gameState.openPile.isNotEmpty ? gameState.openPile.last : null,
+                                    wildJoker: wildJoker,
+                                    canDraw: isHumanTurn && isDrawPhase,
+                                    onDraw: () => notifier.drawFromOpenDeck(),
+                                    onShowHistory: () {
+                                      if (gameState.openPile.isNotEmpty) {
+                                        DiscardHistoryModal.show(
+                                          context,
+                                          discardPile: gameState.openPile,
+                                          wildJoker: wildJoker,
+                                        );
+                                      }
+                                    },
+                                    lastDiscardFrom: gameState.openPile.isNotEmpty ? 'Maya' : null,
+                                  ),
+
+                                  const SizedBox(width: 32),
+
+                                  // 3. Finish / Declare Slot
+                                  _buildPerspectiveFinishSlot(
+                                    context: context,
+                                    canDeclare: canDeclare,
+                                    onDeclare: canDeclare ? () {
+                                      if (tableState.isAwaitingHumanDeclarationShow) {
+                                        _handleSubmitDeclarationShow(context, ref);
+                                      } else {
+                                        _handleDiscardAndDeclare(context, ref);
+                                      }
+                                    } : null,
+                                    onCardDeclared: canDeclare ? (card) {
+                                      notifier.selectCard(card);
+                                      if (tableState.isAwaitingHumanDeclarationShow) {
+                                        _handleSubmitDeclarationShow(context, ref);
+                                      } else {
+                                        _handleDiscardAndDeclare(context, ref);
+                                      }
+                                    } : null,
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 2),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                ),
 
-                  // Mobile Landscape Left Thumb-Zone: Drop, Sort Hand
-                  if (isMobileLandscape)
-                    Positioned(
-                      left: 6,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: _buildLeftThumbControls(
-                          context,
-                          ref,
-                          canDrop: canDrop,
-                          dropPenalty: dropPenalty,
-                          notifier: notifier,
-                          isDesktop: false,
-                          isTablet: false,
+                // -------------------------------------------------------------
+                // 2. LAYER 2: 2D OVERLAY FOREGROUND HUD LAYER (SHARP & UNWARPED)
+                // -------------------------------------------------------------
+                // Top HUD Navigation & Control Bar
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildTopHudBar(
+                    context,
+                    ref,
+                    tableState: tableState,
+                    notifier: notifier,
+                    toastMessage: toastMessage,
+                    isGameComplete: isGameComplete,
+                    isTournamentOver: isTournamentOver,
+                    wildJoker: wildJoker,
+                  ),
+                ),
+
+                // Maya AI Host Floating Status Pill
+                Positioned(
+                  top: 54,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: OpponentPanel(
+                      opponent: aiPlayer,
+                      isThinking: !isHumanTurn && !isGameComplete,
+                      difficultyLabel: tableState.aiDifficultyLabel,
+                      isDealer: tableState.isAiDealer,
+                      scoreText: '${tableState.totalAiScore} pts',
+                      isHostOverlay: true,
+                    ),
+                  ),
+                ),
+
+                // Table Pot Banner directly below host pill
+                Positioned(
+                  top: 94,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF060F16).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
+                          width: 1.0,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'TABLE POT',
+                            style: TextStyle(
+                              color: Color(0xFFD0C5AF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            '🪙 1,200',
+                            style: TextStyle(
+                              color: Color(0xFFF2CA50),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            '•',
+                            style: TextStyle(
+                              color: Color(0xFF99907C),
+                              fontSize: 10,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Point: 10 pts',
+                            style: TextStyle(
+                              color: Color(0xFFDAE4ED),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
+                ),
 
-                  // Mobile Landscape Right Thumb-Zone: Group, Discard, Declare Hand
-                  if (isMobileLandscape)
-                    Positioned(
-                      right: 6,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: _buildRightThumbControls(
-                          context,
-                          ref,
-                          notifier: notifier,
-                          tableState: tableState,
-                          canDiscard: canDiscard,
-                          canDeclare: canDeclare,
-                          isGameComplete: isGameComplete,
-                          isTournamentOver: isTournamentOver,
-                          nextDealNumber: nextDealNumber,
-                          isDesktop: false,
-                          isTablet: false,
-                        ),
+                // Player 13-Card Hand Tray (Centered on Table Axis, Info Bar BELOW Cards)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 6,
+                  child: Center(
+                    child: SizedBox(
+                      width: 960,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PlayerHand(
+                            cardGroups: cardGroups,
+                            wildJokerCard: notifier.effectiveHumanWildJoker,
+                            selectedCard: tableState.selectedCard,
+                            selectedCards: tableState.selectedCard != null ? {tableState.selectedCard!} : const <Card>{},
+                            isDiscardPhase: isHumanTurn && isDiscardPhase,
+                            onCardTap: (card) => notifier.selectCard(card),
+                            onCardMoved: (card, fromGroupId, toGroupId) {
+                              notifier.moveCardBetweenGroups(
+                                card,
+                                fromGroupId,
+                                toGroupId,
+                                cardGroups.firstWhere((g) => g.id == toGroupId, orElse: () => cardGroups.first).cards.length,
+                              );
+                            },
+                            onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
+                              notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
+                            },
+                            onCardReordered: (groupId, oldIndex, newIndex) {
+                              notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
+                            },
+                            onCardMovedToNewGroup: (card, fromGroupId) {
+                              notifier.moveCardToNewGroup(card, fromGroupId);
+                            },
+                            onCardDragStarted: (card, groupId) {
+                              ref.read(gameUIProvider.notifier).startDrag(card, groupId);
+                            },
+                            onDragEnded: () {
+                              ref.read(gameUIProvider.notifier).endDrag();
+                            },
+                            onDiscard: (card) {
+                              if (isHumanTurn && isDiscardPhase) {
+                                notifier.discardCard(card);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          RoyalLifeChecklistBar(
+                            hasFirstLife: notifier.hasHumanLife,
+                            hasSecondLife: notifier.hasHumanSecondLife,
+                            points: tableState.currentScore,
+                            isMyTurn: isHumanTurn,
+                            turnSeconds: 30,
+                          ),
+                        ],
                       ),
                     ),
-                ],
-              ),
-            ),
+                  ),
+                ),
 
-            // 3. Bottom Player Hand Dock (Ergonomic Thumb Zones + Melds)
-            _buildBottomPlayerDock(
-              context,
-              ref,
-              tableState: tableState,
-              notifier: notifier,
-              cardGroups: cardGroups,
-              isHumanTurn: isHumanTurn,
-              isDiscardPhase: isDiscardPhase,
-              canDrop: canDrop,
-              dropPenalty: dropPenalty,
-              canDiscard: canDiscard,
-              canDeclare: canDeclare,
-              isGameComplete: isGameComplete,
-              isTournamentOver: isTournamentOver,
-              nextDealNumber: nextDealNumber,
+                // Left Action Controls: Drop (20), Sort Hand
+                Positioned(
+                  left: 48,
+                  bottom: 14,
+                  child: _buildLeftThumbControls(
+                    context,
+                    ref,
+                    canDrop: canDrop,
+                    dropPenalty: dropPenalty,
+                    notifier: notifier,
+                    isDesktop: true,
+                    isTablet: false,
+                  ),
+                ),
+
+                // Right Action Controls: Group, Discard, Declare Hand
+                Positioned(
+                  right: 48,
+                  bottom: 14,
+                  child: _buildRightThumbControls(
+                    context,
+                    ref,
+                    notifier: notifier,
+                    tableState: tableState,
+                    canDiscard: canDiscard,
+                    canDeclare: canDeclare,
+                    isGameComplete: isGameComplete,
+                    isTournamentOver: isTournamentOver,
+                    nextDealNumber: nextDealNumber,
+                    isDesktop: true,
+                    isTablet: false,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
 
-    final mainTableCanvas = (isPortrait || isMobileLandscape)
-        ? tableContent
-        : AspectRatio(
-            aspectRatio: 16 / 9,
-            child: tableContent,
-          );
-
     return Scaffold(
-      backgroundColor: const Color(0xFF060F16),
+      backgroundColor: Colors.transparent,
       body: GameTableBackground(
         child: Stack(
           children: [
             SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final maxWidth = constraints.maxWidth;
-                  final maxHeight = constraints.maxHeight;
-
-                  final idealWidth = maxHeight * (16 / 9);
-                  final hasHorizontalFreeSpace = maxWidth > idealWidth + 80;
-                  final hasVerticalFreeSpace = maxHeight > (maxWidth / (16 / 9)) + 40;
-
-                  if (hasHorizontalFreeSpace && !isMobileLandscape) {
-                    // Ultra-wide desktop: free space on sides
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Center(
-                            child: mainTableCanvas,
-                          ),
-                        ),
-                        if (maxWidth - idealWidth >= 95)
-                          const GoogleAdBanner.vertical(),
-                      ],
-                    );
-                  } else if (hasVerticalFreeSpace && !isMobileLandscape) {
-                    // Tablet or desktop window taller than 16:9: free space on top/bottom
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const GoogleAdBanner(),
-                        Expanded(
-                          child: Center(
-                            child: mainTableCanvas,
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // Mobile landscape or snug viewport: table gets priority
-                    return Column(
-                      children: [
-                        if (maxHeight >= 460 && !isMobileLandscape) const GoogleAdBanner(),
-                        Expanded(
-                          child: Center(
-                            child: mainTableCanvas,
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                },
-              ),
+              child: mayaAiCanvas,
             ),
 
             // Card Animation Layer (Deals & discards flight)
@@ -384,6 +479,401 @@ class GameTableScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  // --- 3D Perspective Card Elements for Flat Table Surface ---
+  static const double _tableCardW = 62.0;
+  static const double _tableCardH = 88.0;
+
+  /// Closed Deck Stack with Perpendicular Wild Joker tucked horizontally underneath
+  Widget _buildPerspectiveClosedDeckWithTuckedJoker({
+    required BuildContext context,
+    required int count,
+    required Card? wildJoker,
+    required bool isClosedJoker,
+    required bool isJokerOpened,
+    required bool hasLife,
+    required VoidCallback onOpenClosedJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+  }) {
+    final bool showJokerFace = !isClosedJoker || isJokerOpened;
+    const double jokerW = 52.0;
+    const double jokerH = 74.0;
+
+    return SizedBox(
+      width: _tableCardW + 36.0,
+      height: _tableCardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerRight,
+        children: [
+          // 1. Perpendicular Wild Joker tucked under the closed deck peeking to the left
+          Positioned(
+            left: 6,
+            top: 7,
+            child: Transform.rotate(
+              angle: -math.pi / 2,
+              child: GestureDetector(
+                onTap: (!showJokerFace && hasLife) ? onOpenClosedJoker : null,
+                child: Container(
+                  width: jokerW,
+                  height: jokerH,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(7),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        blurRadius: 6,
+                        offset: const Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                  child: (showJokerFace && wildJoker != null)
+                      ? CardWidget(
+                          card: wildJoker,
+                          isWildJoker: false,
+                          width: jokerW,
+                          height: jokerH,
+                        )
+                      : Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CardBackWidget(
+                              width: jokerW,
+                              height: jokerH,
+                              showPulse: hasLife,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: hasLife ? const Color(0xFFF59E0B) : Colors.black87,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: hasLife ? Colors.white : Colors.amber.shade700,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Icon(
+                                hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                                size: 14,
+                                color: hasLife ? Colors.black : Colors.amber.shade200,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+
+          // 2. Closed Deck Stack (Depth layers)
+          Positioned(
+            right: 3.0,
+            top: 3.0,
+            child: CardBackWidget(width: _tableCardW - 3.0, height: _tableCardH - 3.0),
+          ),
+          Positioned(
+            right: 1.5,
+            top: 1.5,
+            child: CardBackWidget(width: _tableCardW - 1.5, height: _tableCardH - 1.5),
+          ),
+
+          // 3. Top Interactive Closed Deck Card
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: canDraw ? onDraw : null,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: canDraw
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                          : Colors.black.withValues(alpha: 0.6),
+                      blurRadius: canDraw ? 10 : 5,
+                      spreadRadius: canDraw ? 2 : 0,
+                    ),
+                  ],
+                ),
+                child: CardBackWidget(
+                  width: _tableCardW,
+                  height: _tableCardH,
+                  showPulse: canDraw,
+                ),
+              ),
+            ),
+          ),
+
+          // Deck count badge
+          Positioned(
+            top: 3.5,
+            right: 3.5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFF2CA50), width: 0.8),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Color(0xFFFDE68A),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+
+          // Draw Banner Hint
+          if (canDraw)
+            Positioned(
+              top: -10,
+              right: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  'DRAW',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerspectiveOpenPile({
+    required BuildContext context,
+    required Card? topCard,
+    required Card? wildJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+    required VoidCallback onShowHistory,
+    required String? lastDiscardFrom,
+  }) {
+    return SizedBox(
+      width: _tableCardW,
+      height: _tableCardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GestureDetector(
+            onTap: canDraw ? onDraw : null,
+            child: Container(
+              width: _tableCardW,
+              height: _tableCardH,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: canDraw
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                        : Colors.black.withValues(alpha: 0.55),
+                    blurRadius: canDraw ? 10 : 5,
+                    spreadRadius: canDraw ? 2 : 0,
+                  ),
+                ],
+              ),
+              child: topCard != null
+                  ? CardWidget(
+                      card: topCard,
+                      isWildJoker: JokerUtils.isWildJoker(topCard, wildJoker),
+                      width: _tableCardW,
+                      height: _tableCardH,
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white24, width: 1),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'EMPTY',
+                          style: TextStyle(color: Colors.white38, fontSize: 10),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          // History Modal Button
+          Positioned(
+            top: -4,
+            right: -4,
+            child: GestureDetector(
+              onTap: onShowHistory,
+              child: Container(
+                padding: const EdgeInsets.all(3.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFBBF24), width: 0.8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  size: 11,
+                  color: Color(0xFFFDE68A),
+                ),
+              ),
+            ),
+          ),
+          // "From: Maya" floating badge at the bottom of the card
+          Positioned(
+            bottom: -16,
+            left: -24,
+            right: -24,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF222B32).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'From: ',
+                      style: TextStyle(color: Color(0xFFD0C5AF), fontSize: 8.5),
+                    ),
+                    Text(
+                      lastDiscardFrom ?? 'Maya',
+                      style: const TextStyle(
+                        color: Color(0xFFF2CA50),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerspectiveFinishSlot({
+    required BuildContext context,
+    required bool canDeclare,
+    VoidCallback? onDeclare,
+    void Function(Card)? onCardDeclared,
+  }) {
+    final baseSlot = GestureDetector(
+      onTap: canDeclare ? onDeclare : null,
+      child: Container(
+        width: _tableCardW,
+        height: _tableCardH,
+        decoration: BoxDecoration(
+          color: canDeclare
+              ? const Color(0xFFF59E0B).withValues(alpha: 0.22)
+              : Colors.black.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: canDeclare ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B).withValues(alpha: 0.45),
+            width: canDeclare ? 2.0 : 1.5,
+          ),
+          boxShadow: canDeclare
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFBBF24).withValues(alpha: 0.5),
+                    blurRadius: 11,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.emoji_events_rounded,
+              color: canDeclare ? const Color(0xFFFBBF24) : const Color(0xFFFBBF24).withValues(alpha: 0.65),
+              size: 20,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'FINISH',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w900,
+                color: canDeclare ? const Color(0xFFFDE68A) : Colors.white70,
+                letterSpacing: 0.6,
+              ),
+            ),
+            Text(
+              '14th Card',
+              style: TextStyle(
+                fontSize: 8.0,
+                color: canDeclare ? Colors.white : Colors.white38,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (onCardDeclared != null) {
+      return DragTarget<Object>(
+        onWillAcceptWithDetails: (_) => canDeclare,
+        onAcceptWithDetails: (details) {
+          if (details.data is CardDragData) {
+            onCardDeclared((details.data as CardDragData).card);
+          } else if (details.data is Card) {
+            onCardDeclared(details.data as Card);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: isHovering ? Border.all(color: const Color(0xFF10B981), width: 2.0) : null,
+              boxShadow: isHovering
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                        blurRadius: 11,
+                      )
+                    ]
+                  : null,
+            ),
+            child: baseSlot,
+          );
+        },
+      );
+    }
+
+    return baseSlot;
   }
 
   // --- Top HUD Bar ---
@@ -416,9 +906,9 @@ class GameTableScreen extends ConsumerWidget {
         vertical: isDesktop ? 7 : 3.5,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF060F16).withValues(alpha: 0.94),
+        color: const Color(0xB3000000),
         border: const Border(
-          bottom: BorderSide(color: Color(0xFF182128), width: 1),
+          bottom: BorderSide(color: Color(0x33FFFFFF), width: 0.8),
         ),
       ),
       child: Row(
@@ -826,14 +1316,6 @@ class GameTableScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            RoyalLifeChecklistBar(
-              hasFirstLife: notifier.hasHumanLife,
-              hasSecondLife: notifier.hasHumanSecondLife,
-              points: tableState.currentScore,
-              isMyTurn: isHumanTurn,
-              turnSeconds: 30,
-            ),
-            const SizedBox(height: 2),
             PlayerHand(
               cardGroups: cardGroups,
               wildJokerCard: notifier.effectiveHumanWildJoker,
@@ -870,6 +1352,14 @@ class GameTableScreen extends ConsumerWidget {
                 }
               },
             ),
+            const SizedBox(height: 2),
+            RoyalLifeChecklistBar(
+              hasFirstLife: notifier.hasHumanLife,
+              hasSecondLife: notifier.hasHumanSecondLife,
+              points: tableState.currentScore,
+              isMyTurn: isHumanTurn,
+              turnSeconds: 30,
+            ),
           ],
         ),
       );
@@ -883,16 +1373,6 @@ class GameTableScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Meld Status Bar directly above cards
-          RoyalLifeChecklistBar(
-            hasFirstLife: notifier.hasHumanLife,
-            hasSecondLife: notifier.hasHumanSecondLife,
-            points: tableState.currentScore,
-            isMyTurn: isHumanTurn,
-            turnSeconds: 30,
-          ),
-          SizedBox(height: isDesktop ? 5 : 3),
-
           // Bottom Controls + Hand Rack Row
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -962,6 +1442,16 @@ class GameTableScreen extends ConsumerWidget {
                 isTablet: isTablet,
               ),
             ],
+          ),
+          SizedBox(height: isDesktop ? 4 : 2),
+
+          // Meld Status Bar directly BELOW cards
+          RoyalLifeChecklistBar(
+            hasFirstLife: notifier.hasHumanLife,
+            hasSecondLife: notifier.hasHumanSecondLife,
+            points: tableState.currentScore,
+            isMyTurn: isHumanTurn,
+            turnSeconds: 30,
           ),
         ],
       ),
@@ -1839,4 +2329,49 @@ class GameTableScreen extends ConsumerWidget {
       notifier.startNextRound();
     }
   }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dash;
+  final double gap;
+  final double radius;
+
+  const _DashedBorderPainter({
+    required this.color,
+    this.strokeWidth = 1.5,
+    this.dash = 6.0,
+    this.gap = 4.0,
+    this.radius = 12.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Radius.circular(radius),
+      ));
+
+    final dashPath = Path();
+    for (final metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final length = (distance + dash > metric.length) ? metric.length - distance : dash;
+        dashPath.addPath(metric.extractPath(distance, distance + length), Offset.zero);
+        distance += dash + gap;
+      }
+    }
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) =>
+      color != oldDelegate.color || strokeWidth != oldDelegate.strokeWidth;
 }

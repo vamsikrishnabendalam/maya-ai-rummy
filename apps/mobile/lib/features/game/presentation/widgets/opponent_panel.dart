@@ -25,6 +25,9 @@ class OpponentPanel extends StatefulWidget {
   /// Chips or tournament score string (e.g. '₹18,400' or '0 pts').
   final String? scoreText;
 
+  /// When true, renders a sleek floating status pill so the painted Host character in the background is not obstructed.
+  final bool isHostOverlay;
+
   const OpponentPanel({
     Key? key,
     required this.opponent,
@@ -32,6 +35,7 @@ class OpponentPanel extends StatefulWidget {
     this.difficultyLabel = 'Expert',
     this.isDealer = false,
     this.scoreText,
+    this.isHostOverlay = false,
   }) : super(key: key);
 
   @override
@@ -59,6 +63,123 @@ class _OpponentPanelState extends State<OpponentPanel> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
+
+    if (widget.isHostOverlay) {
+      return Container(
+        margin: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: const Color(0xCC120424),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: widget.isThinking ? const Color(0xFFF2CA50) : const Color(0x66A855F7),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.isDealer) ...[
+              Container(
+                width: 17,
+                height: 17,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD4AF37),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'D',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF241A00),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+            ],
+            const Icon(Icons.auto_awesome, size: 12, color: Color(0xFFFBBF24)),
+            const SizedBox(width: 4),
+            Text(
+              'Maya (AI Host)',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: isDesktop ? 12.5 : 11.0,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFF8FAFC),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text('•', style: TextStyle(color: Colors.white38, fontSize: 10)),
+            const SizedBox(width: 6),
+            Text(
+              widget.scoreText ?? widget.difficultyLabel,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: isDesktop ? 10.5 : 9.0,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFBAE6FD),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: const Color(0x40000000),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${widget.opponent.hand.length}',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFF2CA50),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.style, size: 8.5, color: Color(0xFFF2CA50)),
+                ],
+              ),
+            ),
+            if (widget.isThinking) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2CA50),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 9, color: Color(0xFF241A00)),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Thinking...',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 8.0,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF241A00),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     final double avatarSize = isDesktop ? 60.0 : 48.0;
     final double glowSize = isDesktop ? 66.0 : 52.0;
     final double emojiSize = isDesktop ? 28.0 : 22.0;
