@@ -39,7 +39,7 @@ class _CardAnimationLayerState extends ConsumerState<CardAnimationLayer>
 
     _singleCardController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 260),
     );
   }
 
@@ -249,15 +249,21 @@ class _CardAnimationLayerState extends ConsumerState<CardAnimationLayer>
               return Positioned(
                 left: currentPos.dx - 25,
                 top: currentPos.dy - 38,
-                child: Transform.scale(
-                  scale: scale,
-                  child: Transform.rotate(
-                    angle: rotation,
-                    child: Material(
-                      color: Colors.transparent,
-                      elevation: 12,
-                      shadowColor: Colors.black54,
-                      child: cardDisplay,
+                child: RepaintBoundary(
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Transform.rotate(
+                      angle: rotation,
+                      child: Material(
+                        color: const Color(0xFFFBF8EE),
+                        borderRadius: BorderRadius.circular(5.0),
+                        elevation: 4,
+                        shadowColor: Colors.black38,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(5.0),
+                          child: cardDisplay,
+                        ),
+                      ),
                     ),
                   ),
                 ),

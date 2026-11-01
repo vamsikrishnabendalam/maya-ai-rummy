@@ -133,13 +133,12 @@ class _CardWidgetState extends State<CardWidget>
             borderRadius: BorderRadius.circular(7.0),
             child: Stack(
               children: [
-                // 1. Original authentic card artwork (Isolated texture with cacheWidth)
+                // 1. Original authentic card artwork
                 Positioned.fill(
                   child: RepaintBoundary(
                     child: Image.asset(
                       assetPath,
                       fit: BoxFit.fill,
-                      cacheWidth: (widget.width * 2.5).toInt(),
                       filterQuality: FilterQuality.medium,
                       gaplessPlayback: true,
                       errorBuilder: (context, error, stackTrace) {

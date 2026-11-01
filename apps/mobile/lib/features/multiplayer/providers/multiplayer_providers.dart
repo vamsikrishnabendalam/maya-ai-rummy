@@ -472,13 +472,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     }
 
     state = state.copyWith(isSubmitting: true, clearStatusMessage: true);
+    final previousGroups = state.cardGroups;
+    final previousScore = state.currentScore;
     try {
-      await _service.discardCard(
-        gameId: game.gameId,
-        myUid: user.uid,
-        card: cardToDiscard,
-      );
-
       final updated = _removeCardFromGroups(state.cardGroups, cardToDiscard);
       _clearDrawnTags(updated);
       _revalidateGroups(updated, _effectiveWildJoker);
@@ -494,8 +490,19 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       );
 
       _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.discarded, card: cardToDiscard);
+
+      await _service.discardCard(
+        gameId: game.gameId,
+        myUid: user.uid,
+        card: cardToDiscard,
+      );
     } catch (e) {
-      state = state.copyWith(isSubmitting: false, statusMessage: e.toString());
+      state = state.copyWith(
+        cardGroups: previousGroups,
+        currentScore: previousScore,
+        isSubmitting: false,
+        statusMessage: e.toString(),
+      );
     }
   }
 
@@ -507,8 +514,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
   // Declare with specific finish card
   Future<Map<String, dynamic>?> declareWithCard(Card card) async {
-    state = state.copyWith(selectedCard: card);
-    return await declareHand();
+    state = state.copyWith(selectedCard: card, selectedCards: {card});
+    return await declareHand(finishCard: card);
   }
 
   // Sort Hand ascending alias
@@ -539,7 +546,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
   }
 
   // Declare Hand
-  Future<Map<String, dynamic>?> declareHand() async {
+  Future<Map<String, dynamic>?> declareHand({Card? finishCard}) async {
     final currentGame = state.gameState;
     if (state.isSubmitting || (currentGame != null && (currentGame.isDeclaring || currentGame.status == 'DECLARING' || currentGame.status == 'COMPLETED'))) {
       return {'isValid': true, 'message': 'Declaration already in progress'};
@@ -553,15 +560,17 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     Card discardCard;
     List<CardGroup> remainingGroups;
 
+    final effectiveCard = finishCard ?? state.selectedCard;
+
     if (allCards.length >= 14) {
-      if (state.selectedCard == null) {
+      if (effectiveCard == null) {
         state = state.copyWith(statusMessage: 'Please select exactly 1 card to discard for your declaration.');
         return null;
       }
-      discardCard = state.selectedCard!;
+      discardCard = effectiveCard;
       remainingGroups = _removeCardFromGroups(state.cardGroups, discardCard);
     } else {
-      discardCard = state.selectedCard ?? allCards.last;
+      discardCard = effectiveCard ?? allCards.last;
       remainingGroups = state.cardGroups;
     }
 

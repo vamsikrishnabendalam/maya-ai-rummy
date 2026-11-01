@@ -424,63 +424,27 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     );
   }
 
-  void _showDeclarationDialog() {
+  Future<void> _handleMultiplayerDeclare({Card? finishCard}) async {
     final gameNotifier = ref.read(multiplayerGameProvider.notifier);
     final tableState = ref.read(multiplayerGameProvider);
+    final cardToDeclare = finishCard ?? tableState.selectedCard;
 
-    if (tableState.selectedCards.length > 1) {
+    if (cardToDeclare == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Multiple cards are selected. Please select only 1 card to discard for your declaration!')),
+        const SnackBar(
+          content: Text('Please select 1 card or drag it into the Finish slot to declare!'),
+          duration: Duration(seconds: 2),
+        ),
       );
       return;
     }
 
-    if (tableState.selectedCard == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select 1 card to discard for your declaration!')),
-      );
-      return;
+    final res = await gameNotifier.declareWithCard(cardToDeclare);
+    if (res != null && mounted) {
+      if (res['isValid'] == false) {
+        _showResultDialog(res);
+      }
     }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0F1E36),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.accent)),
-        title: const Row(
-          children: [
-            Icon(Icons.workspace_premium, color: AppColors.accent),
-            SizedBox(width: 8),
-            Text('Declare Hand', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to discard ${tableState.selectedCard} and submit your declaration?\n\n'
-          'âš ï¸ Wrong show carries an 80-point maximum penalty.',
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.black),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final res = await gameNotifier.declareHand();
-              if (res != null && mounted) {
-                // Wrong show triggers immediate penalty dialog
-                if (res['isValid'] == false) {
-                  _showResultDialog(res);
-                }
-              }
-            },
-            child: const Text('SUBMIT DECLARATION', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showResultDialog(Map<String, dynamic> result) {
@@ -1395,16 +1359,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                   // 3. Finish / Declare Slot
                                   _buildPerspectiveFinishSlot(
                                     context: context,
-                                    isActivated: canDeclare ||
-                                        (isMyTurn && isDiscardPhase && ref.watch(gameUIProvider).isDragging),
+                                    isActivated: (isMyTurn && isDiscardPhase && ref.watch(gameUIProvider).isDragging) ||
+                                        (isMyTurn && isDiscardPhase && tableState.selectedCard != null),
                                     canAcceptDrop: isMyTurn && isDiscardPhase && !game.isDeclaring,
-                                    canDeclare: canDeclare,
-                                    onDeclare: canDeclare ? _showDeclarationDialog : null,
-                                    onCardDeclared: canDeclare
-                                        ? (card) {
-                                            notifier.selectCard(card);
-                                            _showDeclarationDialog();
-                                          }
+                                    canDeclare: isMyTurn && isDiscardPhase && !game.isDeclaring && tableState.selectedCard != null,
+                                    onDeclare: (isMyTurn && isDiscardPhase && !game.isDeclaring)
+                                        ? () => _handleMultiplayerDeclare()
+                                        : null,
+                                    onCardDeclared: (isMyTurn && isDiscardPhase && !game.isDeclaring)
+                                        ? (card) => _handleMultiplayerDeclare(finishCard: card)
                                         : null,
                                   ),
                                 ],
@@ -2726,15 +2689,16 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     droppedCard = details.data as Card;
                   }
                   if (droppedCard != null) {
-                    notifier.selectCard(droppedCard);
-                    _showDeclarationDialog();
+                    _handleMultiplayerDeclare(finishCard: droppedCard);
                   }
                 },
                 builder: (context, candidateData, rejectedData) {
                   final isHovering = candidateData.isNotEmpty;
-                  final active = canDeclare || isHovering;
+                  final active = (isMyTurn && isDiscardPhase && !game.isDeclaring && tableState.selectedCard != null) || isHovering;
                   return InkWell(
-                    onTap: canDeclare ? _showDeclarationDialog : null,
+                    onTap: (isMyTurn && isDiscardPhase && !game.isDeclaring)
+                        ? () => _handleMultiplayerDeclare()
+                        : null,
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: declarePadH, vertical: padV + 2),

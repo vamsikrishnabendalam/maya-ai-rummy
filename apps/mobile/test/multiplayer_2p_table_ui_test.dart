@@ -157,5 +157,71 @@ void main() {
 
       expect(discardedCard, equals(testCard));
     });
+
+    testWidgets('Finish slot accepts drag and drop card for declare without prior card selection', (tester) async {
+      const testCard = Card(suit: Suit.spades, rank: Rank.ace, deckIndex: 0);
+      Card? finishDeclaredCard;
+
+      const isMyTurn = true;
+      const isDiscardPhase = true;
+      const isDeclaring = false;
+      const canAcceptDrop = isMyTurn && isDiscardPhase && !isDeclaring;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                // Finish Slot DragTarget
+                DragTarget<Object>(
+                  onWillAcceptWithDetails: (_) => canAcceptDrop,
+                  onAcceptWithDetails: (details) {
+                    if (details.data is CardDragData) {
+                      finishDeclaredCard = (details.data as CardDragData).card;
+                    } else if (details.data is Card) {
+                      finishDeclaredCard = details.data as Card;
+                    }
+                  },
+                  builder: (context, candidate, rejected) => Container(
+                    key: const Key('finish_slot_target'),
+                    width: 70,
+                    height: 100,
+                    color: Colors.amber,
+                  ),
+                ),
+                const SizedBox(height: 50),
+                // Draggable card in player hand
+                Draggable<CardDragData>(
+                  data: const CardDragData(
+                    card: testCard,
+                    fromGroupId: 'group_0',
+                    cardIndex: 0,
+                  ),
+                  feedback: const SizedBox(width: 70, height: 100),
+                  child: Container(
+                    key: const Key('hand_card_draggable_for_finish'),
+                    width: 70,
+                    height: 100,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final draggableFinder = find.byKey(const Key('hand_card_draggable_for_finish'));
+      final targetFinder = find.byKey(const Key('finish_slot_target'));
+
+      final gesture = await tester.startGesture(tester.getCenter(draggableFinder));
+      await tester.pump();
+      await gesture.moveTo(tester.getCenter(targetFinder));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(finishDeclaredCard, equals(testCard));
+    });
   });
 }
