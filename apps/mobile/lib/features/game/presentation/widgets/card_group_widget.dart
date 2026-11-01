@@ -231,7 +231,6 @@ class CardGroupWidget extends StatelessWidget {
 
           // Wrap in Draggable carrying cardIndex (Isolated feedback RepaintBoundary for smooth 60fps)
           cardWidget = Draggable<CardDragData>(
-            dragAnchorStrategy: pointerDragAnchorStrategy,
             data: CardDragData(
               card: card,
               fromGroupId: group.id,

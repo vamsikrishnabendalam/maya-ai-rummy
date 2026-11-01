@@ -1364,7 +1364,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                     wildJoker: wildJoker,
                                     canDraw: !game.isDeclaring && isMyTurn && isDrawPhase,
                                     onDraw: () => notifier.drawFromOpen(),
-                                    canDiscard: canDiscard,
+                                    canDiscard: isMyTurn && isDiscardPhase && !game.isDeclaring,
                                     onDiscardCard: (card) {
                                       if (game.isDeclaring) return;
                                       if (!isMyTurn || !isDiscardPhase) return;

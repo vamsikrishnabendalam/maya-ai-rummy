@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:game_engine/game_engine.dart';
+import 'package:maya_ai_rummy_mobile/features/game/models/card_group.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/models/table_models.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/presentation/widgets/multiplayer_table_background.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/presentation/widgets/multiplayer_opponents_layer.dart';
@@ -86,6 +88,74 @@ void main() {
       expect(find.text('13 🂠'), findsOneWidget);
       // Verify turn timer
       expect(find.text('⏱ 25s'), findsOneWidget);
+    });
+
+    testWidgets('Multiplayer Open Discard Pile DragTarget accepts dropped CardDragData without prior selection', (tester) async {
+      Card? discardedCard;
+      const testCard = Card(suit: Suit.hearts, rank: Rank.ten, deckIndex: 0);
+
+      const isMyTurn = true;
+      const isDiscardPhase = true;
+      const isDeclaring = false;
+      // Note: selectedCard is null (no card clicked/selected)
+      const canDiscardOpenPile = isMyTurn && isDiscardPhase && !isDeclaring;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                // Open pile DragTarget
+                DragTarget<Object>(
+                  onWillAcceptWithDetails: (_) => canDiscardOpenPile,
+                  onAcceptWithDetails: (details) {
+                    if (details.data is CardDragData) {
+                      discardedCard = (details.data as CardDragData).card;
+                    } else if (details.data is Card) {
+                      discardedCard = details.data as Card;
+                    }
+                  },
+                  builder: (context, candidate, rejected) => Container(
+                    key: const Key('open_pile_target'),
+                    width: 100,
+                    height: 100,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(height: 50),
+                // Draggable card in player hand
+                Draggable<CardDragData>(
+                  data: const CardDragData(
+                    card: testCard,
+                    fromGroupId: 'group_0',
+                    cardIndex: 0,
+                  ),
+                  feedback: const SizedBox(width: 70, height: 100),
+                  child: Container(
+                    key: const Key('hand_card_draggable'),
+                    width: 70,
+                    height: 100,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Perform drag and drop from hand card to open pile target
+      final draggableFinder = find.byKey(const Key('hand_card_draggable'));
+      final targetFinder = find.byKey(const Key('open_pile_target'));
+
+      final gesture = await tester.startGesture(tester.getCenter(draggableFinder));
+      await tester.pump();
+      await gesture.moveTo(tester.getCenter(targetFinder));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(discardedCard, equals(testCard));
     });
   });
 }

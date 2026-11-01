@@ -16,23 +16,23 @@ class MultiplayerTableBackground extends StatelessWidget {
   static String assetForMaxPlayers(int maxPlayers) {
     switch (maxPlayers) {
       case 2:
-        return 'assets/images/multiplayer_bg_2p.png';
+        return 'assets/images/multiplayer_bg_2p.webp';
       case 3:
-        return 'assets/images/multiplayer_bg_3p.png';
+        return 'assets/images/multiplayer_bg_3p.webp';
       case 4:
-        return 'assets/images/multiplayer_bg_4p.png';
+        return 'assets/images/multiplayer_bg_4p.webp';
       case 5:
-        return 'assets/images/multiplayer_bg_5p.png';
+        return 'assets/images/multiplayer_bg_5p.webp';
       case 6:
       default:
-        return 'assets/images/multiplayer_bg_6p.png';
+        return 'assets/images/multiplayer_bg_6p.webp';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final assetPath = assetForMaxPlayers(maxPlayers);
-    final webpAssetPath = assetPath.replaceAll('.png', '.webp');
+    final pngFallbackPath = assetPath.replaceAll('.webp', '.png');
 
     return Stack(
       fit: StackFit.expand,
@@ -40,7 +40,7 @@ class MultiplayerTableBackground extends StatelessWidget {
         // 1. Royal Casino Hall Background Image for current player count (Isolated with RepaintBoundary)
         RepaintBoundary(
           child: Image.asset(
-            webpAssetPath,
+            assetPath,
             fit: BoxFit.cover,
             alignment: Alignment.center,
             gaplessPlayback: true,
@@ -48,7 +48,7 @@ class MultiplayerTableBackground extends StatelessWidget {
             errorBuilder: (context, error, stackTrace) {
               // Fallback to PNG if WebP is unavailable
               return Image.asset(
-                assetPath,
+                pngFallbackPath,
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
                 gaplessPlayback: true,
