@@ -31,14 +31,21 @@ class AuthNotifier extends StateNotifier<MultiplayerUser?> {
     required String name,
     required String dateOfBirth,
     required String country,
+    String? photoURL,
   }) async {
     final user = await _authService.createAccountWithProfile(
       name: name,
       dateOfBirth: dateOfBirth,
       country: country,
+      photoURL: photoURL,
     );
     state = user;
     return user;
+  }
+
+  Future<void> updateAvatar(String newPhotoUrl) async {
+    await _authService.updateAvatar(newPhotoUrl);
+    state = _authService.currentUser;
   }
 
   Future<void> signOut() async {

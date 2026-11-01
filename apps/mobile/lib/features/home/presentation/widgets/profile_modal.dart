@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/models/avatar_catalog.dart';
+import '../../../auth/presentation/widgets/avatar_picker_modal.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/presentation/widgets/profile_setup_modal.dart';
 import '../../../wallet/services/wallet_service.dart';
@@ -127,20 +130,77 @@ class ProfileModal extends ConsumerWidget {
                     Center(
                       child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 36,
-                            backgroundColor: levelInfo.tierColor,
-                            backgroundImage: (user != null && user.photoURL.isNotEmpty)
-                                ? NetworkImage(user.photoURL)
-                                : null,
-                            child: (user == null || user.photoURL.isEmpty)
-                                ? Text(
-                                    user != null && user.displayName.isNotEmpty
-                                        ? user.displayName[0].toUpperCase()
-                                        : '👤',
-                                    style: const TextStyle(color: Colors.black, fontSize: 28, fontWeight: FontWeight.bold),
-                                  )
-                                : null,
+                          Builder(
+                            builder: (context) {
+                              ImageProvider? avatarImage;
+                              if (user != null && user.photoURL.isNotEmpty) {
+                                if (AvatarCatalog.isCustomPhoto(user.photoURL)) {
+                                  if (user.photoURL.startsWith('data:image')) {
+                                    try {
+                                      final base64String = user.photoURL.split(',').last;
+                                      avatarImage = MemoryImage(base64Decode(base64String));
+                                    } catch (_) {}
+                                  } else if (user.photoURL.startsWith('http')) {
+                                    avatarImage = NetworkImage(user.photoURL);
+                                  }
+                                } else {
+                                  final item = AvatarCatalog.find(user.photoURL);
+                                  avatarImage = AssetImage(item?.thumbPath ?? AvatarCatalog.defaultAvatar.thumbPath);
+                                }
+                              }
+
+                              return InkWell(
+                                onTap: () async {
+                                  final chosen = await AvatarPickerModal.show(context, initialAvatar: user?.photoURL);
+                                  if (chosen != null) {
+                                    await ref.read(authProvider.notifier).updateAvatar(chosen);
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(40),
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 38,
+                                      backgroundColor: levelInfo.tierColor,
+                                      child: CircleAvatar(
+                                        radius: 35,
+                                        backgroundImage: avatarImage,
+                                        child: avatarImage == null
+                                            ? Text(
+                                                user != null && user.displayName.isNotEmpty
+                                                    ? user.displayName[0].toUpperCase()
+                                                    : '👤',
+                                                style: const TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.bold),
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.accent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.edit_rounded, size: 13, color: Colors.black),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          InkWell(
+                            onTap: () async {
+                              final chosen = await AvatarPickerModal.show(context, initialAvatar: user?.photoURL);
+                              if (chosen != null) {
+                                await ref.read(authProvider.notifier).updateAvatar(chosen);
+                              }
+                            },
+                            child: const Text(
+                              'Change Avatar / Photo',
+                              style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
                           ),
                           const SizedBox(height: 10),
                           Text(

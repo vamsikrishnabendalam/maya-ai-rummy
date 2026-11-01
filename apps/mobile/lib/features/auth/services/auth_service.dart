@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/multiplayer_user.dart';
+import '../models/avatar_catalog.dart';
 import '../../wallet/models/coin_transaction.dart';
 import '../../../../core/config/firebase_config.dart';
 
@@ -216,12 +217,39 @@ class AuthService {
     }
   }
 
+  /// Update player avatar or custom uploaded profile photo
+  Future<void> updateAvatar(String newPhotoUrl) async {
+    final uid = _currentUser?.uid;
+    if (uid == null) return;
+
+    final updated = _currentUser!.copyWith(photoURL: newPhotoUrl);
+    _currentUser = updated;
+    _notify(updated);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && !user.isAnonymous) {
+        await user.updatePhotoURL(newPhotoUrl);
+      }
+    } catch (_) {}
+
+    if (FirebaseConfig.isInitialized) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'photoURL': newPhotoUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
+  }
+
   /// Complete player profile for newly signed-in Google user.
   /// Atomically creates account, grants 5,000 initial coins, and writes ledger entry.
   Future<MultiplayerUser> createAccountWithProfile({
     required String name,
     required String dateOfBirth,
     required String country,
+    String? photoURL,
   }) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null || currentUser.isAnonymous) {
@@ -231,7 +259,11 @@ class AuthService {
     final fs = FirebaseFirestore.instance;
     final uid = currentUser.uid;
     final email = currentUser.email ?? '';
-    final photoURL = currentUser.photoURL ?? '';
+    final effectivePhotoURL = (photoURL != null && photoURL.isNotEmpty)
+        ? photoURL
+        : ((currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty)
+            ? currentUser.photoURL!
+            : AvatarCatalog.getRandom().id);
     final userRef = fs.collection('users').doc(uid);
     final txId = 'tx_init_${uid}_${DateTime.now().millisecondsSinceEpoch}';
     final txRef = fs.collection('coinTransactions').doc(txId);
@@ -247,7 +279,7 @@ class AuthService {
       'email': email,
       'dateOfBirth': dateOfBirth.trim(),
       'country': country.trim(),
-      'photoURL': photoURL,
+      'photoURL': effectivePhotoURL,
       'accountStatus': 'ACTIVE',
       'role': isFirstAdmin ? 'ADMIN' : 'PLAYER',
       'coins': 5000,

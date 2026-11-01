@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../auth/models/avatar_catalog.dart';
 import '../../models/table_models.dart';
 
-/// Specification for where an opponent pod is seated across the 1754x896 reference canvas.
+/// Specification for where an opponent avatar and pod are seated across the 1754x896 reference canvas.
 class MultiplayerSeatPosition {
   final double? left;
   final double? right;
   final double? centerX;
-  final double top;
+  final double top; // pod floating position
+  final double avatarTop; // seated avatar top in chair
+  final double avatarHeight; // seated avatar height
   final bool isCenter;
 
   const MultiplayerSeatPosition({
@@ -15,11 +19,13 @@ class MultiplayerSeatPosition {
     this.right,
     this.centerX,
     required this.top,
+    this.avatarTop = 130,
+    this.avatarHeight = 320,
     this.isCenter = false,
   });
 }
 
-/// Extensible layer that arranges opponent player pods around the table based on max player capacity.
+/// Extensible layer that arranges opponent player pods and seated avatars around the table based on active player capacity.
 class MultiplayerOpponentsLayer extends StatelessWidget {
   final int maxPlayers;
   final List<TablePlayer> opponents;
@@ -44,39 +50,117 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     switch (capacity) {
       case 2:
         return const [
-          // 2-Player: Single opponent centered directly above the central royal armchair
-          MultiplayerSeatPosition(centerX: 878, top: 195, isCenter: true),
+          // 2-Player: Single opponent centered directly in the central royal throne
+          MultiplayerSeatPosition(
+            centerX: 878,
+            top: 54,
+            avatarTop: 105,
+            avatarHeight: 350,
+            isCenter: true,
+          ),
         ];
       case 3:
         return const [
-          // 3-Player: 2 opponents aligned precisely above the 2 royal armchair crests
-          MultiplayerSeatPosition(centerX: 550, top: 195),
-          MultiplayerSeatPosition(centerX: 1205, top: 195),
+          // 3-Player: 2 opponents seated in the 2 royal armchairs
+          MultiplayerSeatPosition(
+            centerX: 550,
+            top: 58,
+            avatarTop: 110,
+            avatarHeight: 345,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 1205,
+            top: 58,
+            avatarTop: 110,
+            avatarHeight: 345,
+          ),
         ];
       case 4:
         return const [
-          // 4-Player: 3 opponents arrayed directly above the 3 armchair crests
-          MultiplayerSeatPosition(centerX: 115, top: 310),
-          MultiplayerSeatPosition(centerX: 878, top: 245, isCenter: true),
-          MultiplayerSeatPosition(centerX: 1640, top: 310),
+          // 4-Player: 3 opponents arrayed across the 3 armchairs
+          MultiplayerSeatPosition(
+            centerX: 160,
+            top: 150,
+            avatarTop: 200,
+            avatarHeight: 270,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 878,
+            top: 85,
+            avatarTop: 135,
+            avatarHeight: 320,
+            isCenter: true,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 1600,
+            top: 150,
+            avatarTop: 200,
+            avatarHeight: 270,
+          ),
         ];
       case 5:
         return const [
-          // 5-Player: 4 opponents arrayed directly above the 4 armchair crests in royal arc
-          MultiplayerSeatPosition(centerX: 85, top: 310),
-          MultiplayerSeatPosition(centerX: 640, top: 245),
-          MultiplayerSeatPosition(centerX: 1116, top: 245),
-          MultiplayerSeatPosition(centerX: 1670, top: 310),
+          // 5-Player: 4 opponents arrayed across the 4 armchairs in royal arc
+          MultiplayerSeatPosition(
+            centerX: 130,
+            top: 150,
+            avatarTop: 200,
+            avatarHeight: 270,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 640,
+            top: 85,
+            avatarTop: 135,
+            avatarHeight: 320,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 1116,
+            top: 85,
+            avatarTop: 135,
+            avatarHeight: 320,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 1620,
+            top: 150,
+            avatarTop: 200,
+            avatarHeight: 270,
+          ),
         ];
       case 6:
       default:
         return const [
-          // 6-Player: 5 opponents arrayed directly above the 5 armchair crests
-          MultiplayerSeatPosition(centerX: 80, top: 310),
-          MultiplayerSeatPosition(centerX: 490, top: 255),
-          MultiplayerSeatPosition(centerX: 878, top: 245, isCenter: true),
-          MultiplayerSeatPosition(centerX: 1266, top: 255),
-          MultiplayerSeatPosition(centerX: 1676, top: 310),
+          // 6-Player: 5 opponents arrayed across the 5 armchairs
+          MultiplayerSeatPosition(
+            centerX: 110,
+            top: 150,
+            avatarTop: 200,
+            avatarHeight: 270,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 490,
+            top: 100,
+            avatarTop: 150,
+            avatarHeight: 310,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 878,
+            top: 85,
+            avatarTop: 135,
+            avatarHeight: 320,
+            isCenter: true,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 1266,
+            top: 100,
+            avatarTop: 150,
+            avatarHeight: 310,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 1640,
+            top: 150,
+            avatarTop: 200,
+            avatarHeight: 270,
+          ),
         ];
     }
   }
@@ -90,6 +174,16 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // 1. First layer: Seated Avatars in their respective chairs (only for joined players!)
+        for (int i = 0; i < opponents.length && i < positions.length; i++) ...[
+          _buildSeatedAvatar(
+            position: positions[i],
+            player: opponents[i],
+            isCurrentTurn: opponents[i].uid == currentTurnPlayerId,
+          ),
+        ],
+
+        // 2. Second layer: Floating Status Pods above avatars' heads
         for (int i = 0; i < opponents.length && i < positions.length; i++) ...[
           _buildPositionedPod(
             position: positions[i],
@@ -97,6 +191,121 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildSeatedAvatar({
+    required MultiplayerSeatPosition position,
+    required TablePlayer player,
+    required bool isCurrentTurn,
+  }) {
+    final photoURL = player.photoURL;
+    final isCustom = AvatarCatalog.isCustomPhoto(photoURL);
+
+    Widget avatarWidget;
+    if (isCustom) {
+      // Option B: Luxury circular badge seated in the velvet chair backrest
+      ImageProvider? imgProvider;
+      if (photoURL.startsWith('data:image')) {
+        try {
+          final b64 = photoURL.split(',').last;
+          imgProvider = MemoryImage(base64Decode(b64));
+        } catch (_) {}
+      } else if (photoURL.startsWith('http')) {
+        imgProvider = NetworkImage(photoURL);
+      }
+
+      final badgeSize = (position.avatarHeight * 0.52).clamp(100.0, 150.0);
+
+      avatarWidget = Container(
+        width: badgeSize,
+        height: badgeSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF0F1E36),
+          border: Border.all(
+            color: isCurrentTurn ? const Color(0xFFF2CA50) : const Color(0xFFD4AF37),
+            width: isCurrentTurn ? 3.5 : 2.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isCurrentTurn
+                  ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
+                  : Colors.black.withValues(alpha: 0.5),
+              blurRadius: isCurrentTurn ? 16 : 8,
+              spreadRadius: isCurrentTurn ? 2 : 1,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: ClipOval(
+            child: imgProvider != null
+                ? Image(
+                    image: imgProvider,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(
+                        player.displayName.isNotEmpty ? player.displayName[0].toUpperCase() : '?',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: badgeSize * 0.35,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      player.displayName.isNotEmpty ? player.displayName[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: badgeSize * 0.35,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      );
+    } else {
+      // Preset transparent cutout avatar seated in velvet chair
+      final assetPath = AvatarCatalog.getFullAssetPath(photoURL);
+
+      avatarWidget = ShaderMask(
+        shaderCallback: (bounds) {
+          return const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.0, 0.85, 1.0],
+            colors: [Colors.white, Colors.white, Colors.transparent],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.dstIn,
+        child: Image.asset(
+          assetPath,
+          height: position.avatarHeight,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => Image.asset(
+            AvatarCatalog.defaultAvatar.assetPath,
+            height: position.avatarHeight,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+
+    final double xAnchor = position.centerX ?? (position.left ?? 0);
+
+    return Positioned(
+      top: position.avatarTop,
+      left: xAnchor,
+      child: FractionalTranslation(
+        translation: const Offset(-0.5, 0),
+        child: avatarWidget,
+      ),
     );
   }
 
@@ -286,16 +495,40 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                       width: 1.0,
                     ),
                   ),
-                  child: Center(
-                    child: Text(
-                      player.displayName.isNotEmpty
-                          ? player.displayName[0].toUpperCase()
-                          : 'P',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  child: ClipOval(
+                    child: Builder(
+                      builder: (context) {
+                        ImageProvider? iconImg;
+                        if (player.photoURL.isNotEmpty) {
+                          if (AvatarCatalog.isCustomPhoto(player.photoURL)) {
+                            if (player.photoURL.startsWith('data:image')) {
+                              try {
+                                final b64 = player.photoURL.split(',').last;
+                                iconImg = MemoryImage(base64Decode(b64));
+                              } catch (_) {}
+                            } else if (player.photoURL.startsWith('http')) {
+                              iconImg = NetworkImage(player.photoURL);
+                            }
+                          } else {
+                            iconImg = AssetImage(AvatarCatalog.getThumbAssetPath(player.photoURL));
+                          }
+                        }
+                        if (iconImg != null) {
+                          return Image(image: iconImg, fit: BoxFit.cover);
+                        }
+                        return Center(
+                          child: Text(
+                            player.displayName.isNotEmpty
+                                ? player.displayName[0].toUpperCase()
+                                : 'P',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

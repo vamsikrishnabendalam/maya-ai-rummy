@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../providers/home_provider.dart';
 import '../../../rules/presentation/rule_book_modal.dart';
+import '../../../auth/models/avatar_catalog.dart';
 import '../../../auth/providers/auth_provider.dart';
 import 'profile_modal.dart';
 
@@ -99,20 +101,38 @@ class HomeTopBar extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
-                      radius: 11,
-                      backgroundColor: AppColors.accent,
-                      backgroundImage: (user != null && user.photoURL.isNotEmpty)
-                          ? NetworkImage(user.photoURL)
-                          : null,
-                      child: (user == null || user.photoURL.isEmpty)
-                          ? Text(
-                              user != null && user.displayName.isNotEmpty
-                                  ? user.displayName[0].toUpperCase()
-                                  : '👤',
-                              style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                            )
-                          : null,
+                    Builder(
+                      builder: (context) {
+                        ImageProvider? avatarImg;
+                        if (user != null && user.photoURL.isNotEmpty) {
+                          if (AvatarCatalog.isCustomPhoto(user.photoURL)) {
+                            if (user.photoURL.startsWith('data:image')) {
+                              try {
+                                final b64 = user.photoURL.split(',').last;
+                                avatarImg = MemoryImage(base64Decode(b64));
+                              } catch (_) {}
+                            } else if (user.photoURL.startsWith('http')) {
+                              avatarImg = NetworkImage(user.photoURL);
+                            }
+                          } else {
+                            avatarImg = AssetImage(AvatarCatalog.getThumbAssetPath(user.photoURL));
+                          }
+                        }
+
+                        return CircleAvatar(
+                          radius: 11,
+                          backgroundColor: AppColors.accent,
+                          backgroundImage: avatarImg,
+                          child: avatarImg == null
+                              ? Text(
+                                  user != null && user.displayName.isNotEmpty
+                                      ? user.displayName[0].toUpperCase()
+                                      : '👤',
+                                  style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                                )
+                              : null,
+                        );
+                      },
                     ),
                     const SizedBox(width: 5),
                     ConstrainedBox(

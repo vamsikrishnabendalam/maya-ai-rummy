@@ -1258,6 +1258,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         : 30;
 
     final Card? wildJoker = (game.hasPlayerOpenedJoker(user.uid) || !game.isClosedJoker) ? game.openJoker : null;
+    final int activeCapacity = (game.status == 'IN_PROGRESS' || game.status == 'DECLARING' || game.status == 'COMPLETED')
+        ? game.players.length.clamp(2, 6)
+        : game.playerCount.clamp(2, 6);
 
     final mayaAiMultiplayerCanvas = Center(
       child: AspectRatio(
@@ -1384,7 +1387,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 // 2. LAYER 2: MULTIPLAYER OPPONENTS LAYER (Armchair seated opponent in 2P, extensible to 3-6P)
                 Positioned.fill(
                   child: MultiplayerOpponentsLayer(
-                    maxPlayers: game.playerCount,
+                    maxPlayers: activeCapacity,
                     opponents: opponents,
                     currentTurnPlayerId: game.currentTurnPlayerId,
                     dealerPlayerId: game.dealerPlayerId,
@@ -1404,7 +1407,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF09141A),
       body: MultiplayerTableBackground(
-        maxPlayers: game.playerCount,
+        maxPlayers: activeCapacity,
         child: Stack(
           children: [
             // 1. Center 3D Table Surface & Opponents

@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../models/avatar_catalog.dart';
 import '../../providers/auth_provider.dart';
+import 'avatar_picker_modal.dart';
 
 class ProfileSetupModal extends ConsumerStatefulWidget {
   const ProfileSetupModal({Key? key}) : super(key: key);
@@ -22,6 +25,7 @@ class _ProfileSetupModalState extends ConsumerState<ProfileSetupModal> {
   final _nameController = TextEditingController();
   final _dobController = TextEditingController();
   String _selectedCountry = 'India';
+  late String _selectedAvatar;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -40,10 +44,29 @@ class _ProfileSetupModalState extends ConsumerState<ProfileSetupModal> {
   @override
   void initState() {
     super.initState();
+    _selectedAvatar = AvatarCatalog.getRandom().id;
     final user = ref.read(authProvider);
     if (user != null) {
       _nameController.text = user.displayName.isNotEmpty ? user.displayName : user.name;
+      if (user.photoURL.isNotEmpty) {
+        _selectedAvatar = user.photoURL;
+      }
     }
+  }
+
+  ImageProvider _getAvatarProvider(String avatarId) {
+    if (AvatarCatalog.isCustomPhoto(avatarId)) {
+      if (avatarId.startsWith('data:image')) {
+        try {
+          final base64String = avatarId.split(',').last;
+          return MemoryImage(base64Decode(base64String));
+        } catch (_) {}
+      } else if (avatarId.startsWith('http')) {
+        return NetworkImage(avatarId);
+      }
+    }
+    final item = AvatarCatalog.find(avatarId);
+    return AssetImage(item?.thumbPath ?? AvatarCatalog.defaultAvatar.thumbPath);
   }
 
   @override
@@ -106,6 +129,7 @@ class _ProfileSetupModalState extends ConsumerState<ProfileSetupModal> {
         name: name,
         dateOfBirth: dob,
         country: _selectedCountry,
+        photoURL: _selectedAvatar,
       );
 
       if (mounted) {
@@ -231,6 +255,64 @@ class _ProfileSetupModalState extends ConsumerState<ProfileSetupModal> {
                     ),
                   ),
                   const Icon(Icons.lock_outline_rounded, color: Colors.white30, size: 16),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Avatar Selection Row
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14243B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: AppColors.accent,
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundImage: _getAvatarProvider(_selectedAvatar),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AvatarCatalog.find(_selectedAvatar)?.name ?? 'Custom Photo / Avatar',
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Sits in your chair at multiplayer tables',
+                          style: TextStyle(color: AppColors.textGold, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      minimumSize: Size.zero,
+                    ),
+                    icon: const Icon(Icons.style_rounded, size: 14),
+                    label: const Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: () async {
+                      final chosen = await AvatarPickerModal.show(context, initialAvatar: _selectedAvatar);
+                      if (chosen != null && mounted) {
+                        setState(() => _selectedAvatar = chosen);
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
