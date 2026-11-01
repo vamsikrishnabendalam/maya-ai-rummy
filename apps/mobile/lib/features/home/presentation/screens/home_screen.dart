@@ -31,6 +31,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _didPrecache = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didPrecache) {
+      _didPrecache = true;
+      // Precache all table backgrounds in GPU cache for instant (0ms) table loading
+      precacheImage(const AssetImage('assets/images/maya_ai_table_bg.webp'), context);
+      precacheImage(const AssetImage('assets/images/multiplayer_bg_2p.webp'), context);
+      precacheImage(const AssetImage('assets/images/multiplayer_bg_3p.webp'), context);
+      precacheImage(const AssetImage('assets/images/multiplayer_bg_4p.webp'), context);
+      precacheImage(const AssetImage('assets/images/multiplayer_bg_5p.webp'), context);
+      precacheImage(const AssetImage('assets/images/multiplayer_bg_6p.webp'), context);
+    }
+  }
+
   @override
   void initState() {
     super.initState();

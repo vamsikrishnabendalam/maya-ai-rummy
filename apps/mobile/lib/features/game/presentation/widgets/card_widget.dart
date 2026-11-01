@@ -133,23 +133,27 @@ class _CardWidgetState extends State<CardWidget>
             borderRadius: BorderRadius.circular(7.0),
             child: Stack(
               children: [
-                // 1. Original authentic card artwork
+                // 1. Original authentic card artwork (Isolated texture with cacheWidth)
                 Positioned.fill(
-                  child: Image.asset(
-                    assetPath,
-                    fit: BoxFit.fill,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Center(
-                        child: Text(
-                          widget.card.isPrintedJoker
-                              ? '🃏 JOKER'
-                              : '${widget.card.rank?.name ?? ""} of ${widget.card.suit?.name ?? ""}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 10, color: Colors.black87),
-                        ),
-                      );
-                    },
+                  child: RepaintBoundary(
+                    child: Image.asset(
+                      assetPath,
+                      fit: BoxFit.fill,
+                      cacheWidth: (widget.width * 2.5).toInt(),
+                      filterQuality: FilterQuality.medium,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Text(
+                            widget.card.isPrintedJoker
+                                ? '🃏 JOKER'
+                                : '${widget.card.rank?.name ?? ""} of ${widget.card.suit?.name ?? ""}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 10, color: Colors.black87),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
 

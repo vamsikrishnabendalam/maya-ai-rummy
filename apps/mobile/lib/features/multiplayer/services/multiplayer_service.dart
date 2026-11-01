@@ -1399,6 +1399,9 @@ class MultiplayerService {
   }) async {
     final game = _mockGames[gameId];
     if (game == null) throw Exception('Game not found');
+    if (game.status == 'DECLARING' || game.status == 'COMPLETED') {
+      return {'isValid': true, 'message': 'Declaration already processed'};
+    }
 
     final hasSeenJoker = game.hasPlayerOpenedJoker(myUid);
     final effectiveJoker = hasSeenJoker ? game.openJoker! : null;

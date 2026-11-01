@@ -6,7 +6,7 @@ import 'package:maya_ai_rummy_mobile/features/multiplayer/presentation/widgets/m
 
 void main() {
   group('Multiplayer 2-Player Table UI & Extensibility Tests', () {
-    testWidgets('MultiplayerTableBackground loads multiplayer_bg_2p.png for 2 players', (tester) async {
+    testWidgets('MultiplayerTableBackground loads multiplayer_bg_2p.webp for 2 players', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -25,17 +25,17 @@ void main() {
       expect(imageFinder, findsOneWidget);
       final Image imageWidget = tester.widget(imageFinder);
       final AssetImage assetImage = imageWidget.image as AssetImage;
-      expect(assetImage.assetName, equals('assets/images/multiplayer_bg_2p.png'));
+      expect(assetImage.assetName, equals('assets/images/multiplayer_bg_2p.webp'));
     });
 
     test('MultiplayerTableBackground asset resolution handles 2, 3, 4, 5, 6 players', () {
-      expect(MultiplayerTableBackground.assetForMaxPlayers(2), equals('assets/images/multiplayer_bg_2p.png'));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(3), equals('assets/images/multiplayer_bg_3p.png'));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(4), equals('assets/images/multiplayer_bg_4p.png'));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(5), equals('assets/images/multiplayer_bg_5p.png'));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(6), equals('assets/images/multiplayer_bg_6p.png'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(2), equals('assets/images/multiplayer_bg_2p.webp'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(3), equals('assets/images/multiplayer_bg_3p.webp'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(4), equals('assets/images/multiplayer_bg_4p.webp'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(5), equals('assets/images/multiplayer_bg_5p.webp'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(6), equals('assets/images/multiplayer_bg_6p.webp'));
       // Default fallback
-      expect(MultiplayerTableBackground.assetForMaxPlayers(10), equals('assets/images/multiplayer_bg_6p.png'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(10), equals('assets/images/multiplayer_bg_6p.webp'));
     });
 
     test('MultiplayerSeatPosition for 2 players centers the opponent pod at top: 195 directly above armchair', () {

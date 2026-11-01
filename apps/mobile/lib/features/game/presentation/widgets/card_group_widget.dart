@@ -229,23 +229,26 @@ class CardGroupWidget extends StatelessWidget {
             onTap: () => onCardTap?.call(card),
           );
 
-          // Wrap in Draggable carrying cardIndex
+          // Wrap in Draggable carrying cardIndex (Isolated feedback RepaintBoundary for smooth 60fps)
           cardWidget = Draggable<CardDragData>(
+            dragAnchorStrategy: pointerDragAnchorStrategy,
             data: CardDragData(
               card: card,
               fromGroupId: group.id,
               cardIndex: index,
             ),
-            feedback: Material(
-              color: Colors.transparent,
-              child: Transform.scale(
-                scale: 1.08,
-                child: CardWidget(
-                  card: card,
-                  isSelected: true,
-                  isWildJoker: isWJ,
-                  width: cardWidth,
-                  height: cardHeight,
+            feedback: RepaintBoundary(
+              child: Material(
+                color: Colors.transparent,
+                child: Transform.scale(
+                  scale: 1.08,
+                  child: CardWidget(
+                    card: card,
+                    isSelected: true,
+                    isWildJoker: isWJ,
+                    width: cardWidth,
+                    height: cardHeight,
+                  ),
                 ),
               ),
             ),
@@ -261,7 +264,7 @@ class CardGroupWidget extends StatelessWidget {
 
           // Wrap individual card position in DragTarget to support intra-group reordering & precise insertion
           final targetSlot = DragTarget<CardDragData>(
-            onWillAcceptWithDetails: (details) => true,
+            onWillAcceptWithDetails: (details) => details.data.card != card,
             onAcceptWithDetails: (details) {
               if (details.data.fromGroupId == group.id) {
                 // Intra-group reorder

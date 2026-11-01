@@ -540,6 +540,10 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
   // Declare Hand
   Future<Map<String, dynamic>?> declareHand() async {
+    final currentGame = state.gameState;
+    if (state.isSubmitting || (currentGame != null && (currentGame.isDeclaring || currentGame.status == 'DECLARING' || currentGame.status == 'COMPLETED'))) {
+      return {'isValid': true, 'message': 'Declaration already in progress'};
+    }
     final allCards = _allCards();
     if (allCards.length < 13) {
       state = state.copyWith(statusMessage: 'Invalid card count: you only have ${allCards.length} cards.');

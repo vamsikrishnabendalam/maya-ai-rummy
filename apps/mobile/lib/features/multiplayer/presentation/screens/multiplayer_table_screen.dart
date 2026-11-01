@@ -1309,16 +1309,17 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
               children: [
                 // 1. LAYER 1: 3D PERSPECTIVE WARPED TABLE SURFACE (THE FLAT CARDS)
                 Positioned.fill(
-                  child: Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.0016)
-                      ..rotateX(-1.15)
-                      ..translate(0.0, 200.0),
-                    child: SizedBox(
-                      width: 1754,
-                      height: 896,
-                      child: Stack(
+                  child: RepaintBoundary(
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0016)
+                        ..rotateX(-1.15)
+                        ..translate(0.0, 200.0),
+                      child: SizedBox(
+                        width: 1754,
+                        height: 896,
+                        child: Stack(
                         clipBehavior: Clip.none,
                         children: [
                           Positioned(
@@ -1401,7 +1402,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                     onDeclare: canDeclare ? _showDeclarationDialog : null,
                                     onCardDeclared: canDeclare
                                         ? (card) {
-                                            notifier.declareWithCard(card);
+                                            notifier.selectCard(card);
                                             _showDeclarationDialog();
                                           }
                                         : null,
@@ -1415,6 +1416,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     ),
                   ),
                 ),
+              ),
 
                 // 2. LAYER 2: MULTIPLAYER OPPONENTS LAYER (Armchair seated opponent in 2P, extensible to 3-6P)
                 Positioned.fill(
@@ -1485,8 +1487,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      PlayerHand(
-                        cardGroups: tableState.cardGroups,
+                      RepaintBoundary(
+                        child: PlayerHand(
+                          cardGroups: tableState.cardGroups,
                         wildJokerCard: wildJoker,
                         selectedCard: tableState.selectedCard,
                         selectedCards: tableState.selectedCards,
@@ -1534,6 +1537,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                           notifier.discardCard(card);
                         },
                       ),
+                    ),
                       const SizedBox(height: 2),
                       RoyalLifeChecklistBar(
                         hasFirstLife: notifier.hasFirstLife,
@@ -2722,7 +2726,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     droppedCard = details.data as Card;
                   }
                   if (droppedCard != null) {
-                    notifier.declareWithCard(droppedCard);
+                    notifier.selectCard(droppedCard);
                     _showDeclarationDialog();
                   }
                 },

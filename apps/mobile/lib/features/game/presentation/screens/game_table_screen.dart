@@ -252,16 +252,17 @@ class GameTableScreen extends ConsumerWidget {
                 // 1. LAYER 1: 3D PERSPECTIVE WARPED TABLE SURFACE (THE FLAT CARDS)
                 // -------------------------------------------------------------
                 Positioned.fill(
-                  child: Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.0016)
-                      ..rotateX(-1.15)
-                      ..translate(0.0, 200.0),
-                    child: SizedBox(
-                      width: 1754,
-                      height: 896,
-                      child: Stack(
+                  child: RepaintBoundary(
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0016)
+                        ..rotateX(-1.15)
+                        ..translate(0.0, 200.0),
+                      child: SizedBox(
+                        width: 1754,
+                        height: 896,
+                        child: Stack(
                         clipBehavior: Clip.none,
                         children: [
                           Positioned(
@@ -369,6 +370,7 @@ class GameTableScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ),
 
                 // Maya AI Host Floating Status Pill
                 Positioned(
@@ -439,50 +441,52 @@ class GameTableScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      PlayerHand(
-                        cardGroups: cardGroups,
-                        wildJokerCard: notifier.effectiveHumanWildJoker,
-                        selectedCard: tableState.selectedCard,
-                        selectedCards: tableState.selectedCards,
-                        isDiscardPhase: isHumanTurn && isDiscardPhase,
-                        onCardTap: (card) => notifier.selectCard(card),
-                        onCardMoved: (card, fromGroupId, toGroupId) {
-                          notifier.moveCardBetweenGroups(
-                            card,
-                            fromGroupId,
-                            toGroupId,
-                            cardGroups
-                                .firstWhere((g) => g.id == toGroupId,
-                                    orElse: () => cardGroups.first)
-                                .cards
-                                .length,
-                          );
-                        },
-                        onCardMovedToIndex:
-                            (card, fromGroupId, toGroupId, insertIndex) {
-                          notifier.moveCardBetweenGroups(
-                              card, fromGroupId, toGroupId, insertIndex);
-                        },
-                        onCardReordered: (groupId, oldIndex, newIndex) {
-                          notifier.moveCardWithinGroup(
-                              groupId, oldIndex, newIndex);
-                        },
-                        onCardMovedToNewGroup: (card, fromGroupId) {
-                          notifier.moveCardToNewGroup(card, fromGroupId);
-                        },
-                        onCardDragStarted: (card, groupId) {
-                          ref
-                              .read(gameUIProvider.notifier)
-                              .startDrag(card, groupId);
-                        },
-                        onDragEnded: () {
-                          ref.read(gameUIProvider.notifier).endDrag();
-                        },
-                        onDiscard: (card) {
-                          if (isHumanTurn && isDiscardPhase) {
-                            notifier.discardCard(card);
-                          }
-                        },
+                      RepaintBoundary(
+                        child: PlayerHand(
+                          cardGroups: cardGroups,
+                          wildJokerCard: notifier.effectiveHumanWildJoker,
+                          selectedCard: tableState.selectedCard,
+                          selectedCards: tableState.selectedCards,
+                          isDiscardPhase: isHumanTurn && isDiscardPhase,
+                          onCardTap: (card) => notifier.selectCard(card),
+                          onCardMoved: (card, fromGroupId, toGroupId) {
+                            notifier.moveCardBetweenGroups(
+                              card,
+                              fromGroupId,
+                              toGroupId,
+                              cardGroups
+                                  .firstWhere((g) => g.id == toGroupId,
+                                      orElse: () => cardGroups.first)
+                                  .cards
+                                  .length,
+                            );
+                          },
+                          onCardMovedToIndex:
+                              (card, fromGroupId, toGroupId, insertIndex) {
+                            notifier.moveCardBetweenGroups(
+                                card, fromGroupId, toGroupId, insertIndex);
+                          },
+                          onCardReordered: (groupId, oldIndex, newIndex) {
+                            notifier.moveCardWithinGroup(
+                                groupId, oldIndex, newIndex);
+                          },
+                          onCardMovedToNewGroup: (card, fromGroupId) {
+                            notifier.moveCardToNewGroup(card, fromGroupId);
+                          },
+                          onCardDragStarted: (card, groupId) {
+                            ref
+                                .read(gameUIProvider.notifier)
+                                .startDrag(card, groupId);
+                          },
+                          onDragEnded: () {
+                            ref.read(gameUIProvider.notifier).endDrag();
+                          },
+                          onDiscard: (card) {
+                            if (isHumanTurn && isDiscardPhase) {
+                              notifier.discardCard(card);
+                            }
+                          },
+                        ),
                       ),
                       const SizedBox(height: 2),
                       InkWell(

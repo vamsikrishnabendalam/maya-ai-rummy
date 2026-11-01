@@ -15,7 +15,7 @@ void main() {
       expect(positions3p[0].top, equals(195.0));
       expect(positions3p[1].centerX, equals(1205.0));
       expect(positions3p[1].top, equals(195.0));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(3), equals('assets/images/multiplayer_bg_3p.png'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(3), equals('assets/images/multiplayer_bg_3p.webp'));
     });
 
     testWidgets('3-Player Table: renders 2 opponent pods with dealer and turn info', (tester) async {
@@ -83,7 +83,7 @@ void main() {
       expect(positions4p[1].top, equals(245.0));
       expect(positions4p[2].centerX, equals(1640.0));
       expect(positions4p[2].top, equals(310.0));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(4), equals('assets/images/multiplayer_bg_4p.png'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(4), equals('assets/images/multiplayer_bg_4p.webp'));
     });
 
     // ----------------- 5-Player Table Tests -----------------
@@ -98,7 +98,7 @@ void main() {
       expect(positions5p[2].top, equals(245.0));
       expect(positions5p[3].centerX, equals(1670.0));
       expect(positions5p[3].top, equals(310.0));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(5), equals('assets/images/multiplayer_bg_5p.png'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(5), equals('assets/images/multiplayer_bg_5p.webp'));
     });
 
     // ----------------- 6-Player Table Tests -----------------
@@ -116,7 +116,7 @@ void main() {
       expect(positions6p[3].top, equals(255.0));
       expect(positions6p[4].centerX, equals(1676.0));
       expect(positions6p[4].top, equals(310.0));
-      expect(MultiplayerTableBackground.assetForMaxPlayers(6), equals('assets/images/multiplayer_bg_6p.png'));
+      expect(MultiplayerTableBackground.assetForMaxPlayers(6), equals('assets/images/multiplayer_bg_6p.webp'));
     });
 
     // ----------------- Preview Capacity Switcher Test -----------------

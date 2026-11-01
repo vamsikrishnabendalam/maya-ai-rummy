@@ -32,30 +32,44 @@ class MultiplayerTableBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final assetPath = assetForMaxPlayers(maxPlayers);
+    final webpAssetPath = assetPath.replaceAll('.png', '.webp');
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Royal Casino Hall Background Image for current player count
-        Image.asset(
-          assetPath,
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-          errorBuilder: (context, error, stackTrace) {
-            // Elegant fallback gradient if asset is loading or missing
-            return Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF1E0836),
-                    Color(0xFF0F051D),
-                  ],
-                ),
-              ),
-            );
-          },
+        // 1. Royal Casino Hall Background Image for current player count (Isolated with RepaintBoundary)
+        RepaintBoundary(
+          child: Image.asset(
+            webpAssetPath,
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback to PNG if WebP is unavailable
+              return Image.asset(
+                assetPath,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) {
+                  // Elegant fallback gradient if asset is loading or missing
+                  return Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xFF1E0836),
+                          Color(0xFF0F051D),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
 
         // 2. Foreground Game Table Content (Cards, HUD, Controls)

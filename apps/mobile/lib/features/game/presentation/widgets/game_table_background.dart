@@ -12,26 +12,36 @@ class GameTableBackground extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Glamorous Saree Host at Gaming Table Background Image
-        Image.asset(
-          'assets/images/maya_ai_table_bg.png',
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-          errorBuilder: (context, error, stackTrace) {
-            // Fallback gradient if asset not yet available
-            return Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF1E0836),
-                    Color(0xFF0F051D),
-                  ],
+        // 1. Glamorous Saree Host at Gaming Table Background Image (Isolated with RepaintBoundary for 60fps drag-drop)
+        RepaintBoundary(
+          child: Image.asset(
+            'assets/images/maya_ai_table_bg.webp',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (context, error, stackTrace) {
+              // Graceful fallback to PNG if WebP is unavailable
+              return Image.asset(
+                'assets/images/maya_ai_table_bg.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFF1E0836),
+                        Color(0xFF0F051D),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
 
         // 2. Foreground Game Table Content (Cards, HUD, Controls)
