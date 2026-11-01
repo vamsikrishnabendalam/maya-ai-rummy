@@ -59,15 +59,11 @@ class PlayerHand extends StatelessWidget {
         double overlap = isCompact ? 24.0 : Responsive.cardOverlap(context);
         double spacing = isCompact ? 8.0 : Responsive.groupSpacing(context);
 
-        // Auto-fit calculation to make all cards visible in one go
-        final showAddGroupTarget = availableWidth >= 280;
-        final addGroupWidth = showAddGroupTarget ? (isCompact ? 24.0 : cw * 0.7) : 0.0;
-
         if (groupCount > 0 && totalCards > 0) {
           final horizontalPadding = isCompact ? 6.0 : 16.0;
           final availableForRack = availableWidth - (horizontalPadding * 2);
           final gapsCount = groupCount - 1;
-          final spacingNeeded = (gapsCount * spacing) + (showAddGroupTarget ? spacing + addGroupWidth : 0.0);
+          final spacingNeeded = gapsCount * spacing;
           final availableForCards = availableForRack - spacingNeeded;
 
           final nonFirstCards = (totalCards - groupCount).clamp(0, 99);
@@ -96,8 +92,8 @@ class PlayerHand extends StatelessWidget {
         return Container(
           clipBehavior: Clip.none,
           constraints: BoxConstraints(
-            minHeight: ch + (isCompact ? 56 : 78),
-            maxHeight: ch + (isCompact ? 76 : 96),
+            minHeight: ch + (isCompact ? 20 : 26),
+            maxHeight: ch + (isCompact ? 28 : 34),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -105,22 +101,18 @@ class PlayerHand extends StatelessWidget {
               // Discard drop zone (appears during discard phase when dragging)
               if (isDiscardPhase) _buildDiscardZone(context),
               // Card groups centered and auto-fitted in one go
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    clipBehavior: Clip.none,
-                    scrollDirection: Axis.horizontal,
-                    physics: const ClampingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isCompact ? 4.0 : Responsive.tablePadding(context),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: _buildGroupsWithDividers(
-                        cw, ch, overlap, spacing, showAddGroupTarget, isCompact, totalCards,
-                      ),
-                    ),
+              SingleChildScrollView(
+                clipBehavior: Clip.none,
+                scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 4.0 : Responsive.tablePadding(context),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: _buildGroupsWithDividers(
+                    cw, ch, overlap, spacing, isCompact, totalCards,
                   ),
                 ),
               ),
@@ -136,7 +128,6 @@ class PlayerHand extends StatelessWidget {
     double ch,
     double overlap,
     double spacing,
-    bool showAddGroupTarget,
     bool isCompact,
     int totalCards,
   ) {
@@ -182,123 +173,7 @@ class PlayerHand extends StatelessWidget {
       );
     }
 
-    // "Add group" target at the end — wrapped in zero-width box so the card fan centers perfectly on table center axis
-    if (showAddGroupTarget) {
-      final targetWidth = isCompact ? 24.0 : cw * 0.7;
-      widgets.add(
-        SizedBox(
-          width: 0,
-          child: OverflowBox(
-            alignment: Alignment.bottomLeft,
-            minWidth: 0,
-            maxWidth: targetWidth + spacing * 2,
-            child: Padding(
-              padding: EdgeInsets.only(left: spacing),
-              child: _buildAddGroupTarget(cw, ch, isCompact),
-            ),
-          ),
-        ),
-      );
-    }
-
     return widgets;
-  }
-
-  Widget _buildAddGroupTarget(double cw, double ch, bool isCompact) {
-    final targetWidth = isCompact ? 36.0 : (cw * 0.62).clamp(44.0, 60.0);
-    return DragTarget<Object>(
-      onWillAcceptWithDetails: (_) => true,
-      onAcceptWithDetails: (details) {
-        if (details.data is CardDragData) {
-          final d = details.data as CardDragData;
-          onCardMovedToNewGroup?.call(d.card, d.fromGroupId);
-        } else if (details.data is Card) {
-          onCardMovedToNewGroup?.call(details.data as Card, '');
-        }
-      },
-      builder: (context, candidateData, rejectedData) {
-        final isAccepting = candidateData.isNotEmpty;
-        return GestureDetector(
-          onTap: () {
-            if (selectedCards.isNotEmpty) {
-              for (final c in selectedCards) {
-                onCardMovedToNewGroup?.call(c, '');
-              }
-            } else if (selectedCard != null) {
-              onCardMovedToNewGroup?.call(selectedCard!, '');
-            }
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: targetWidth,
-            height: ch,
-            margin: const EdgeInsets.only(left: 6),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isAccepting
-                    ? [
-                        const Color(0xFFF2CA50).withValues(alpha: 0.35),
-                        const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      ]
-                    : [
-                        const Color(0x33120424),
-                        const Color(0x22241A00),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isAccepting
-                    ? const Color(0xFFF2CA50)
-                    : const Color(0x66D4AF37),
-                width: isAccepting ? 2.0 : 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
-                    border: Border.all(
-                      color: const Color(0xFFF2CA50).withValues(alpha: 0.7),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.add_rounded,
-                    size: isCompact ? 14 : 18,
-                    color: const Color(0xFFF2CA50),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'NEW\nGROUP',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: isCompact ? 7.5 : 8.5,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFFFDE68A),
-                    letterSpacing: 0.5,
-                    height: 1.15,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   Widget _buildDiscardZone(BuildContext context) {

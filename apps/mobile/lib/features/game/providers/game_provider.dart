@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:game_engine/game_engine.dart';
 import 'package:ai_engine/ai_engine.dart' hide CardGroup;
 import '../models/card_group.dart';
+import '../models/game_action_log.dart';
 import '../models/game_settings.dart';
 import '../models/round_score.dart';
 import '../services/spectator_sync_service.dart';
+import '../../multiplayer/utils/file_saver_stub.dart'
+    if (dart.library.html) '../../multiplayer/utils/file_saver_web.dart';
 import 'game_ui_provider.dart';
 
 /// Combined game + hand organization + UI selection + scorecard state.
@@ -29,6 +33,7 @@ class GameTableState {
   final bool hasHumanOpenedJoker;
   final bool hasBotOpenedJoker;
   final int turnSecondsRemaining;
+  final List<GameActionLogEntry> actionLogs;
 
   const GameTableState({
     required this.gameState,
@@ -50,6 +55,7 @@ class GameTableState {
     this.hasHumanOpenedJoker = true,
     this.hasBotOpenedJoker = true,
     this.turnSecondsRemaining = 30,
+    this.actionLogs = const [],
   });
 
   int get totalHumanScore => roundScores.fold(0, (sum, r) => sum + r.humanScore);
@@ -94,6 +100,7 @@ class GameTableState {
     bool? hasHumanOpenedJoker,
     bool? hasBotOpenedJoker,
     int? turnSecondsRemaining,
+    List<GameActionLogEntry>? actionLogs,
   }) {
     return GameTableState(
       gameState: gameState ?? this.gameState,
@@ -116,6 +123,7 @@ class GameTableState {
       hasHumanOpenedJoker: hasHumanOpenedJoker ?? this.hasHumanOpenedJoker,
       hasBotOpenedJoker: hasBotOpenedJoker ?? this.hasBotOpenedJoker,
       turnSecondsRemaining: turnSecondsRemaining ?? this.turnSecondsRemaining,
+      actionLogs: actionLogs ?? this.actionLogs,
     );
   }
 }
@@ -276,6 +284,85 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
   void cancelTurnTimer() {
     _turnCountdownTimer?.cancel();
+  }
+
+  // --------------- Game Action Logging & Export ---------------
+
+  void _logAction({
+    required String player,
+    required String action,
+    required String details,
+    Card? card,
+  }) {
+    final entry = GameActionLogEntry(
+      roundNumber: state.currentRoundNumber,
+      turnNumber: state.gameState.turnNumber,
+      player: player,
+      action: action,
+      details: details,
+      card: card,
+      timestamp: DateTime.now(),
+    );
+    state = state.copyWith(actionLogs: [...state.actionLogs, entry]);
+  }
+
+  String getLogsText({int? roundNumber}) {
+    final logs = roundNumber != null
+        ? state.actionLogs.where((l) => l.roundNumber == roundNumber).toList()
+        : state.actionLogs;
+    final buffer = StringBuffer();
+    buffer.writeln('=== MAYA AI RUMMY GAME ACTION LOGS ===');
+    buffer.writeln('Exported At: ${DateTime.now().toIso8601String()}');
+    buffer.writeln('Current Round: ${state.currentRoundNumber}');
+    buffer.writeln('Total Rounds Recorded: ${state.roundScores.length}');
+    buffer.writeln('Human Score: ${state.totalHumanScore} | Maya Score: ${state.totalAiScore}');
+    buffer.writeln('Elimination Limit: ${state.gameSettings.eliminationScore}');
+    buffer.writeln('Joker Mode: ${state.gameSettings.jokerMode}');
+    buffer.writeln('========================================\n');
+    if (logs.isEmpty) {
+      buffer.writeln('No events recorded for this selection.');
+    } else {
+      for (final l in logs) {
+        buffer.writeln(l.toString());
+      }
+    }
+    return buffer.toString();
+  }
+
+  String getLogsJson({int? roundNumber}) {
+    final logs = roundNumber != null
+        ? state.actionLogs.where((l) => l.roundNumber == roundNumber).toList()
+        : state.actionLogs;
+    return const JsonEncoder.withIndent('  ').convert({
+      'title': 'Maya AI Rummy Action Logs',
+      'exportedAt': DateTime.now().toIso8601String(),
+      'selectedRound': roundNumber,
+      'currentRound': state.currentRoundNumber,
+      'totalRounds': state.roundScores.length,
+      'humanScore': state.totalHumanScore,
+      'aiScore': state.totalAiScore,
+      'gameSettings': state.gameSettings.toJson(),
+      'roundScores': state.roundScores.map((s) => s.toJson()).toList(),
+      'eventsCount': logs.length,
+      'logs': logs.map((l) => l.toJson()).toList(),
+    });
+  }
+
+  void downloadLogs({int? roundNumber, bool asJson = true}) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final roundSuffix = roundNumber != null ? '_R$roundNumber' : '_all_rounds';
+    final ext = asJson ? 'json' : 'txt';
+    final mimeType = asJson ? 'application/json' : 'text/plain';
+    final fileName = 'maya_ai_rummy_log${roundSuffix}_$timestamp.$ext';
+    final content = asJson
+        ? getLogsJson(roundNumber: roundNumber)
+        : getLogsText(roundNumber: roundNumber);
+
+    saveFileWeb(
+      fileName: fileName,
+      content: content,
+      mimeType: mimeType,
+    );
   }
 
   @override
@@ -561,6 +648,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       turnSecondsRemaining: state.gameSettings.turnTimerSeconds,
     );
 
+    _logAction(
+      player: 'Dealer (Maya Bot)',
+      action: 'Deal',
+      details: 'Tournament started. Deal 1 dealt. Wild Joker: ${newGameState.wildJoker}. Human gets first turn.',
+    );
+
     _ref.read(gameUIProvider.notifier).resetUI();
     _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.dealing);
 
@@ -682,6 +775,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       turnSecondsRemaining: state.gameSettings.turnTimerSeconds,
     );
 
+    _logAction(
+      player: 'Dealer ($dealerName)',
+      action: 'Deal',
+      details: 'Deal ${state.currentRoundNumber} started. Dealer: $dealerName. First turn: $firstPlayerName. Wild Joker: ${newGameState.wildJoker}.',
+    );
+
     _ref.read(gameUIProvider.notifier).resetUI();
     _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.dealing);
 
@@ -800,6 +899,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       clearSelectedCard: true,
     );
 
+    _logAction(
+      player: 'Human',
+      action: 'Draw Deck',
+      details: 'Drew card from closed deck ($drawnCard)',
+      card: drawnCard,
+    );
+
     _ref
         .read(gameUIProvider.notifier)
         .triggerAction(GameActionType.drewFromClosed, card: drawnCard);
@@ -868,6 +974,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       hasDrawnThisTurn: true,
       currentScore: score,
       clearSelectedCard: true,
+    );
+
+    _logAction(
+      player: 'Human',
+      action: 'Draw Open',
+      details: 'Drew $drawnCard from open discard pile',
+      card: drawnCard,
     );
 
     _ref
@@ -958,6 +1071,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       currentScore: score,
       clearSelectedCard: true,
       hasHumanOpenedJoker: newlyOpenedJoker ? true : state.hasHumanOpenedJoker,
+    );
+
+    _logAction(
+      player: 'Human',
+      action: 'Discard',
+      details: 'Discarded $card. Remaining deadwood: $score pts.',
+      card: card,
     );
 
     _turnCountdownTimer?.cancel();
@@ -1092,6 +1212,20 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       isRoundOver: true,
     );
 
+    _logAction(
+      player: 'Human',
+      action: 'Declare',
+      details: isHumanValid
+          ? 'Declared valid show (0 pts). Finish card: $cardToDiscard.'
+          : 'Declared invalid show (${state.gameSettings.fullCountPenalty} pts penalty). Finish card: $cardToDiscard.',
+      card: cardToDiscard,
+    );
+    _logAction(
+      player: 'System',
+      action: 'Round Result',
+      details: 'Round ${newRoundScore.roundNumber} Ended. Human: ${newRoundScore.humanOutcome} | Maya: ${newRoundScore.aiOutcome}. Cumulative: Human ${newRoundScore.cumulativeHumanScore} pts, Maya ${newRoundScore.cumulativeAiScore} pts.',
+    );
+
     // Final cards & count breakdown for logs and telemetry
     final humanHandGroups = remainingGroups.map((g) {
       final grpScore = Scoring.calculateHandDeadwood(groups: [g.cards], wildJoker: wildJokerCard);
@@ -1212,6 +1346,19 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       roundScores: newRoundScores,
       isRoundOver: true,
       clearSelectedCard: true,
+    );
+
+    _logAction(
+      player: 'Human',
+      action: 'Drop',
+      details: isFirstDrop
+          ? 'First drop taken ($dropPenalty pts penalty).'
+          : 'Middle drop taken ($dropPenalty pts penalty).',
+    );
+    _logAction(
+      player: 'System',
+      action: 'Round Result',
+      details: 'Round ${newRoundScore.roundNumber} Ended (Human Drop). Human: +$dropPenalty pts (Total: ${newRoundScore.cumulativeHumanScore}), Maya: 0 pts (Total: ${newRoundScore.cumulativeAiScore}).',
     );
 
     SpectatorSyncService.syncState(
@@ -1466,6 +1613,14 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       }
 
       state = state.copyWith(gameState: stateAfterDraw);
+      _logAction(
+        player: 'Maya (AI Host)',
+        action: chooseOpen ? 'Draw Open' : 'Draw Deck',
+        details: chooseOpen
+            ? 'Drew $openCard from open discard pile'
+            : 'Drew card from closed deck',
+        card: chooseOpen ? openCard : null,
+      );
       _ref
           .read(gameUIProvider.notifier)
           .triggerAction(GameActionType.botDrew);
@@ -1548,6 +1703,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           gameState: discardState,
           hasDrawnThisTurn: false,
           hasBotOpenedJoker: botNewlyOpened ? true : state.hasBotOpenedJoker,
+        );
+        _logAction(
+          player: 'Maya (AI Host)',
+          action: 'Discard',
+          details: 'Discarded $bestDiscardCard (${discardResult.reasoning})',
+          card: bestDiscardCard,
         );
         _ref
             .read(gameUIProvider.notifier)
@@ -1636,6 +1797,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       isRoundOver: false,
       isHandLocked: false,
       clearSelectedCard: true,
+    );
+
+    _logAction(
+      player: 'Maya (AI Host)',
+      action: 'Declare',
+      details: 'Declared show with discard $discardCard (${botPartition.isValidDeclaration ? "Valid Show" : "Invalid Show"}). Deadwood: ${botPartition.penaltyScore} pts. Awaiting human show submission.',
+      card: discardCard,
     );
 
     _ref
@@ -1738,6 +1906,17 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       botDeclarationResult: null,
       botDiscardCard: null,
       isHandLocked: true,
+    );
+
+    _logAction(
+      player: 'Human',
+      action: 'Show Submission',
+      details: 'Submitted show. Final deadwood count: $humanScore pts.',
+    );
+    _logAction(
+      player: 'System',
+      action: 'Round Result',
+      details: 'Round ${newRoundScore.roundNumber} Ended. Human: ${newRoundScore.humanOutcome} | Maya: ${newRoundScore.aiOutcome}. Cumulative: Human ${newRoundScore.cumulativeHumanScore} pts, Maya ${newRoundScore.cumulativeAiScore} pts.',
     );
 
     final humanHandGroups = state.cardGroups.map((g) {

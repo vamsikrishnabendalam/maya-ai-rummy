@@ -19,4 +19,15 @@ class RoundScore {
     required this.aiOutcome,
     required this.timestamp,
   });
+
+  Map<String, dynamic> toJson() => {
+    'roundNumber': roundNumber,
+    'humanScore': humanScore,
+    'aiScore': aiScore,
+    'cumulativeHumanScore': cumulativeHumanScore,
+    'cumulativeAiScore': cumulativeAiScore,
+    'humanOutcome': humanOutcome,
+    'aiOutcome': aiOutcome,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }

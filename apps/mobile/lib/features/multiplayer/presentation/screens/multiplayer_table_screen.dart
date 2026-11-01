@@ -1,18 +1,26 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:game_engine/game_engine.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../auth/providers/auth_provider.dart';
-import '../../models/table_models.dart';
-import '../../providers/multiplayer_providers.dart';
+import '../../../game/models/card_group.dart';
+import '../../../game/presentation/widgets/card_widget.dart';
+import '../../../game/presentation/widgets/card_back_widget.dart';
+import '../../../game/presentation/widgets/discard_history_modal.dart';
 import '../../../game/presentation/widgets/player_hand.dart';
 import '../../../game/presentation/widgets/card_animation_layer.dart';
-import '../../../game/presentation/widgets/royal_rummy_oval_table.dart';
 import '../../../game/presentation/widgets/royal_life_checklist_bar.dart';
-import '../../../game/presentation/widgets/center_table.dart';
-import '../../../../core/utils/responsive.dart';
+import '../../../game/providers/game_ui_provider.dart';
+import '../../models/table_models.dart';
+import '../../providers/multiplayer_providers.dart';
 import '../../utils/game_log_exporter.dart';
+import '../widgets/multiplayer_table_background.dart';
+import '../widgets/multiplayer_opponents_layer.dart';
 
 class MultiplayerTableScreen extends ConsumerStatefulWidget {
   final String gameId;
@@ -27,12 +35,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
   Timer? _countdownTimer;
   bool _hasShownResultDialog = false;
 
-  static String _formatCoins(int amount) {
-    return amount.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
-  }
+  static const double _tableCardW = 68.0;
+  static const double _tableCardH = 96.0;
+
 
   @override
   void initState() {
@@ -1270,7 +1275,6 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
     final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
-    final isMobileLandscape = isLandscape && !isDesktop;
     final isFirstDrop = game.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
     final dropPenalty = isFirstDrop ? game.firstDropPenalty : game.middleDropPenalty;
     final canDrop = !game.isDeclaring && isMyTurn && isDrawPhase && !isDropped;
@@ -1289,1200 +1293,1753 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         ? game.turnDeadline!.difference(DateTime.now()).inSeconds.clamp(0, 99)
         : 30;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF05080F),
-      body: Stack(
-        children: [
-          SafeArea(
-        child: Column(
-          children: [
-            // --- 1. Top Navigation Bar ---
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 18 : 12,
-                vertical: isDesktop ? 8 : 6,
-              ),
-              decoration: const BoxDecoration(
-                color: Color(0xFF070D17),
-                border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
-              ),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () => context.go('/multiplayer'),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isDesktop ? 12 : 8,
-                        vertical: isDesktop ? 6 : 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+    final Card? wildJoker = (game.hasPlayerOpenedJoker(user.uid) || !game.isClosedJoker) ? game.openJoker : null;
+
+    final mayaAiMultiplayerCanvas = Center(
+      child: AspectRatio(
+        aspectRatio: 1754 / 896,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 1754,
+            height: 896,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 1. LAYER 1: 3D PERSPECTIVE WARPED TABLE SURFACE (THE FLAT CARDS)
+                Positioned.fill(
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.0016)
+                      ..rotateX(-1.15)
+                      ..translate(0.0, 200.0),
+                    child: SizedBox(
+                      width: 1754,
+                      height: 896,
+                      child: Stack(
+                        clipBehavior: Clip.none,
                         children: [
-                          Icon(Icons.arrow_back_ios_new, color: Colors.white, size: isDesktop ? 14 : 12),
-                          const SizedBox(width: 4),
-                          Text('Lobby', style: TextStyle(color: Colors.white, fontSize: isDesktop ? 13 : 11, fontWeight: FontWeight.bold)),
+                          Positioned(
+                            top: 395,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // 1. Closed Deck Stack with Perpendicular Wild Joker Tucked Underneath
+                                  _buildPerspectiveClosedDeckWithTuckedJoker(
+                                    context: context,
+                                    count: game.closedDeckRemaining,
+                                    wildJoker: game.openJoker,
+                                    isClosedJoker: game.isClosedJoker,
+                                    isJokerOpened: game.hasPlayerOpenedJoker(user.uid),
+                                    hasLife: notifier.hasFirstLife,
+                                    onOpenClosedJoker: () {
+                                      if (notifier.hasFirstLife) {
+                                        notifier.openClosedJoker();
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    canDraw: !game.isDeclaring && isMyTurn && isDrawPhase,
+                                    onDraw: () => notifier.drawFromClosed(),
+                                  ),
+
+                                  const SizedBox(width: 32),
+
+                                  // 2. Open Discard Pile (Showing up to 5 overlapping cards + Drag & Drop Discard Target)
+                                  _buildPerspectiveOpenPile(
+                                    context: context,
+                                    discardPile: game.openPile,
+                                    wildJoker: wildJoker,
+                                    canDraw: !game.isDeclaring && isMyTurn && isDrawPhase,
+                                    onDraw: () => notifier.drawFromOpen(),
+                                    canDiscard: canDiscard,
+                                    onDiscardCard: (card) {
+                                      if (game.isDeclaring) return;
+                                      if (!isMyTurn || !isDiscardPhase) return;
+                                      if (card == game.cardDrawnFromOpenThisTurn) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Cannot discard the card drawn from the open pile.'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      notifier.discardCard(card);
+                                    },
+                                    onShowHistory: () {
+                                      if (game.openPile.isNotEmpty) {
+                                        DiscardHistoryModal.show(
+                                          context,
+                                          discardPile: game.openPile,
+                                          wildJoker: wildJoker,
+                                        );
+                                      }
+                                    },
+                                  ),
+
+                                  const SizedBox(width: 32),
+
+                                  // 3. Finish / Declare Slot
+                                  _buildPerspectiveFinishSlot(
+                                    context: context,
+                                    isActivated: canDeclare ||
+                                        (isMyTurn && isDiscardPhase && ref.watch(gameUIProvider).isDragging),
+                                    canAcceptDrop: isMyTurn && isDiscardPhase && !game.isDeclaring,
+                                    canDeclare: canDeclare,
+                                    onDeclare: canDeclare ? _showDeclarationDialog : null,
+                                    onCardDeclared: canDeclare
+                                        ? (card) {
+                                            notifier.declareWithCard(card);
+                                            _showDeclarationDialog();
+                                          }
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
-                  SizedBox(width: isDesktop ? 12 : 8),
+                ),
 
-                  // Brand Title
+                // 2. LAYER 2: MULTIPLAYER OPPONENTS LAYER (Armchair seated opponent in 2P, extensible to 3-6P)
+                Positioned.fill(
+                  child: MultiplayerOpponentsLayer(
+                    maxPlayers: game.playerCount,
+                    opponents: opponents,
+                    currentTurnPlayerId: game.currentTurnPlayerId,
+                    dealerPlayerId: game.dealerPlayerId,
+                    remainingTurnSeconds: remainingTurnSeconds,
+                    onOpponentTap: myPlayer.isHost && game.status == 'IN_PROGRESS'
+                        ? (p) => _showKickPlayerFromGameDialog(context, p)
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF09141A),
+      body: MultiplayerTableBackground(
+        maxPlayers: game.playerCount,
+        child: Stack(
+          children: [
+            // 1. Center 3D Table Surface & Opponents
+            Positioned.fill(
+              child: mayaAiMultiplayerCanvas,
+            ),
+
+            // 2. Top HUD Navigation & Control Bar (Pinned to literal top: 0 of screen)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildTopHudBar(
+                context,
+                game: game,
+                tableState: tableState,
+                notifier: notifier,
+                user: user,
+                toastMessage: toastMessage,
+                isMyTurn: isMyTurn,
+                wildJoker: wildJoker,
+                myUid: myUid,
+              ),
+            ),
+
+            // 3. Declaration Banner (when a player declares)
+            if (game.isDeclaring)
+              Positioned(
+                top: 56,
+                left: 0,
+                right: 0,
+                child: _buildDeclarationBanner(game, myUid),
+              ),
+
+            // 4. Player 13-Card Hand Tray (Pinned to literal bottom: 2 of screen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 2,
+              child: Center(
+                child: SizedBox(
+                  width: isDesktop ? 1440 : (Responsive.isTablet(context) ? 1120 : 960),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PlayerHand(
+                        cardGroups: tableState.cardGroups,
+                        wildJokerCard: wildJoker,
+                        selectedCard: tableState.selectedCard,
+                        selectedCards: tableState.selectedCards,
+                        isDiscardPhase: !game.isDeclaring && isMyTurn && isDiscardPhase,
+                        onCardTap: (card) => notifier.selectCard(card),
+                        onCardMoved: (card, fromGroupId, toGroupId) {
+                          notifier.moveCardBetweenGroups(
+                            card,
+                            fromGroupId,
+                            toGroupId,
+                            tableState.cardGroups
+                                .firstWhere((g) => g.id == toGroupId,
+                                    orElse: () => tableState.cardGroups.first)
+                                .cards
+                                .length,
+                          );
+                        },
+                        onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
+                          notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
+                        },
+                        onCardReordered: (groupId, oldIndex, newIndex) {
+                          notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
+                        },
+                        onCardMovedToNewGroup: (card, fromGroupId) {
+                          notifier.moveCardToNewGroup(card, fromGroupId);
+                        },
+                        onCardDragStarted: (card, groupId) {
+                          ref.read(gameUIProvider.notifier).startDrag(card, groupId);
+                        },
+                        onDragEnded: () {
+                          ref.read(gameUIProvider.notifier).endDrag();
+                        },
+                        onDiscard: (card) {
+                          if (game.isDeclaring) return;
+                          if (!isMyTurn || !isDiscardPhase) return;
+                          if (card == game.cardDrawnFromOpenThisTurn) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cannot discard the card drawn from the open pile.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            return;
+                          }
+                          notifier.discardCard(card);
+                        },
+                      ),
+                      const SizedBox(height: 2),
+                      RoyalLifeChecklistBar(
+                        hasFirstLife: notifier.hasFirstLife,
+                        hasSecondLife: notifier.hasSecondLife,
+                        points: tableState.currentScore,
+                        isMyTurn: isMyTurn,
+                        turnSeconds: remainingTurnSeconds,
+                        instructionText: toastMessage,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // 5. Left Action Controls: Drop, Sort Hand, AI Group
+            Positioned(
+              left: isDesktop ? 48 : 16,
+              bottom: 8,
+              child: _buildLeftThumbControls(
+                context,
+                canDrop: canDrop,
+                dropPenalty: dropPenalty,
+                isFirstDrop: isFirstDrop,
+                game: game,
+                notifier: notifier,
+                isDesktop: isDesktop,
+              ),
+            ),
+
+            // 6. Right Action Controls: Group, Discard, Declare Hand
+            Positioned(
+              right: isDesktop ? 48 : 16,
+              bottom: 8,
+              child: _buildRightThumbControls(
+                context,
+                notifier: notifier,
+                tableState: tableState,
+                game: game,
+                user: user,
+                canDiscard: canDiscard,
+                canDeclare: canDeclare,
+                isMyTurn: isMyTurn,
+                isDiscardPhase: isDiscardPhase,
+                isDesktop: isDesktop,
+              ),
+            ),
+
+            // 7. Round Over Overlay (if round completed)
+            if (game.isRoundOver)
+              _buildRoundOverOverlay(game, myUid, notifier),
+
+            // 8. Card Animation Layer (Deals & discards flight)
+            const Positioned.fill(
+              child: CardAnimationLayer(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Closed Deck Stack with Perpendicular Wild Joker tucked horizontally underneath
+  Widget _buildPerspectiveClosedDeckWithTuckedJoker({
+    required BuildContext context,
+    required int count,
+    required Card? wildJoker,
+    required bool isClosedJoker,
+    required bool isJokerOpened,
+    required bool hasLife,
+    required VoidCallback onOpenClosedJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+  }) {
+    final bool showJokerFace = !isClosedJoker || isJokerOpened;
+    const double jokerW = 65.0;
+    const double jokerH = 91.0;
+
+    return SizedBox(
+      width: _tableCardW + 42.0,
+      height: _tableCardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerRight,
+        children: [
+          // 1. Perpendicular Wild Joker tucked under closed deck
+          Positioned(
+            left: 8,
+            top: (_tableCardH - jokerW) / 2,
+            child: Transform.rotate(
+              angle: -math.pi / 2,
+              child: Container(
+                width: jokerW,
+                height: jokerH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      blurRadius: 8,
+                      offset: const Offset(2, 3),
+                    ),
+                  ],
+                ),
+                child: (showJokerFace && wildJoker != null)
+                    ? CardWidget(
+                        card: wildJoker,
+                        isWildJoker: false,
+                        width: jokerW,
+                        height: jokerH,
+                      )
+                    : Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CardBackWidget(
+                            width: jokerW,
+                            height: jokerH,
+                            showPulse: false,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.amber.shade700,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.lock_outline_rounded,
+                              size: 16,
+                              color: Colors.amber.shade200,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+
+          // 2. Physical 3D paper stack effect: layered card rims
+          Positioned(
+            right: 4.5,
+            top: 4.5,
+            child: Container(
+              width: _tableCardW,
+              height: _tableCardH,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFE6D5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x445D4037), width: 0.8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 4,
+                    offset: const Offset(1, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 2.5,
+            top: 2.5,
+            child: Container(
+              width: _tableCardW,
+              height: _tableCardH,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6F0E4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x335D4037), width: 0.8),
+              ),
+            ),
+          ),
+
+          // 3. Top Interactive Closed Deck Card
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: canDraw ? onDraw : null,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: canDraw
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.55)
+                          : Colors.black.withValues(alpha: 0.65),
+                      blurRadius: canDraw ? 14 : 7,
+                      spreadRadius: canDraw ? 2.5 : 0,
+                      offset: const Offset(1, 3),
+                    ),
+                  ],
+                ),
+                child: CardBackWidget(
+                  width: _tableCardW,
+                  height: _tableCardH,
+                  showPulse: canDraw,
+                ),
+              ),
+            ),
+          ),
+
+          // 4. Deck Count Chip Badge
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2C1E12), Color(0xFF140D07)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF2CA50), width: 1.0),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFFFDE68A),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Open Discard Pile showing up to 5 overlapping cards + Drag & Drop Discard Target
+  Widget _buildPerspectiveOpenPile({
+    required BuildContext context,
+    required List<Card> discardPile,
+    required Card? wildJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+    required bool canDiscard,
+    required void Function(Card)? onDiscardCard,
+    required VoidCallback onShowHistory,
+  }) {
+    final visibleDiscards = discardPile.length <= 5
+        ? discardPile
+        : discardPile.sublist(discardPile.length - 5);
+    final count = visibleDiscards.length;
+    final double stepX = _tableCardW * 0.46;
+    final totalWidth = count <= 1 ? _tableCardW : (_tableCardW + (count - 1) * stepX);
+
+    final pileWidget = SizedBox(
+      width: totalWidth,
+      height: _tableCardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (count == 0)
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Container(
+                width: _tableCardW,
+                height: _tableCardH,
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: const Center(
+                  child: Text(
+                    'EMPTY',
+                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ),
+              ),
+            ),
+
+          for (var i = 0; i < count; i++) ...[
+            Positioned(
+              left: i * stepX,
+              top: 0,
+              child: GestureDetector(
+                onTap: (i == count - 1 && canDraw) ? onDraw : null,
+                child: Container(
+                  width: _tableCardW,
+                  height: _tableCardH,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (i == count - 1 && canDraw)
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.55)
+                            : Colors.black.withValues(alpha: 0.5),
+                        blurRadius: (i == count - 1 && canDraw) ? 12 : 5,
+                        offset: const Offset(1, 2),
+                      ),
+                    ],
+                  ),
+                  child: CardWidget(
+                    card: visibleDiscards[i],
+                    isWildJoker: JokerUtils.isWildJoker(visibleDiscards[i], wildJoker),
+                    width: _tableCardW,
+                    height: _tableCardH,
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          if (count > 0)
+            Positioned(
+              top: -6,
+              right: -6,
+              child: GestureDetector(
+                onTap: onShowHistory,
+                child: Container(
+                  padding: const EdgeInsets.all(4.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFBBF24), width: 1.0),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, blurRadius: 4),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    size: 14,
+                    color: Color(0xFFFDE68A),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return DragTarget<Object>(
+      onWillAcceptWithDetails: (_) => canDiscard,
+      onAcceptWithDetails: (details) {
+        if (details.data is CardDragData) {
+          onDiscardCard?.call((details.data as CardDragData).card);
+        } else if (details.data is Card) {
+          onDiscardCard?.call(details.data as Card);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isHovering
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFF2CA50).withValues(alpha: 0.75),
+                      blurRadius: 18,
+                      spreadRadius: 3,
+                    ),
+                  ]
+                : null,
+          ),
+          child: pileWidget,
+        );
+      },
+    );
+  }
+
+  /// Finish / Declare Slot with Drag & Drop declaration support
+  Widget _buildPerspectiveFinishSlot({
+    required BuildContext context,
+    required bool isActivated,
+    required bool canAcceptDrop,
+    required bool canDeclare,
+    VoidCallback? onDeclare,
+    void Function(Card)? onCardDeclared,
+  }) {
+    Widget buildSlotContainer(bool isHovering) {
+      final active = isActivated || isHovering || canDeclare;
+      return GestureDetector(
+        onTap: canDeclare ? onDeclare : null,
+        child: Container(
+          width: _tableCardW,
+          height: _tableCardH,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: active
+                  ? [
+                      const Color(0x44F59E0B),
+                      const Color(0x22FBBF24),
+                    ]
+                  : [
+                      const Color(0x33120424),
+                      const Color(0x220A0214),
+                    ],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: active ? const Color(0xFFFBBF24) : const Color(0x55F59E0B),
+              width: active ? 2.2 : 1.5,
+            ),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFFBBF24).withValues(alpha: isHovering ? 0.8 : 0.55),
+                      blurRadius: isHovering ? 20 : 14,
+                      spreadRadius: isHovering ? 3.5 : 2.5,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.emoji_events_rounded,
+                color: active ? const Color(0xFFFBBF24) : const Color(0xFFFBBF24).withValues(alpha: 0.6),
+                size: 26,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'FINISH',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: active ? const Color(0xFFFDE68A) : Colors.white70,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '14th Card',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: active ? const Color(0xFFFDE68A).withValues(alpha: 0.8) : Colors.white38,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (onCardDeclared != null) {
+      return DragTarget<Object>(
+        onWillAcceptWithDetails: (_) => canAcceptDrop,
+        onAcceptWithDetails: (details) {
+          if (details.data is CardDragData) {
+            onCardDeclared((details.data as CardDragData).card);
+          } else if (details.data is Card) {
+            onCardDeclared(details.data as Card);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: isHovering
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFFFBBF24).withValues(alpha: 0.8),
+                        blurRadius: 20,
+                        spreadRadius: 4,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: buildSlotContainer(isHovering),
+          );
+        },
+      );
+    }
+
+    return buildSlotContainer(false);
+  }
+
+  Widget _buildTopHudBar(
+    BuildContext context, {
+    required MultiplayerGameState game,
+    required MultiplayerGameTableState tableState,
+    required MultiplayerGameNotifier notifier,
+    required dynamic user,
+    required String toastMessage,
+    required bool isMyTurn,
+    required Card? wildJoker,
+    required String myUid,
+  }) {
+    final size = MediaQuery.of(context).size;
+    final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
+    final isTablet = Responsive.isTablet(context) || (size.width >= 768 && size.width < 1024);
+    final isLockedJoker = game.isClosedJoker && !game.hasPlayerOpenedJoker(user.uid);
+    final isHost = game.players.any((p) => p.uid == myUid && p.isHost);
+
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + (isDesktop ? 6 : 4),
+        bottom: isDesktop ? 8 : 5,
+        left: isDesktop ? 18 : 8,
+        right: isDesktop ? 18 : 8,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF09141A), Color(0xFF040A0D)],
+        ),
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.8),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Left: Title, Game mode badges, Room Code, Mini Joker
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
                     'MAYA AI RUMMY',
-                    style: TextStyle(
-                      fontSize: isDesktop ? 15 : 12,
+                    style: GoogleFonts.outfit(
+                      fontSize: isDesktop ? 16.0 : (isTablet ? 14.0 : 12.0),
                       fontWeight: FontWeight.w900,
                       color: const Color(0xFFF2CA50),
                       letterSpacing: 0.8,
                     ),
                   ),
-                  SizedBox(width: isDesktop ? 10 : 8),
-
-                  // Room Code Badge
+                  SizedBox(width: isDesktop ? 8 : 5),
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 11 : 8,
-                      vertical: isDesktop ? 5 : 3.5,
+                      horizontal: isDesktop ? 8 : 5,
+                      vertical: isDesktop ? 3.5 : 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2CA50).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${game.playerCount}-MAX',
+                      style: GoogleFonts.outfit(
+                        fontSize: isDesktop ? 10.0 : 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFF2CA50),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 6 : 4),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 8 : 5,
+                      vertical: isDesktop ? 3.5 : 2,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.workspace_premium_rounded, color: const Color(0xFFF59E0B), size: isDesktop ? 15 : 13),
-                        const SizedBox(width: 4),
-                        Text(
-                          '#${game.roomCode}',
-                          style: TextStyle(
-                            color: const Color(0xFFFDE68A),
-                            fontSize: isDesktop ? 12 : 10.5,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '#${game.roomCode}',
+                      style: GoogleFonts.outfit(
+                        fontSize: isDesktop ? 10.0 : 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFFDE68A),
+                      ),
                     ),
                   ),
-                  SizedBox(width: isDesktop ? 8 : 6),
-
-                  // Drop Rules Badge
+                  SizedBox(width: isDesktop ? 6 : 4),
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 10 : 7,
-                      vertical: isDesktop ? 5 : 3,
+                      horizontal: isDesktop ? 8 : 5,
+                      vertical: isDesktop ? 3.5 : 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+                      color: const Color(0xFF222B32),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'DROP: ${game.firstDropPenalty}/${game.middleDropPenalty}/${game.maxPenalty}',
-                      style: TextStyle(
-                        color: Colors.amberAccent,
-                        fontSize: isDesktop ? 11 : 9.5,
-                        fontWeight: FontWeight.bold,
+                      game.gameMode.toUpperCase(),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: isDesktop ? 10.0 : 8.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFD0C5AF),
                       ),
                     ),
                   ),
-
-                  // In Landscape: Live Toast Guidance Pill
-                  if (isLandscape) ...[
-                    const Spacer(),
-                    _buildMultiplayerToastPill(toastMessage),
-                  ],
-
-                  const Spacer(),
-
-                  // Host Management & End Game Buttons
-                  if (game.players.any((p) => p.uid == myUid && p.isHost) && !game.isCompleted) ...[
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E293B),
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white24, width: 1),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 12 : 8,
-                          vertical: isDesktop ? 7 : 4,
-                        ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: Icon(Icons.manage_accounts_rounded, color: AppColors.accent, size: isDesktop ? 16 : 14),
-                      label: Text('PLAYERS', style: TextStyle(fontSize: isDesktop ? 11.5 : 10, fontWeight: FontWeight.bold)),
-                      onPressed: () => _showManagePlayersModal(context, game, myUid),
-                    ),
-                    SizedBox(width: isDesktop ? 8 : 6),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3E1414),
-                        foregroundColor: const Color(0xFFFF8A80),
-                        side: const BorderSide(color: Color(0xFFD32F2F), width: 1),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 12 : 8,
-                          vertical: isDesktop ? 7 : 4,
-                        ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: Icon(Icons.cancel_outlined, color: const Color(0xFFFF8A80), size: isDesktop ? 16 : 14),
-                      label: Text('END', style: TextStyle(fontSize: isDesktop ? 11.5 : 10, fontWeight: FontWeight.bold)),
-                      onPressed: () => _showEndGameConfirmationDialog(context),
-                    ),
-                    SizedBox(width: isDesktop ? 8 : 6),
-                  ],
-
-                  // Scoreboard Button
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF142E54),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isDesktop ? 12 : 8,
-                        vertical: isDesktop ? 7 : 4,
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: Icon(Icons.leaderboard_rounded, color: AppColors.accent, size: isDesktop ? 17 : 16),
-                    label: Text('SCOREBOARD', style: TextStyle(fontSize: isDesktop ? 11.5 : 10, fontWeight: FontWeight.bold)),
-                    onPressed: () => _showScoreboardModal(context, game),
-                  ),
-                  SizedBox(width: isDesktop ? 10 : 6),
-
-                  // Available Coins Pill (User Virtual Coins)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 12 : 8,
-                      vertical: isDesktop ? 6 : 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF182128),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFF2CA50).withValues(alpha: 0.4),
-                        width: 0.8,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '🪙',
-                          style: TextStyle(fontSize: isDesktop ? 15 : 12),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatCoins(user.coins),
-                          style: TextStyle(
-                            fontSize: isDesktop ? 13 : 11,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFF2CA50),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  SizedBox(width: isDesktop ? 8 : 5),
+                  _buildMiniWildJokerPill(wildJoker, isLockedJoker, isDesktop: isDesktop),
                 ],
               ),
-            ),
 
-            // In Portrait: Toast Guidance Banner & Opponents Bar
-            if (!isLandscape) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: _buildMultiplayerToastPill(toastMessage),
-              ),
-              _buildPortraitOpponentsBar(opponents, game),
-            ],
-
-            // Declaration Banner (when a player declares)
-            if (game.isDeclaring) _buildDeclarationBanner(game, myUid),
-
-            // --- 2. Main Arena (Royal 2.5D Oval Table, Opponents Orbit, Center Decks, Thumb-Zones) ---
-            Expanded(
-              child: Stack(
+              // Right: Drop Rules, Scoreboard, Logs, Players (Host), Exit
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Royal Rummy 2.5D Oval Table
-                  Positioned.fill(
-                    child: Padding(
+                  if (isDesktop || size.width >= 1100) ...[
+                    Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isLandscape ? 40.0 : 8.0,
-                        vertical: 2.0,
+                        horizontal: isDesktop ? 9 : 6,
+                        vertical: isDesktop ? 5 : 3,
                       ),
-                      child: RoyalRummyOvalTable(
-                        isPortrait: !isLandscape,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Center Table Elements: Closed Deck + perpendicular Wild Joker, Open Deck Pile + Discard History, Finish Slot
-                            CenterTable(
-                              closedDeckCount: game.closedDeckRemaining,
-                              openPile: game.openPile,
-                              wildJoker: game.openJoker,
-                              isClosedJoker: game.isClosedJoker,
-                              isJokerOpened: game.hasPlayerOpenedJoker(user.uid),
-                              hasLife: notifier.hasFirstLife,
-                              isCompact: isMobileLandscape || (!isLandscape && MediaQuery.of(context).size.height < 720),
-                              potAmount: '🪙 ${(game.players.length * 100).clamp(100, 99900)}',
-                              pointValue: '${game.firstDropPenalty} pts',
-                              onOpenClosedJoker: () {
-                                if (notifier.hasFirstLife) {
-                                  notifier.openClosedJoker();
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              },
-                              canDraw: !game.isDeclaring && isMyTurn && isDrawPhase,
-                              onDrawClosed: () => notifier.drawFromClosed(),
-                              onDrawOpen: () => notifier.drawFromOpen(),
-                              canDeclare: canDeclare,
-                              onDeclare: canDeclare ? _showDeclarationDialog : null,
-                            ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF182128),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Text(
+                        '1st: ${game.firstDropPenalty}p • Mid: ${game.middleDropPenalty}p',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: isDesktop ? 10.5 : 9.0,
+                          color: const Color(0xFF86EFAC),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: isDesktop ? 8 : 5),
+                  ],
 
-                            // In Landscape: Opponents Seating Layout around table orbit
-                            if (isLandscape)
-                              _buildOpponentsOrbit(opponents, game, isHost: myPlayer.isHost),
+                  // Scoreboard
+                  InkWell(
+                    onTap: () => _showScoreboardModal(context, game),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 10 : 7,
+                        vertical: isDesktop ? 5.5 : 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2E2413), Color(0xFF181F26)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFF2CA50).withValues(alpha: 0.7),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.table_chart_rounded, size: isDesktop ? 14 : 11.5, color: const Color(0xFFF2CA50)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Scoreboard',
+                            style: GoogleFonts.cinzel(
+                              fontSize: isDesktop ? 11.5 : 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFF2CA50),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 8 : 5),
+
+                  // Logs
+                  InkWell(
+                    onTap: () async {
+                      final fileName = await GameLogExporter.downloadGameLogJson(game);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: const Color(0xFF1E3A2E),
+                            content: Text('Fair-play log downloaded: $fileName (copied to clipboard)'),
+                          ),
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 10 : 7,
+                        vertical: isDesktop ? 5.5 : 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF60A5FA).withValues(alpha: 0.7),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.history_edu_rounded, size: isDesktop ? 14 : 11.5, color: const Color(0xFF93C5FD)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Logs',
+                            style: GoogleFonts.outfit(
+                              fontSize: isDesktop ? 11.5 : 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFDBEAFE),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 8 : 5),
+
+                  // Host Player Management
+                  if (isHost && !game.isCompleted) ...[
+                    InkWell(
+                      onTap: () => _showManagePlayersModal(context, game, myUid),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 10 : 7,
+                          vertical: isDesktop ? 5.5 : 3.5,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2E2413), Color(0xFF181F26)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFF2CA50).withValues(alpha: 0.5),
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.manage_accounts_rounded, size: isDesktop ? 14 : 11.5, color: const Color(0xFFF2CA50)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Players',
+                              style: GoogleFonts.cinzel(
+                                fontSize: isDesktop ? 11.5 : 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFF2CA50),
+                                letterSpacing: 0.4,
+                              ),
+                            ),
                           ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: isDesktop ? 8 : 5),
+                  ],
+
+                  // Exit
+                  InkWell(
+                    onTap: () => _handleExitGame(context),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 10 : 7,
+                        vertical: isDesktop ? 5.5 : 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3F1417), Color(0xFF1A0A0C)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.6),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.logout_rounded, size: isDesktop ? 14 : 11.5, color: const Color(0xFFF87171)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Exit',
+                            style: GoogleFonts.outfit(
+                              fontSize: isDesktop ? 11.5 : 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFFCA5A5),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Exactly Center-Screen Toast Guidance Pill
+          Center(
+            child: _buildToastPill(toastMessage, isDesktop: isDesktop),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeftThumbControls(
+    BuildContext context, {
+    required bool canDrop,
+    required int dropPenalty,
+    required bool isFirstDrop,
+    required MultiplayerGameState game,
+    required MultiplayerGameNotifier notifier,
+    bool isDesktop = false,
+  }) {
+    final double padH = isDesktop ? 18.0 : 10.0;
+    final double padV = isDesktop ? 11.0 : 7.0;
+    final double iconSize = isDesktop ? 19.0 : 14.0;
+    final double fontSize = isDesktop ? 14.0 : 10.5;
+    final double gap = isDesktop ? 9.0 : 6.0;
+
+    return Padding(
+      padding: EdgeInsets.only(right: isDesktop ? 10 : 6, bottom: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drop Button
+          InkWell(
+            onTap: canDrop ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop) : null,
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+              decoration: BoxDecoration(
+                gradient: canDrop
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFB91C1C), Color(0xFF7F1D1D)],
+                      )
+                    : null,
+                color: canDrop ? null : const Color(0xFF1B2228),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: canDrop ? const Color(0xFFFCA5A5) : const Color(0x66D4AF37),
+                  width: canDrop ? 1.6 : 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: canDrop ? const Color(0xFFDC2626).withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.4),
+                    blurRadius: canDrop ? 10 : 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.flag_rounded, size: iconSize, color: canDrop ? const Color(0xFFFFF1F2) : const Color(0xFF94A3B8)),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Drop ($dropPenalty)',
+                    style: GoogleFonts.outfit(
+                      color: canDrop ? const Color(0xFFFFF1F2) : const Color(0xFF94A3B8),
+                      fontSize: fontSize,
+                      fontWeight: canDrop ? FontWeight.w900 : FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: gap),
+
+          // Sort Button
+          InkWell(
+            onTap: () => notifier.sortHandAscending(),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF15803D), Color(0xFF0E4B24)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF86EFAC), width: 1.6),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.6),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.swap_vert_rounded, size: iconSize, color: const Color(0xFFDCFCE7)),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Sort Hand',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFDCFCE7),
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: gap),
+
+          // AI Group Button
+          InkWell(
+            onTap: () => notifier.autoGroupHand(),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF7C3AED), Color(0xFF4C1D95)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF2CA50), width: 1.8),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.7),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFFF2CA50).withValues(alpha: 0.4),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome_rounded, size: iconSize, color: const Color(0xFFFDE68A)),
+                  const SizedBox(width: 5),
+                  Text(
+                    'AI Group',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRightThumbControls(
+    BuildContext context, {
+    required MultiplayerGameNotifier notifier,
+    required MultiplayerGameTableState tableState,
+    required MultiplayerGameState game,
+    required dynamic user,
+    required bool canDiscard,
+    required bool canDeclare,
+    required bool isMyTurn,
+    required bool isDiscardPhase,
+    bool isDesktop = false,
+  }) {
+    final double padH = isDesktop ? 18.0 : 10.0;
+    final double padV = isDesktop ? 11.0 : 7.0;
+    final double iconSize = isDesktop ? 19.0 : 14.0;
+    final double fontSize = isDesktop ? 14.0 : 10.5;
+    final double declarePadH = isDesktop ? 26.0 : 16.0;
+    final double gap = isDesktop ? 9.0 : 6.0;
+
+    return Padding(
+      padding: EdgeInsets.only(left: isDesktop ? 10 : 6, bottom: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Group Button
+              InkWell(
+                onTap: () => notifier.groupSelectedCards(),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF93C5FD), width: 1.6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.6),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.layers_rounded, size: iconSize, color: const Color(0xFFEFF6FF)),
+                      const SizedBox(width: 5),
+                      Text(
+                        tableState.selectedCards.length >= 2
+                            ? 'Group (${tableState.selectedCards.length})'
+                            : 'Group',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFFEFF6FF),
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(width: isDesktop ? 8 : 5),
+
+              // Discard Button with DragTarget
+              DragTarget<Object>(
+                onWillAcceptWithDetails: (_) => isMyTurn && isDiscardPhase && !game.isDeclaring,
+                onAcceptWithDetails: (details) {
+                  Card? droppedCard;
+                  if (details.data is CardDragData) {
+                    droppedCard = (details.data as CardDragData).card;
+                  } else if (details.data is Card) {
+                    droppedCard = details.data as Card;
+                  }
+                  if (droppedCard != null) {
+                    notifier.discardCard(droppedCard);
+                  }
+                },
+                builder: (context, candidateData, rejectedData) {
+                  final isHovering = candidateData.isNotEmpty;
+                  final active = canDiscard || isHovering;
+                  return InkWell(
+                    onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 20 : 12,
+                        vertical: padV,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: active
+                            ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)])
+                            : null,
+                        color: active ? null : const Color(0xFF1B2228),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isHovering
+                              ? const Color(0xFFFFFBEB)
+                              : (active ? const Color(0xFFFDE68A) : const Color(0x66D4AF37)),
+                          width: active ? 1.8 : 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: active
+                                ? const Color(0xFFF59E0B).withValues(alpha: isHovering ? 0.95 : 0.7)
+                                : Colors.black.withValues(alpha: 0.4),
+                            blurRadius: active ? (isHovering ? 14 : 10) : 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_upward_rounded,
+                            size: iconSize,
+                            color: active ? const Color(0xFF1F1200) : const Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isHovering ? 'Drop to Discard' : 'Discard',
+                            style: GoogleFonts.outfit(
+                              color: active ? const Color(0xFF1F1200) : const Color(0xFF94A3B8),
+                              fontSize: fontSize,
+                              fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          SizedBox(height: gap),
+
+          // Declare Hand (or Submit Show) Full Width Button with DragTarget
+          Builder(
+            builder: (ctx) {
+              if (game.isDeclaring) {
+                if (game.declaringPlayerId == user.uid) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(horizontal: declarePadH, vertical: padV + 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.accent),
+                    ),
+                    child: Center(
+                      child: Text('0 PTS (Declared)', style: GoogleFonts.outfit(color: AppColors.accent, fontSize: fontSize, fontWeight: FontWeight.bold)),
+                    ),
+                  );
+                }
+                final isSubmitted = game.submittedPlayerUids.contains(user.uid);
+                return InkWell(
+                  onTap: isSubmitted ? null : () => notifier.submitFinalHand(),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: declarePadH, vertical: padV + 2),
+                    decoration: BoxDecoration(
+                      gradient: isSubmitted ? null : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)]),
+                      color: isSubmitted ? Colors.white12 : null,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSubmitted ? Colors.white24 : const Color(0xFFA7F3D0)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        isSubmitted ? 'Submitted' : 'Submit Hand',
+                        style: GoogleFonts.outfit(
+                          color: isSubmitted ? Colors.white54 : Colors.black,
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
                   ),
+                );
+              }
 
-                  // Landscape Left Thumb-Zone: Drop, Auto Group
-                  if (isMobileLandscape)
-                    Positioned(
-                      left: 8,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Drop Button
-                            InkWell(
-                              onTap: canDrop
-                                  ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop)
-                                  : null,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: canDrop
-                                      ? const Color(0xFF3E0A16).withValues(alpha: 0.95)
-                                      : const Color(0xFF0F172A).withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: canDrop ? const Color(0xFFF43F5E) : Colors.white12,
-                                  ),
-                                  boxShadow: canDrop
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFFF43F5E).withValues(alpha: 0.3),
-                                            blurRadius: 8,
-                                          )
-                                        ]
-                                      : null,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.flag_rounded,
-                                      size: 16,
-                                      color: canDrop ? const Color(0xFFFDA4AF) : Colors.white24,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Drop',
-                                      style: TextStyle(
-                                        color: canDrop ? const Color(0xFFFDA4AF) : Colors.white30,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      '$dropPenalty pt',
-                                      style: TextStyle(
-                                        color: canDrop
-                                            ? const Color(0xFFFDA4AF).withValues(alpha: 0.7)
-                                            : Colors.white24,
-                                        fontSize: 8,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Auto Group Button
-                            InkWell(
-                              onTap: () => notifier.autoGroupHand(),
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF042F2E).withValues(alpha: 0.95),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFF00E5FF)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                                      blurRadius: 8,
-                                    ),
-                                  ],
-                                ),
-                                child: const Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.auto_awesome, size: 16, color: Color(0xFF00E5FF)),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      'Auto',
-                                      style: TextStyle(
-                                        color: Color(0xFF00E5FF),
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Group',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+              return DragTarget<Object>(
+                onWillAcceptWithDetails: (_) => isMyTurn && isDiscardPhase && !game.isDeclaring,
+                onAcceptWithDetails: (details) {
+                  Card? droppedCard;
+                  if (details.data is CardDragData) {
+                    droppedCard = (details.data as CardDragData).card;
+                  } else if (details.data is Card) {
+                    droppedCard = details.data as Card;
+                  }
+                  if (droppedCard != null) {
+                    notifier.declareWithCard(droppedCard);
+                    _showDeclarationDialog();
+                  }
+                },
+                builder: (context, candidateData, rejectedData) {
+                  final isHovering = candidateData.isNotEmpty;
+                  final active = canDeclare || isHovering;
+                  return InkWell(
+                    onTap: canDeclare ? _showDeclarationDialog : null,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: declarePadH, vertical: padV + 2),
+                      decoration: BoxDecoration(
+                        gradient: active
+                            ? const LinearGradient(
+                                colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFB45309)],
+                              )
+                            : null,
+                        color: active ? null : const Color(0xFF1B2228),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: active ? const Color(0xFFFEF08A) : const Color(0x66D4AF37),
+                          width: active ? 2.0 : 1.0,
                         ),
-                      ),
-                    ),
-
-                  // Landscape Right Thumb-Zone: Group Multi-Select, Discard, Declare
-                  if (isMobileLandscape)
-                    Positioned(
-                      right: 8,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Multi Group Button (if selected cards >= 2 or selected card != null)
-                            if (tableState.selectedCards.length >= 2 || tableState.selectedCard != null) ...[
-                              InkWell(
-                                onTap: () {
-                                  if (tableState.selectedCards.length >= 2) {
-                                    notifier.groupSelectedCards(tableState.selectedCards.toList());
-                                  } else if (tableState.selectedCard != null) {
-                                    notifier.groupSelectedCards([tableState.selectedCard!]);
-                                  }
-                                },
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B).withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: AppColors.accent),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.folder_shared_rounded, size: 15, color: AppColors.accent),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        tableState.selectedCards.length >= 2
-                                            ? 'Group (${tableState.selectedCards.length})'
-                                            : 'New Grp',
-                                        style: const TextStyle(
-                                          color: AppColors.accent,
-                                          fontSize: 8.5,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-
-                            // Discard Button
-                            InkWell(
-                              onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  gradient: canDiscard
-                                      ? const LinearGradient(
-                                          colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)],
-                                        )
-                                      : null,
-                                  color: canDiscard ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: canDiscard ? const Color(0xFFFDE68A) : Colors.white12,
-                                  ),
-                                  boxShadow: canDiscard
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                                            blurRadius: 10,
-                                          )
-                                        ]
-                                      : null,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.send_rounded,
-                                      size: 16,
-                                      color: canDiscard ? Colors.black : Colors.white24,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      isSelectedCardFromOpen ? 'Open' : 'Discard',
-                                      style: TextStyle(
-                                        color: canDiscard ? Colors.black : Colors.white30,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                    if (tableState.selectedCard != null && !isSelectedCardFromOpen)
-                                      Text(
-                                        tableState.selectedCard!.label,
-                                        style: TextStyle(
-                                          color: canDiscard ? Colors.black87 : Colors.white24,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Declare / Show Button
-                            InkWell(
-                              onTap: canDeclare ? _showDeclarationDialog : null,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  gradient: canDeclare
-                                      ? const LinearGradient(
-                                          colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
-                                        )
-                                      : null,
-                                  color: canDeclare ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: canDeclare ? const Color(0xFFA7F3D0) : Colors.white12,
-                                  ),
-                                  boxShadow: canDeclare
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFF10B981).withValues(alpha: 0.45),
-                                            blurRadius: 12,
-                                          )
-                                        ]
-                                      : null,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.emoji_events_rounded,
-                                      size: 16,
-                                      color: canDeclare ? Colors.black : Colors.white24,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Declare',
-                                      style: TextStyle(
-                                        color: canDeclare ? Colors.black : Colors.white30,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-
-                  // Round Over Standings Overlay (Pool Rummy multi-round auto-progression)
-                  if (game.isRoundOver)
-                    _buildRoundOverOverlay(game, myUid, notifier),
-                ],
-              ),
-            ),
-
-            // Status message notice (if any)
-            if (tableState.statusMessage != null)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                ),
-                child: Text(tableState.statusMessage!, style: const TextStyle(color: Colors.amber, fontSize: 11)),
-              ),
-
-            if (isDropped)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orangeAccent),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.flag_rounded, color: Colors.orangeAccent, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'You dropped from this round (${myPlayer.score} PTS penalty). Waiting for next deal...',
-                      style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              )
-            else if (myPlayer.status == 'ELIMINATED')
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.redAccent),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'You were removed from this round by the table host (${myPlayer.score} PTS penalty).',
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-
-            // --- 3. Action Grid on Top of Player Cards (Drop, Sort, Auto Group, Discard, Declare) ---
-            if (!isLandscape || isDesktop)
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: isDesktop ? 960 : double.infinity),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 16 : 10,
-                      vertical: isDesktop ? 6 : 3,
-                    ),
-                    child: Row(
-                      children: [
-                        // Drop Button (or Sort during declaration)
-                        Expanded(
-                          child: InkWell(
-                            onTap: game.isDeclaring
-                                ? () => notifier.autoSortHand()
-                                : (canDrop ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop) : null),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                              decoration: BoxDecoration(
-                                color: game.isDeclaring
-                                    ? const Color(0xFF0F172A).withValues(alpha: 0.6)
-                                    : (canDrop ? const Color(0xFF3E0A16) : const Color(0xFF0F172A).withValues(alpha: 0.6)),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: game.isDeclaring
-                                      ? Colors.white24
-                                      : (canDrop ? const Color(0xFFF43F5E) : Colors.white12),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    game.isDeclaring ? Icons.sort_rounded : Icons.flag_rounded,
-                                    size: isDesktop ? 17 : 13,
-                                    color: game.isDeclaring
-                                        ? Colors.white70
-                                        : (canDrop ? const Color(0xFFFDA4AF) : Colors.white24),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    game.isDeclaring ? 'Sort' : 'Drop ($dropPenalty)',
-                                    style: TextStyle(
-                                      color: game.isDeclaring
-                                          ? Colors.white70
-                                          : (canDrop ? const Color(0xFFFDA4AF) : Colors.white30),
-                                      fontSize: isDesktop ? 13 : 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: active
+                                ? const Color(0xFFF59E0B).withValues(alpha: isHovering ? 0.95 : 0.7)
+                                : Colors.black.withValues(alpha: 0.4),
+                            blurRadius: active ? (isHovering ? 16 : 12) : 4,
+                            offset: const Offset(0, 3),
                           ),
-                        ),
-                        const SizedBox(width: 5),
-
-                        // Dedicated Sort Button on Desktop (when not declaring)
-                        if (isDesktop && !game.isDeclaring) ...[
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => notifier.autoSortHand(),
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 11),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.white24),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.sort_rounded, size: 17, color: Colors.white70),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Sort',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                          if (active)
+                            BoxShadow(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                              blurRadius: 6,
                             ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.emoji_events_rounded,
+                            size: iconSize + 2,
+                            color: active ? const Color(0xFF241A00) : const Color(0xFF94A3B8),
                           ),
                           const SizedBox(width: 5),
+                          Text(
+                            'Declare Hand',
+                            style: GoogleFonts.outfit(
+                              color: active ? const Color(0xFF241A00) : const Color(0xFF94A3B8),
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                         ],
-
-                        // Auto Group Button
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => notifier.autoGroupHand(),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF042F2E),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFF00E5FF)),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.auto_awesome, size: isDesktop ? 17 : 13, color: const Color(0xFF00E5FF)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Auto Group',
-                                    style: TextStyle(
-                                      color: const Color(0xFF00E5FF),
-                                      fontSize: isDesktop ? 13 : 10,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-
-                        // Manual Group or Discard
-                        if (tableState.selectedCards.length >= 2 || (tableState.selectedCard != null && !canDiscard))
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                if (tableState.selectedCards.length >= 2) {
-                                  notifier.groupSelectedCards(tableState.selectedCards.toList());
-                                } else if (tableState.selectedCard != null) {
-                                  notifier.groupSelectedCards([tableState.selectedCard!]);
-                                }
-                              },
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.accent),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.folder_shared_rounded, size: isDesktop ? 17 : 13, color: AppColors.accent),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      tableState.selectedCards.length >= 2
-                                          ? 'Group (${tableState.selectedCards.length})'
-                                          : 'Group',
-                                      style: TextStyle(
-                                        color: AppColors.accent,
-                                        fontSize: isDesktop ? 13 : 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          Expanded(
-                            child: InkWell(
-                              onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                                decoration: BoxDecoration(
-                                  gradient: canDiscard
-                                      ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)])
-                                      : null,
-                                  color: canDiscard ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: canDiscard ? const Color(0xFFFDE68A) : Colors.white12),
-                                  boxShadow: canDiscard && isDesktop
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-                                            blurRadius: 8,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.send_rounded, size: isDesktop ? 17 : 13, color: canDiscard ? Colors.black : Colors.white24),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      canDiscard && tableState.selectedCard != null
-                                          ? 'Discard (${tableState.selectedCard!.label})'
-                                          : 'Discard',
-                                      style: TextStyle(
-                                        color: canDiscard ? Colors.black : Colors.white30,
-                                        fontSize: isDesktop ? 13 : 10,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 5),
-
-                        // Declare / Submit Button
-                        Expanded(
-                          child: Builder(
-                            builder: (_) {
-                              if (game.isDeclaring) {
-                                if (game.declaringPlayerId == user.uid) {
-                                  return Container(
-                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accent.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: AppColors.accent),
-                                    ),
-                                    child: const Center(
-                                      child: Text('0 PTS', style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
-                                    ),
-                                  );
-                                }
-                                final isSubmitted = game.submittedPlayerUids.contains(user.uid);
-                                return InkWell(
-                                  onTap: isSubmitted ? null : () => notifier.submitFinalHand(),
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                                    decoration: BoxDecoration(
-                                      gradient: isSubmitted ? null : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)]),
-                                      color: isSubmitted ? Colors.white12 : null,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: isSubmitted ? Colors.white24 : const Color(0xFFA7F3D0)),
-                                      boxShadow: !isSubmitted && isDesktop
-                                          ? [
-                                              BoxShadow(
-                                                color: const Color(0xFF10B981).withValues(alpha: 0.4),
-                                                blurRadius: 10,
-                                              ),
-                                            ]
-                                          : null,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        isSubmitted ? 'Submitted' : 'Submit Hand',
-                                        style: TextStyle(
-                                          color: isSubmitted ? Colors.white54 : Colors.black,
-                                          fontSize: isDesktop ? 13 : 10,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              return InkWell(
-                                onTap: canDeclare ? _showDeclarationDialog : null,
-                                borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: isDesktop ? 11 : 6),
-                                  decoration: BoxDecoration(
-                                    gradient: canDeclare
-                                        ? const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF14B8A6)])
-                                        : null,
-                                    color: canDeclare ? null : const Color(0xFF0F172A).withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: canDeclare ? const Color(0xFFA7F3D0) : Colors.white12),
-                                    boxShadow: canDeclare && isDesktop
-                                        ? [
-                                            BoxShadow(
-                                              color: const Color(0xFF10B981).withValues(alpha: 0.45),
-                                              blurRadius: 10,
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.emoji_events_rounded, size: isDesktop ? 18 : 13, color: canDeclare ? Colors.black : Colors.white24),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Declare',
-                                        style: TextStyle(
-                                          color: canDeclare ? Colors.black : Colors.white30,
-                                          fontSize: isDesktop ? 13.5 : 10,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-            // --- 4. Royal Life Checklist & Deadwood Points Bar ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              child: RoyalLifeChecklistBar(
-                hasFirstLife: notifier.hasFirstLife,
-                hasSecondLife: notifier.hasSecondLife,
-                points: tableState.currentScore,
-                isMyTurn: isMyTurn,
-                turnSeconds: remainingTurnSeconds,
+  Widget _buildToastPill(String message, {bool isDesktop = false}) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 18.0 : 12.0,
+        vertical: isDesktop ? 6.0 : 4.0,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141D24).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFF2CA50).withValues(alpha: 0.4),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.auto_awesome,
+            size: isDesktop ? 14 : 11,
+            color: const Color(0xFFF2CA50),
+          ),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Text(
+              message,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: isDesktop ? 12.5 : 10.5,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFFAF7F2),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // --- 5. Touch-Friendly Player Hand with Royal Ribbons ---
+  Widget _buildMiniWildJokerPill(Card? wildJoker, bool isLocked, {bool isDesktop = false}) {
+    String rankStr = '7';
+    String suitStr = '♠';
+    bool isRed = false;
+
+    if (wildJoker != null) {
+      if (wildJoker.isPrintedJoker) {
+        rankStr = 'JKR';
+        suitStr = '★';
+      } else {
+        switch (wildJoker.rank) {
+          case Rank.ace: rankStr = 'A'; break;
+          case Rank.king: rankStr = 'K'; break;
+          case Rank.queen: rankStr = 'Q'; break;
+          case Rank.jack: rankStr = 'J'; break;
+          case Rank.ten: rankStr = '10'; break;
+          case Rank.nine: rankStr = '9'; break;
+          case Rank.eight: rankStr = '8'; break;
+          case Rank.seven: rankStr = '7'; break;
+          case Rank.six: rankStr = '6'; break;
+          case Rank.five: rankStr = '5'; break;
+          case Rank.four: rankStr = '4'; break;
+          case Rank.three: rankStr = '3'; break;
+          case Rank.two: rankStr = '2'; break;
+          default: rankStr = '7'; break;
+        }
+        switch (wildJoker.suit) {
+          case Suit.hearts: suitStr = '♥'; isRed = true; break;
+          case Suit.diamonds: suitStr = '♦'; isRed = true; break;
+          case Suit.clubs: suitStr = '♣'; isRed = false; break;
+          case Suit.spades: suitStr = '♠'; isRed = false; break;
+          default: suitStr = '♠'; isRed = false; break;
+        }
+      }
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 11 : 8,
+        vertical: isDesktop ? 4.5 : 3,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF222B32).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'JOKER',
+            style: GoogleFonts.outfit(
+              fontSize: isDesktop ? 10.5 : 8.5,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFFD0C5AF),
+              letterSpacing: 0.8,
+            ),
+          ),
+          SizedBox(width: isDesktop ? 7 : 5),
+          if (isLocked || wildJoker == null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: const BoxDecoration(
-                color: Color(0xFF04100B),
-                border: Border(top: BorderSide(color: Color(0xFF143E2B))),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 6 : 4,
+                vertical: isDesktop ? 2 : 1,
               ),
-              child: PlayerHand(
-                cardGroups: tableState.cardGroups,
-                wildJokerCard: game.hasPlayerOpenedJoker(user.uid) ? game.openJoker : null,
-                selectedCard: tableState.selectedCard,
-                selectedCards: tableState.selectedCards,
-                isDiscardPhase: !game.isDeclaring && isMyTurn && isDiscardPhase,
-                onCardTap: (card) => notifier.selectCard(card),
-                onCardMoved: (card, fromId, toId) => notifier.moveCardBetweenGroups(card, fromId, toId, 999),
-                onCardMovedToIndex: (card, fromId, toId, targetIndex) => notifier.moveCardBetweenGroups(card, fromId, toId, targetIndex),
-                onCardReordered: (groupId, oldIndex, newIndex) => notifier.moveCardWithinGroup(groupId, oldIndex, newIndex),
-                onCardMovedToNewGroup: (card, fromId) => notifier.moveCardToNewGroup(card, fromId),
-                onDiscard: (card) {
-                  if (game.isDeclaring) return;
-                  if (!isMyTurn || !isDiscardPhase) return;
-                  if (card == game.cardDrawnFromOpenThisTurn) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cannot discard the card drawn from the open pile.'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                    return;
-                  }
-                  notifier.selectCard(card);
-                  notifier.discardSelectedCard();
-                },
+              decoration: BoxDecoration(
+                color: const Color(0xFF141D24),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.white24, width: 0.6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_rounded, size: isDesktop ? 11 : 8.5, color: const Color(0xFFF2CA50)),
+                  const SizedBox(width: 2),
+                  Text(
+                    'LOCKED',
+                    style: TextStyle(
+                      fontSize: isDesktop ? 9.5 : 7.5,
+                      color: const Color(0xFFF2CA50),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 6 : 4,
+                vertical: isDesktop ? 2 : 1,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF7F2),
+                borderRadius: BorderRadius.circular(3),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 2),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    rankStr,
+                    style: GoogleFonts.outfit(
+                      fontSize: isDesktop ? 12 : 10,
+                      fontWeight: FontWeight.w900,
+                      color: isRed ? const Color(0xFFB91C1C) : const Color(0xFF141D24),
+                      height: 1.0,
+                    ),
+                  ),
+                  const SizedBox(width: 1),
+                  Text(
+                    suitStr,
+                    style: TextStyle(
+                      fontSize: isDesktop ? 11 : 9,
+                      color: isRed ? const Color(0xFFB91C1C) : const Color(0xFF141D24),
+                      height: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          SizedBox(width: isDesktop ? 6 : 4),
+          Icon(
+            Icons.workspace_premium_rounded,
+            size: isDesktop ? 16 : 13,
+            color: const Color(0xFFF2CA50),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleExitGame(BuildContext context) async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF141E18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Leave Table?',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-      ),
-      const Positioned.fill(
-        child: CardAnimationLayer(),
-      ),
-    ],
-  ),
-);
-  }
-
-  /// Builds orbital positioning for 1 to 5 opponents around the table
-  Widget _buildOpponentsOrbit(List<TablePlayer> opponents, MultiplayerGameState game, {bool isHost = false}) {
-    if (opponents.isEmpty) return const SizedBox.shrink();
-
-    final alignments = <Alignment>[];
-    if (opponents.length == 1) {
-      alignments.add(const Alignment(0.0, -0.75));
-    } else if (opponents.length == 2) {
-      alignments.add(const Alignment(-0.6, -0.65));
-      alignments.add(const Alignment(0.6, -0.65));
-    } else if (opponents.length == 3) {
-      alignments.add(const Alignment(-0.8, -0.2));
-      alignments.add(const Alignment(0.0, -0.75));
-      alignments.add(const Alignment(0.8, -0.2));
-    } else if (opponents.length == 4) {
-      alignments.add(const Alignment(-0.85, 0.0));
-      alignments.add(const Alignment(-0.45, -0.7));
-      alignments.add(const Alignment(0.45, -0.7));
-      alignments.add(const Alignment(0.85, 0.0));
-    } else {
-      alignments.add(const Alignment(-0.85, 0.15));
-      alignments.add(const Alignment(-0.7, -0.55));
-      alignments.add(const Alignment(0.0, -0.8));
-      alignments.add(const Alignment(0.7, -0.55));
-      alignments.add(const Alignment(0.85, 0.15));
-    }
-
-    final int remainingTurnSeconds = game.turnDeadline != null
-        ? game.turnDeadline!.difference(DateTime.now()).inSeconds.clamp(0, 99)
-        : 30;
-
-    return Stack(
-      children: List.generate(opponents.length, (i) {
-        final p = opponents[i];
-        final isTheirTurn = p.uid == game.currentTurnPlayerId;
-        final alignment = alignments[i % alignments.length];
-
-        final isEliminated = p.status == 'ELIMINATED';
-        final isDropped = p.status == 'DROPPED';
-        final isDisconnected = !p.connected && !isEliminated && !isDropped;
-        final elapsed = p.disconnectedAt != null ? DateTime.now().difference(p.disconnectedAt!).inSeconds : 0;
-        final remainingReconnectSec = (180 - elapsed).clamp(0, 180);
-
-        Color borderColor = isTheirTurn ? AppColors.accent : Colors.white24;
-        Color bgColor = isTheirTurn ? const Color(0xFF1E3A2E) : Colors.black.withValues(alpha: 0.6);
-
-        if (isEliminated) {
-          borderColor = Colors.redAccent.withValues(alpha: 0.7);
-          bgColor = Colors.red.withValues(alpha: 0.2);
-        } else if (isDropped) {
-          borderColor = Colors.orangeAccent.withValues(alpha: 0.7);
-          bgColor = Colors.orange.withValues(alpha: 0.15);
-        } else if (isDisconnected) {
-          borderColor = Colors.amberAccent.withValues(alpha: 0.7);
-          bgColor = Colors.amber.withValues(alpha: 0.15);
-        }
-
-        final screenH = MediaQuery.of(context).size.height;
-        final isCompactH = screenH < 550;
-
-        return Align(
-          alignment: alignment,
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isCompactH ? 7 : 10,
-              vertical: isCompactH ? 3.5 : 6,
-            ),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: borderColor,
-                width: isTheirTurn ? 2 : 1,
-              ),
-              boxShadow: isTheirTurn
-                  ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1)]
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: isCompactH ? 11 : 14,
-                  backgroundColor: isEliminated
-                      ? Colors.redAccent
-                      : (isDropped
-                          ? Colors.orangeAccent
-                          : (isDisconnected
-                              ? Colors.amberAccent
-                              : (isTheirTurn ? AppColors.accent : Colors.white12))),
-                  child: Icon(
-                    isEliminated
-                        ? Icons.close
-                        : (isDropped
-                            ? Icons.exit_to_app
-                            : (isDisconnected ? Icons.wifi_off : Icons.person)),
-                    color: (isTheirTurn || isEliminated || isDropped || isDisconnected) ? Colors.black : Colors.white70,
-                    size: isCompactH ? 13 : 16,
-                  ),
-                ),
-                SizedBox(width: isCompactH ? 5 : 8),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          p.displayName,
-                          style: TextStyle(
-                            color: isEliminated
-                                ? Colors.redAccent
-                                : (isDropped
-                                    ? Colors.orangeAccent
-                                    : (isTheirTurn ? AppColors.accent : Colors.white)),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            decoration: (isEliminated || isDropped) ? TextDecoration.lineThrough : null,
-                          ),
-                        ),
-                        if (isTheirTurn && !isEliminated && !isDropped && game.status == 'IN_PROGRESS') ...[
-                          const SizedBox(width: 5),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: AppColors.accent, width: 0.8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.timer_outlined, size: 9, color: AppColors.accent),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '${remainingTurnSeconds}s',
-                                  style: const TextStyle(
-                                    color: AppColors.accent,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (isEliminated)
-                      const Text(
-                        'ELIMINATED (80 PTS)',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                      )
-                    else if (isDropped)
-                      Text(
-                        'DROPPED (${p.score} PTS)',
-                        style: const TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                      )
-                    else if (isDisconnected)
-                      Text(
-                        'DISCONNECTED (${remainingReconnectSec}s)',
-                        style: const TextStyle(color: Colors.amberAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                      )
-                    else
-                      Row(
-                        children: [
-                          const Icon(Icons.style_outlined, color: Colors.white54, size: 12),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${p.cardCount} cards',
-                            style: const TextStyle(color: Colors.white54, fontSize: 10),
-                          ),
-                          if (p.misses > 0) ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
-                              decoration: BoxDecoration(
-                                color: Colors.redAccent.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(3),
-                                border: Border.all(color: Colors.redAccent, width: 0.7),
-                              ),
-                              child: Text(
-                                '${p.misses}/3 miss',
-                                style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.redAccent),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                  ],
-                ),
-                if (isHost && game.status == 'IN_PROGRESS' && p.status == 'ACTIVE') ...[
-                  const SizedBox(width: 6),
-                  IconButton(
-                    iconSize: 16,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Remove ${p.displayName} from Game',
-                    icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent),
-                    onPressed: () => _showKickPlayerFromGameDialog(context, p),
-                  ),
-                ],
-              ],
-            ),
+        content: const Text(
+          'Are you sure you want to leave this multiplayer table? If the match is in progress, you will receive a drop penalty.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13.5,
+            height: 1.4,
           ),
-        );
-      }),
+        ),
+        actionsPadding: const EdgeInsets.only(right: 16, bottom: 16, left: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Stay & Play', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Leave Table', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+        ],
+      ),
     );
+
+    if (shouldExit == true && mounted) {
+      context.go('/multiplayer');
+    }
   }
+
 
   void _showKickPlayerFromGameDialog(BuildContext context, TablePlayer targetPlayer) {
     showDialog(

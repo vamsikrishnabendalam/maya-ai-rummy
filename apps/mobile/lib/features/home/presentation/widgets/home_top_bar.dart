@@ -60,7 +60,7 @@ class HomeTopBar extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'MAYA',
+                      'MAYA AI',
                       style: TextStyle(
                         color: AppColors.accent,
                         fontSize: 12,

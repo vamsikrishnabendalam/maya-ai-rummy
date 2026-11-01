@@ -343,10 +343,10 @@ class CardGroupWidget extends StatelessWidget {
           final double t = totalHandCards > 1
               ? (globalIndex - (totalHandCards - 1) / 2.0) / ((totalHandCards - 1) / 2.0)
               : 0.0;
-          final double theta = t * 0.28; // Heavily skews outer cards to match the sweeping real-world layout angle
-          final double dx = t * 6.0; // Drastically reduce horizontal displacement to pack roots tightly
-          final double dy = (1.0 - (t * t).abs()) * -22.0; // Heighten center dome arch lift so cards sweep upward
-          final double groupHeightDelta = (groupIndex % 2 == 1) ? -10.0 : 0.0; // Staggers alternate melds for easy tracking
+          final double theta = t * 0.18; // Elegant natural fanning angle
+          final double dx = t * 4.0; // Horizontal displacement
+          final double dy = (1.0 - (t * t).abs()) * -5.0; // Gentle center dome arch without intruding onto table
+          final double groupHeightDelta = (groupIndex % 2 == 1) ? -3.0 : 0.0; // Subtle meld separation
           final double finalY = dy + groupHeightDelta;
 
           return Positioned(

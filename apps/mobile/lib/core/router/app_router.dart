@@ -5,6 +5,7 @@ import '../../features/multiplayer/presentation/screens/multiplayer_hub_screen.d
 import '../../features/multiplayer/presentation/screens/multiplayer_lobby_screen.dart';
 import '../../features/multiplayer/presentation/screens/multiplayer_table_screen.dart';
 import '../../features/multiplayer/presentation/screens/join_redirect_screen.dart';
+import '../../features/multiplayer/presentation/screens/multiplayer_2p_preview_screen.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 
 final appRouter = GoRouter(
@@ -54,6 +55,26 @@ final appRouter = GoRouter(
         final gameId = state.pathParameters['gameId'] ?? '';
         return MultiplayerTableScreen(gameId: gameId);
       },
+    ),
+    GoRoute(
+      path: '/multiplayer-2p-preview',
+      builder: (context, state) => const Multiplayer2PPreviewScreen(initialCapacity: 2),
+    ),
+    GoRoute(
+      path: '/multiplayer-3p-preview',
+      builder: (context, state) => const Multiplayer2PPreviewScreen(initialCapacity: 3),
+    ),
+    GoRoute(
+      path: '/multiplayer-4p-preview',
+      builder: (context, state) => const Multiplayer2PPreviewScreen(initialCapacity: 4),
+    ),
+    GoRoute(
+      path: '/multiplayer-5p-preview',
+      builder: (context, state) => const Multiplayer2PPreviewScreen(initialCapacity: 5),
+    ),
+    GoRoute(
+      path: '/multiplayer-6p-preview',
+      builder: (context, state) => const Multiplayer2PPreviewScreen(initialCapacity: 6),
     ),
   ],
 );

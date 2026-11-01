@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:game_engine/game_engine.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../models/round_score.dart';
 import 'card_widget.dart';
 
 /// Modal dialog showing declaration outcome with thorough diagnostics and card breakdowns.
@@ -10,6 +11,7 @@ class DeclarationResultModal extends StatelessWidget {
   final VoidCallback onDismiss;
   final VoidCallback onNewGame;
   final VoidCallback? onViewScoreCard;
+  final RoundScore? roundScore;
 
   const DeclarationResultModal({
     super.key,
@@ -18,6 +20,7 @@ class DeclarationResultModal extends StatelessWidget {
     required this.onDismiss,
     required this.onNewGame,
     this.onViewScoreCard,
+    this.roundScore,
   });
 
   @override
@@ -92,6 +95,30 @@ class DeclarationResultModal extends StatelessWidget {
                 ],
               ),
             ),
+            if (roundScore != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x33D4AF37)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Maya Bot: ${roundScore!.aiScore} PTS (${roundScore!.aiOutcome})',
+                      style: const TextStyle(fontSize: 11, color: Colors.white70),
+                    ),
+                    Text(
+                      'Totals: You ${roundScore!.cumulativeHumanScore}p • Maya ${roundScore!.cumulativeAiScore}p',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFFEF08A)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
 
             // Error explanation if invalid

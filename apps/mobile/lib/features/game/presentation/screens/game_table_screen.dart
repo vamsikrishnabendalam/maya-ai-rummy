@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:game_engine/game_engine.dart';
 
+import 'package:go_router/go_router.dart';
+
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -34,9 +36,13 @@ import '../widgets/player_hand.dart';
 
 import '../widgets/declaration_result_modal.dart';
 
+import '../widgets/opponent_declaration_modal.dart';
+
 import '../widgets/score_card_modal.dart';
 
 import '../widgets/game_settings_modal.dart';
+
+import '../widgets/game_logs_modal.dart';
 
 import '../widgets/card_animation_layer.dart';
 
@@ -81,8 +87,9 @@ class GameTableScreen extends ConsumerWidget {
       return 'Round ${currentRound ?? ''} completed! Tap Next Deal below to continue.';
     }
 
-    if (isAwaitingDeclarationShow)
-      return 'Maya Bot declared! Arrange cards and tap Submit Show.';
+    if (isAwaitingDeclarationShow) {
+      return 'Maya Bot declared show! Tap to view melds. Arrange & Declare your final hand.';
+    }
 
     if (!isHumanTurn) return 'Maya Bot is thinking...';
 
@@ -150,6 +157,15 @@ class GameTableScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<GameTableState>(gameTableProvider, (previous, next) {
+      if (next.isAwaitingHumanDeclarationShow &&
+          (previous == null || !previous.isAwaitingHumanDeclarationShow)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showOpponentDeclarationModal(context, ref);
+        });
+      }
+    });
+
     final tableState = ref.watch(gameTableProvider);
 
     final notifier = ref.read(gameTableProvider.notifier);
@@ -192,6 +208,8 @@ class GameTableScreen extends ConsumerWidget {
     final isLandscape = size.width > size.height;
 
     final isDesktop = Responsive.isDesktop(context);
+
+    final isTablet = Responsive.isTablet(context);
 
     final isMobileLandscape = Responsive.isMobileLandscape(context);
 
@@ -295,10 +313,6 @@ class GameTableScreen extends ConsumerWidget {
                                         );
                                       }
                                     },
-                                    lastDiscardFrom:
-                                        gameState.openPile.isNotEmpty
-                                            ? 'Maya'
-                                            : null,
                                   ),
 
                                   const SizedBox(width: 32),
@@ -355,154 +369,27 @@ class GameTableScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                // 2. LAYER 2: 2D OVERLAY FOREGROUND HUD LAYER (SHARP & UNWARPED)
-
-                // -------------------------------------------------------------
-
-                // Top HUD Navigation & Control Bar
-
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildTopHudBar(
-                    context,
-                    ref,
-                    tableState: tableState,
-                    notifier: notifier,
-                    toastMessage: toastMessage,
-                    isGameComplete: isGameComplete,
-                    isTournamentOver: isTournamentOver,
-                    wildJoker: wildJoker,
-                  ),
-                ),
 
                 // Maya AI Host Floating Status Pill
-
                 Positioned(
                   top: 54,
                   left: 0,
                   right: 0,
                   child: Center(
-                    child: OpponentPanel(
-                      opponent: aiPlayer,
-                      isThinking: !isHumanTurn && !isGameComplete,
-                      difficultyLabel: tableState.aiDifficultyLabel,
-                      isDealer: tableState.isAiDealer,
-                      scoreText: null,
-                      isHostOverlay: true,
-                    ),
-                  ),
-                ),
-
-                // Player 13-Card Hand Tray (Centered on Table Axis, Info Bar BELOW Cards)
-
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 6,
-                  child: Center(
-                    child: SizedBox(
-                      width: isDesktop
-                          ? 1440
-                          : (Responsive.isTablet(context) ? 1120 : 960),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          PlayerHand(
-                            cardGroups: cardGroups,
-                            wildJokerCard: notifier.effectiveHumanWildJoker,
-                            selectedCard: tableState.selectedCard,
-                            selectedCards: tableState.selectedCards,
-                            isDiscardPhase: isHumanTurn && isDiscardPhase,
-                            onCardTap: (card) => notifier.selectCard(card),
-                            onCardMoved: (card, fromGroupId, toGroupId) {
-                              notifier.moveCardBetweenGroups(
-                                card,
-                                fromGroupId,
-                                toGroupId,
-                                cardGroups
-                                    .firstWhere((g) => g.id == toGroupId,
-                                        orElse: () => cardGroups.first)
-                                    .cards
-                                    .length,
-                              );
-                            },
-                            onCardMovedToIndex:
-                                (card, fromGroupId, toGroupId, insertIndex) {
-                              notifier.moveCardBetweenGroups(
-                                  card, fromGroupId, toGroupId, insertIndex);
-                            },
-                            onCardReordered: (groupId, oldIndex, newIndex) {
-                              notifier.moveCardWithinGroup(
-                                  groupId, oldIndex, newIndex);
-                            },
-                            onCardMovedToNewGroup: (card, fromGroupId) {
-                              notifier.moveCardToNewGroup(card, fromGroupId);
-                            },
-                            onCardDragStarted: (card, groupId) {
-                              ref
-                                  .read(gameUIProvider.notifier)
-                                  .startDrag(card, groupId);
-                            },
-                            onDragEnded: () {
-                              ref.read(gameUIProvider.notifier).endDrag();
-                            },
-                            onDiscard: (card) {
-                              if (isHumanTurn && isDiscardPhase) {
-                                notifier.discardCard(card);
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          RoyalLifeChecklistBar(
-                            hasFirstLife: notifier.hasHumanLife,
-                            hasSecondLife: notifier.hasHumanSecondLife,
-                            points: tableState.currentScore,
-                            isMyTurn: isHumanTurn,
-                            turnSeconds: tableState.turnSecondsRemaining,
-                            instructionText: toastMessage,
-                          ),
-                        ],
+                    child: InkWell(
+                      onTap: tableState.isAwaitingHumanDeclarationShow
+                          ? () => _showOpponentDeclarationModal(context, ref)
+                          : null,
+                      borderRadius: BorderRadius.circular(20),
+                      child: OpponentPanel(
+                        opponent: aiPlayer,
+                        isThinking: !isHumanTurn && !isGameComplete,
+                        difficultyLabel: tableState.aiDifficultyLabel,
+                        isDealer: tableState.isAiDealer,
+                        scoreText: null,
+                        isHostOverlay: true,
                       ),
                     ),
-                  ),
-                ),
-
-                // Left Action Controls: Drop (20), Sort Hand
-
-                Positioned(
-                  left: 48,
-                  bottom: 14,
-                  child: _buildLeftThumbControls(
-                    context,
-                    ref,
-                    canDrop: canDrop,
-                    dropPenalty: dropPenalty,
-                    notifier: notifier,
-                    isDesktop: true,
-                    isTablet: false,
-                  ),
-                ),
-
-                // Right Action Controls: Group, Discard, Declare Hand
-
-                Positioned(
-                  right: 48,
-                  bottom: 14,
-                  child: _buildRightThumbControls(
-                    context,
-                    ref,
-                    notifier: notifier,
-                    tableState: tableState,
-                    uiState: uiState,
-                    canDiscard: canDiscard,
-                    canDeclare: canDeclare,
-                    isGameComplete: isGameComplete,
-                    isTournamentOver: isTournamentOver,
-                    nextDealNumber: nextDealNumber,
-                    isDesktop: true,
-                    isTablet: false,
                   ),
                 ),
               ],
@@ -517,14 +404,143 @@ class GameTableScreen extends ConsumerWidget {
       body: GameTableBackground(
         child: Stack(
           children: [
-            SafeArea(
-              top: false,
-              bottom: true,
+            // 1. Center 3D Table Surface & Maya
+            Positioned.fill(
               child: mayaAiCanvas,
             ),
 
-            // Card Animation Layer (Deals & discards flight)
+            // 2. Top HUD Navigation & Control Bar (Pinned to literal top: 0 of screen)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildTopHudBar(
+                context,
+                ref,
+                tableState: tableState,
+                notifier: notifier,
+                toastMessage: toastMessage,
+                isGameComplete: isGameComplete,
+                isTournamentOver: isTournamentOver,
+                wildJoker: wildJoker,
+              ),
+            ),
 
+            // 3. Player 13-Card Hand Tray (Pinned to literal bottom: 2 of screen, leaving only a few pixels)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 2,
+              child: Center(
+                child: SizedBox(
+                  width: isDesktop
+                      ? 1440
+                      : (Responsive.isTablet(context) ? 1120 : 960),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PlayerHand(
+                        cardGroups: cardGroups,
+                        wildJokerCard: notifier.effectiveHumanWildJoker,
+                        selectedCard: tableState.selectedCard,
+                        selectedCards: tableState.selectedCards,
+                        isDiscardPhase: isHumanTurn && isDiscardPhase,
+                        onCardTap: (card) => notifier.selectCard(card),
+                        onCardMoved: (card, fromGroupId, toGroupId) {
+                          notifier.moveCardBetweenGroups(
+                            card,
+                            fromGroupId,
+                            toGroupId,
+                            cardGroups
+                                .firstWhere((g) => g.id == toGroupId,
+                                    orElse: () => cardGroups.first)
+                                .cards
+                                .length,
+                          );
+                        },
+                        onCardMovedToIndex:
+                            (card, fromGroupId, toGroupId, insertIndex) {
+                          notifier.moveCardBetweenGroups(
+                              card, fromGroupId, toGroupId, insertIndex);
+                        },
+                        onCardReordered: (groupId, oldIndex, newIndex) {
+                          notifier.moveCardWithinGroup(
+                              groupId, oldIndex, newIndex);
+                        },
+                        onCardMovedToNewGroup: (card, fromGroupId) {
+                          notifier.moveCardToNewGroup(card, fromGroupId);
+                        },
+                        onCardDragStarted: (card, groupId) {
+                          ref
+                              .read(gameUIProvider.notifier)
+                              .startDrag(card, groupId);
+                        },
+                        onDragEnded: () {
+                          ref.read(gameUIProvider.notifier).endDrag();
+                        },
+                        onDiscard: (card) {
+                          if (isHumanTurn && isDiscardPhase) {
+                            notifier.discardCard(card);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 2),
+                      InkWell(
+                        onTap: tableState.isAwaitingHumanDeclarationShow
+                            ? () => _showOpponentDeclarationModal(context, ref)
+                            : null,
+                        borderRadius: BorderRadius.circular(10),
+                        child: RoyalLifeChecklistBar(
+                          hasFirstLife: notifier.hasHumanLife,
+                          hasSecondLife: notifier.hasHumanSecondLife,
+                          points: tableState.currentScore,
+                          isMyTurn: isHumanTurn,
+                          turnSeconds: tableState.turnSecondsRemaining,
+                          instructionText: toastMessage,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // 4. Left Action Controls: Drop (20), Sort Hand, AI Group
+            Positioned(
+              left: isDesktop ? 48 : 16,
+              bottom: 8,
+              child: _buildLeftThumbControls(
+                context,
+                ref,
+                canDrop: canDrop,
+                dropPenalty: dropPenalty,
+                notifier: notifier,
+                isDesktop: isDesktop,
+                isTablet: isTablet,
+              ),
+            ),
+
+            // 5. Right Action Controls: Group, Discard, Declare Hand
+            Positioned(
+              right: isDesktop ? 48 : 16,
+              bottom: 8,
+              child: _buildRightThumbControls(
+                context,
+                ref,
+                notifier: notifier,
+                tableState: tableState,
+                uiState: uiState,
+                canDiscard: canDiscard,
+                canDeclare: canDeclare,
+                isGameComplete: isGameComplete,
+                isTournamentOver: isTournamentOver,
+                nextDealNumber: nextDealNumber,
+                isDesktop: isDesktop,
+                isTablet: isTablet,
+              ),
+            ),
+
+            // 6. Card Animation Layer (Deals & discards flight)
             const Positioned.fill(
               child: CardAnimationLayer(),
             ),
@@ -742,7 +758,6 @@ class GameTableScreen extends ConsumerWidget {
     required bool canDiscard,
     required void Function(Card)? onDiscardCard,
     required VoidCallback onShowHistory,
-    required String? lastDiscardFrom,
   }) {
     final visibleDiscards = discardPile.length <= 5
         ? discardPile
@@ -839,43 +854,6 @@ class GameTableScreen extends ConsumerWidget {
                     Icons.history_rounded,
                     size: 14,
                     color: Color(0xFFFDE68A),
-                  ),
-                ),
-              ),
-            ),
-
-          // "From: Maya" floating badge under top card
-          if (count > 0 && lastDiscardFrom != null)
-            Positioned(
-              bottom: -22,
-              left: (count - 1) * stepX - 30,
-              width: _tableCardW + 60,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF18222A).withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(8),
-                    border:
-                        Border.all(color: const Color(0x66D4AF37), width: 0.8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'From: ',
-                        style: TextStyle(color: Colors.white60, fontSize: 10),
-                      ),
-                      Text(
-                        lastDiscardFrom,
-                        style: const TextStyle(
-                          color: Color(0xFFFDE68A),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -1088,28 +1066,10 @@ class GameTableScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Left: Back button, Title, Game mode badges, Mini Joker
+              // Left: Title, Game mode badges, Mini Joker
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  InkWell(
-                    onTap: () => Navigator.of(context).maybePop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      width: isDesktop ? 36 : (isTablet ? 32 : 28),
-                      height: isDesktop ? 36 : (isTablet ? 32 : 28),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF182128),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.arrow_back,
-                        size: isDesktop ? 18 : 15,
-                        color: const Color(0xFFDAE4ED),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: isDesktop ? 10 : 6),
                   Text(
                     'MAYA AI RUMMY',
                     style: GoogleFonts.outfit(
@@ -1223,6 +1183,57 @@ class GameTableScreen extends ConsumerWidget {
                     ),
                   ),
                   SizedBox(width: isDesktop ? 8 : 5),
+                  // Top Right Game Logs Button
+                  InkWell(
+                    onTap: () => _openGameLogs(context, ref),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 10 : 7,
+                        vertical: isDesktop ? 5.5 : 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF60A5FA).withValues(alpha: 0.7),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.history_edu_rounded,
+                            size: isDesktop ? 14 : 11.5,
+                            color: const Color(0xFF93C5FD),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Logs',
+                            style: GoogleFonts.outfit(
+                              fontSize: isDesktop ? 11.5 : 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFDBEAFE),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 8 : 5),
                   // Top Right Settings Button to configure Timer, Drop Rules, Elimination
                   InkWell(
                     onTap: () => _openSettings(context, ref),
@@ -1274,25 +1285,56 @@ class GameTableScreen extends ConsumerWidget {
                     ),
                   ),
                   SizedBox(width: isDesktop ? 8 : 5),
-                  if (isDesktop || size.width >= 980) ...[
-                    Container(
+                  // Top Right Exit Button
+                  InkWell(
+                    onTap: () => _handleExitGame(context, ref),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isDesktop ? 8 : 5,
-                        vertical: isDesktop ? 4 : 2.5,
+                        horizontal: isDesktop ? 10 : 7,
+                        vertical: isDesktop ? 5.5 : 3.5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF222B32),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '1st: ${tableState.gameSettings.firstDropPenalty}p • Mid: ${tableState.gameSettings.middleDropPenalty}p',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: isDesktop ? 10 : 8.5,
-                          color: const Color(0xFF8DC5A2),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3F1417), Color(0xFF1A0A0C)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.6),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.logout_rounded,
+                            size: isDesktop ? 14 : 11.5,
+                            color: const Color(0xFFF87171),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Exit',
+                            style: GoogleFonts.outfit(
+                              fontSize: isDesktop ? 11.5 : 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFFCA5A5),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ],
@@ -1303,15 +1345,17 @@ class GameTableScreen extends ConsumerWidget {
             child: _buildToastPill(
               toastMessage,
               isDesktop: isDesktop,
-              onTap: isGameComplete
-                  ? () {
-                      if (isTournamentOver) {
-                        notifier.resetTournament();
-                      } else {
-                        _checkTournamentStatus(context, ref);
-                      }
-                    }
-                  : null,
+              onTap: tableState.isAwaitingHumanDeclarationShow
+                  ? () => _showOpponentDeclarationModal(context, ref)
+                  : (isGameComplete
+                      ? () {
+                          if (isTournamentOver) {
+                            notifier.resetTournament();
+                          } else {
+                            _checkTournamentStatus(context, ref);
+                          }
+                        }
+                      : null),
             ),
           ),
         ],
@@ -2100,64 +2144,88 @@ class GameTableScreen extends ConsumerWidget {
               ),
               SizedBox(width: isDesktop ? 8 : 5),
 
-              // 2. Discard Button (Royal Amber/Gold Theme)
-              InkWell(
-                onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 20 : 12,
-                    vertical: padV,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: canDiscard
-                        ? const LinearGradient(
-                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                          )
-                        : null,
-                    color: canDiscard ? null : const Color(0xFF1B2228),
+              // 2. Discard Button (Royal Amber/Gold Theme with DragTarget support)
+              DragTarget<Object>(
+                onWillAcceptWithDetails: (_) =>
+                    isHumanTurn && isDiscardPhase && !tableState.isRoundOver,
+                onAcceptWithDetails: (details) {
+                  Card? droppedCard;
+                  if (details.data is CardDragData) {
+                    droppedCard = (details.data as CardDragData).card;
+                  } else if (details.data is Card) {
+                    droppedCard = details.data as Card;
+                  }
+                  if (droppedCard != null) {
+                    notifier.discardCard(droppedCard);
+                  }
+                },
+                builder: (context, candidateData, rejectedData) {
+                  final isHovering = candidateData.isNotEmpty;
+                  final active = canDiscard ||
+                      isHovering ||
+                      (isHumanTurn && isDiscardPhase && uiState.isDragging);
+                  return InkWell(
+                    onTap: canDiscard ? () => notifier.discardSelectedCard() : null,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: canDiscard
-                          ? const Color(0xFFFFFBEB)
-                          : const Color(0x66D4AF37),
-                      width: canDiscard ? 1.8 : 1.0,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: canDiscard
-                            ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
-                            : Colors.black.withValues(alpha: 0.4),
-                        blurRadius: canDiscard ? 10 : 4,
-                        offset: const Offset(0, 2),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 20 : 12,
+                        vertical: padV,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_upward_rounded,
-                        size: iconSize,
-                        color: canDiscard
-                            ? const Color(0xFF1F1200)
-                            : const Color(0xFF94A3B8),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Discard',
-                        style: GoogleFonts.outfit(
-                          color: canDiscard
-                              ? const Color(0xFF1F1200)
-                              : const Color(0xFF94A3B8),
-                          fontSize: fontSize,
-                          fontWeight:
-                              canDiscard ? FontWeight.w900 : FontWeight.w700,
+                      decoration: BoxDecoration(
+                        gradient: active
+                            ? const LinearGradient(
+                                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                              )
+                            : null,
+                        color: active ? null : const Color(0xFF1B2228),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isHovering
+                              ? const Color(0xFFFFFBEB)
+                              : (active
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0x66D4AF37)),
+                          width: active ? 1.8 : 1.0,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: active
+                                ? const Color(0xFFF59E0B).withValues(
+                                    alpha: isHovering ? 0.95 : 0.7)
+                                : Colors.black.withValues(alpha: 0.4),
+                            blurRadius: active ? (isHovering ? 14 : 10) : 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_upward_rounded,
+                            size: iconSize,
+                            color: active
+                                ? const Color(0xFF1F1200)
+                                : const Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isHovering ? 'Drop to Discard' : 'Discard',
+                            style: GoogleFonts.outfit(
+                              color: active
+                                  ? const Color(0xFF1F1200)
+                                  : const Color(0xFF94A3B8),
+                              fontSize: fontSize,
+                              fontWeight:
+                                  active ? FontWeight.w900 : FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -2245,7 +2313,7 @@ class GameTableScreen extends ConsumerWidget {
                       const SizedBox(width: 5),
                       Text(
                         tableState.isAwaitingHumanDeclarationShow
-                            ? 'Submit Show'
+                            ? 'Declare Hand (${tableState.currentScore}p)'
                             : 'Declare Hand',
                         style: GoogleFonts.outfit(
                           color: active
@@ -2474,22 +2542,46 @@ class GameTableScreen extends ConsumerWidget {
                   _checkTournamentStatus(context, ref);
                 }
               : null,
+          onViewLogs: () => _openGameLogs(context, ref),
         );
+      },
+    );
+  }
+
+  void _openGameLogs(BuildContext context, WidgetRef ref) {
+    final tableState = ref.read(gameTableProvider);
+    final notifier = ref.read(gameTableProvider.notifier);
+
+    GameLogsModal.show(
+      context,
+      logs: tableState.actionLogs,
+      totalRounds:
+          tableState.roundScores.length + (tableState.isRoundOver ? 0 : 1),
+      onDownloadLogs: ({int? roundNumber, bool asJson = true}) {
+        notifier.downloadLogs(roundNumber: roundNumber, asJson: asJson);
+      },
+      onGetLogsText: ({int? roundNumber}) {
+        return notifier.getLogsText(roundNumber: roundNumber);
       },
     );
   }
 
   void _openSettings(BuildContext context, WidgetRef ref) {
     final tableState = ref.read(gameTableProvider);
-
     final notifier = ref.read(gameTableProvider.notifier);
+    final isTournamentOver =
+        tableState.isHumanEliminated || tableState.isAiEliminated;
+    // Settings cannot be edited after tournament starts
+    final isTournamentActive = !isTournamentOver;
 
     showDialog(
       context: context,
       builder: (ctx) {
         return GameSettingsModal(
           currentSettings: tableState.gameSettings,
+          isReadOnly: isTournamentActive,
           onSave: (newSettings) {
+            if (isTournamentActive) return;
             notifier.updateSettings(newSettings);
             ref
                 .read(homeProvider.notifier)
@@ -2502,11 +2594,100 @@ class GameTableScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _handleExitGame(BuildContext context, WidgetRef ref) async {
+    final tableState = ref.read(gameTableProvider);
+    final isTournamentOver =
+        tableState.isHumanEliminated || tableState.isAiEliminated;
+
+    if (!isTournamentOver) {
+      final shouldExit = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF141E18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Exit Game?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Your active tournament will be terminated and unsaved progress will be lost. Do you wish to leave the table?',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13.5,
+              height: 1.4,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.only(right: 16, bottom: 16, left: 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text(
+                'Stay & Play',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              child: const Text(
+                'Exit to Lobby',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldExit != true) return;
+    }
+
+    if (!context.mounted) return;
+    ref.read(gameTableProvider.notifier).cancelTurnTimer();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   void _handleDiscardAndDeclare(BuildContext context, WidgetRef ref,
       {Card? finishCard}) {
     final notifier = ref.read(gameTableProvider.notifier);
     final openJoker = notifier.wildJokerCard;
     final result = notifier.discardAndDeclareSelectedCard(finishCard);
+    final tableState = ref.read(gameTableProvider);
+    final roundScore = tableState.roundScores.isNotEmpty
+        ? tableState.roundScores.last
+        : null;
 
     showDialog(
       context: context,
@@ -2515,6 +2696,7 @@ class GameTableScreen extends ConsumerWidget {
         return DeclarationResultModal(
           result: result,
           openJoker: openJoker,
+          roundScore: roundScore,
           onDismiss: () {
             Navigator.of(ctx).pop();
           },
@@ -2527,6 +2709,27 @@ class GameTableScreen extends ConsumerWidget {
             _openScoreCard(context, ref);
           },
         );
+      },
+    );
+  }
+
+  void _showOpponentDeclarationModal(BuildContext context, WidgetRef ref) {
+    final tableState = ref.read(gameTableProvider);
+    final botPartition = tableState.botDeclarationResult;
+    if (botPartition == null) return;
+
+    OpponentDeclarationModal.show(
+      context: context,
+      declarerName: 'Maya (AI Host)',
+      botDeclarationResult: botPartition,
+      finishCard: tableState.botDiscardCard,
+      wildJoker: ref.read(gameTableProvider.notifier).wildJokerCard,
+      onRearrange: () {
+        Navigator.of(context).pop();
+      },
+      onDeclareFinalHand: () {
+        Navigator.of(context).pop();
+        _handleSubmitDeclarationShow(context, ref);
       },
     );
   }
@@ -2561,95 +2764,236 @@ class GameTableScreen extends ConsumerWidget {
         context: context,
         barrierDismissible: false,
         builder: (ctx) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF141E18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: AppColors.glassBorder),
-            ),
-            title: Row(
-              children: [
-                Icon(
-                  isBotWinner ? Icons.emoji_events : Icons.celebration,
-                  color: isBotWinner ? AppColors.accent : AppColors.success,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isBotWinner ? 'Round Complete' : 'Won by Default!',
-                  style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isBotWinner
-                      ? 'Maya Bot declared a valid show (0 pts).\n\nYour submitted hand count is $humanScore pts.'
-                      : 'Maya Bot made an invalid show!\nYou win the round with 0 pts!',
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, height: 1.4),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black26,
-                    borderRadius: BorderRadius.circular(8),
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF14241C),
+                      Color(0xFF0F1B15),
+                      Color(0xFF09120E),
+                    ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFFD4AF37),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      blurRadius: 25,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                      blurRadius: 15,
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Your Total: ${updatedState.totalHumanScore} pts',
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 12)),
-                      Text('Bot Total: ${updatedState.totalAiScore} pts',
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 12)),
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [Color(0xFFFEF08A), Color(0xFFD4AF37)],
+                              ),
+                            ),
+                            child: Icon(
+                              isBotWinner ? Icons.emoji_events_rounded : Icons.celebration_rounded,
+                              color: const Color(0xFF241A00),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Round ${updatedState.roundScores.length} Complete!',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFFFEF08A),
+                                  ),
+                                ),
+                                Text(
+                                  isBotWinner
+                                      ? 'Maya Bot declared a valid show (0 pts)'
+                                      : 'You won by default (0 pts)!',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Final Hand Deadwood Score Box
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0x4D000000),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isBotWinner
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                                : const Color(0xFF4ADE80).withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Your Final Hand Penalty:',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                Text(
+                                  '$humanScore PTS',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    color: humanScore == 0
+                                        ? const Color(0xFF4ADE80)
+                                        : const Color(0xFFF59E0B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'Maya Bot Score:',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                Text(
+                                  isBotWinner ? '0 PTS (Winner)' : '${updatedState.roundScores.last.aiScore} PTS',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: isBotWinner
+                                        ? const Color(0xFF4ADE80)
+                                        : const Color(0xFFF87171),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Cumulative Scores
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0x33000000),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0x22D4AF37)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Your Total: ${updatedState.totalHumanScore} pts',
+                              style: GoogleFonts.outfit(
+                                color: const Color(0xFFFEF08A),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              'Maya Total: ${updatedState.totalAiScore} pts',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Actions
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            icon: const Icon(Icons.table_chart_rounded, size: 16),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFFEF08A),
+                            ),
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              _openScoreCard(context, ref);
+                            },
+                            label: const Text('Scorecard'),
+                          ),
+                          const Spacer(),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white24),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Review Table'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD4AF37),
+                              foregroundColor: const Color(0xFF241A00),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              _checkTournamentStatus(context, ref);
+                            },
+                            label: Text(
+                              'Next Deal',
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-
-                  _openScoreCard(context, ref);
-                },
-                child: const Text('Scorecard',
-                    style: TextStyle(color: AppColors.accent)),
-              ),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white70,
-                  side: const BorderSide(color: Colors.white24),
-                ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-
-                  // User closed dialog to review table; Next Deal button is available on table!
-                },
-                child: const Text('Review Table'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.black,
-                ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-
-                  _checkTournamentStatus(context, ref);
-                },
-                child: const Text('Next Deal',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
           );
         },
       );

@@ -46,4 +46,13 @@ class GameSettings {
       turnTimerSeconds: turnTimerSeconds ?? this.turnTimerSeconds,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'firstDropPenalty': firstDropPenalty,
+    'middleDropPenalty': middleDropPenalty,
+    'fullCountPenalty': fullCountPenalty,
+    'eliminationScore': eliminationScore,
+    'jokerMode': jokerMode,
+    'turnTimerSeconds': turnTimerSeconds,
+  };
 }

@@ -499,6 +499,21 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     }
   }
 
+  // Discard specific card (supports direct drag & drop or tap)
+  Future<void> discardCard(Card card) async {
+    state = state.copyWith(selectedCard: card);
+    await discardSelectedCard();
+  }
+
+  // Declare with specific finish card
+  Future<Map<String, dynamic>?> declareWithCard(Card card) async {
+    state = state.copyWith(selectedCard: card);
+    return await declareHand();
+  }
+
+  // Sort Hand ascending alias
+  void sortHandAscending() => autoSortHand();
+
   // Drop Hand / Round
   Future<void> dropGame() async {
     final user = _ref.read(authProvider);
@@ -937,11 +952,15 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     }
   }
 
-  void groupSelectedCards(List<Card> cardsToGroup) {
-    if (cardsToGroup.isEmpty) return;
+  void groupSelectedCards([List<Card>? cardsToGroup]) {
+    final targets = cardsToGroup ??
+        (state.selectedCards.isNotEmpty
+            ? state.selectedCards.toList()
+            : (state.selectedCard != null ? [state.selectedCard!] : <Card>[]));
+    if (targets.isEmpty) return;
     final currentCards = _allCards();
     final validCardsToGroup = <Card>[];
-    for (final c in cardsToGroup) {
+    for (final c in targets) {
       if (currentCards.any((card) => card.cardId == c.cardId || card == c)) {
         validCardsToGroup.add(c);
       }

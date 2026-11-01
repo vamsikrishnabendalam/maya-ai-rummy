@@ -14,6 +14,7 @@ class ScoreCardModal extends StatelessWidget {
   final VoidCallback onResetTournament;
   final VoidCallback? onNextDeal;
   final bool isRoundComplete;
+  final VoidCallback? onViewLogs;
 
   const ScoreCardModal({
     super.key,
@@ -27,6 +28,7 @@ class ScoreCardModal extends StatelessWidget {
     required this.onResetTournament,
     this.onNextDeal,
     this.isRoundComplete = false,
+    this.onViewLogs,
   });
 
   @override
@@ -216,7 +218,7 @@ class ScoreCardModal extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  if (!isHumanEliminated && !isAiEliminated)
+                  if (!isHumanEliminated && !isAiEliminated) ...[
                     TextButton.icon(
                       icon: const Icon(Icons.restart_alt, size: 14, color: AppColors.danger),
                       label: const Text(
@@ -224,6 +226,20 @@ class ScoreCardModal extends StatelessWidget {
                         style: TextStyle(color: AppColors.danger, fontSize: 11),
                       ),
                       onPressed: onResetTournament,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (onViewLogs != null)
+                    TextButton.icon(
+                      icon: const Icon(Icons.history_edu_rounded, size: 14, color: AppColors.accent),
+                      label: const Text(
+                        'Action Logs',
+                        style: TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () {
+                        onClose();
+                        onViewLogs!();
+                      },
                     ),
                   const Spacer(),
                   if (onNextDeal != null && !isHumanEliminated && !isAiEliminated) ...[

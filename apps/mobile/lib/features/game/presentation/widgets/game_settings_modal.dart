@@ -7,12 +7,14 @@ class GameSettingsModal extends StatefulWidget {
   final GameSettings currentSettings;
   final ValueChanged<GameSettings> onSave;
   final VoidCallback onClose;
+  final bool isReadOnly;
 
   const GameSettingsModal({
     super.key,
     required this.currentSettings,
     required this.onSave,
     required this.onClose,
+    this.isReadOnly = false,
   });
 
   @override
@@ -90,11 +92,15 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.settings_outlined, color: AppColors.accent, size: 22),
+                  Icon(
+                    widget.isReadOnly ? Icons.lock_rounded : Icons.settings_outlined,
+                    color: AppColors.accent,
+                    size: 22,
+                  ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'GAME SETTINGS',
-                    style: TextStyle(
+                  Text(
+                    widget.isReadOnly ? 'TABLE RULES (LOCKED)' : 'GAME SETTINGS',
+                    style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -117,6 +123,33 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
+                  if (widget.isReadOnly) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFB45309).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.6)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.lock_rounded, color: Color(0xFFF59E0B), size: 18),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Tournament in progress. Settings cannot be edited after the tournament starts.',
+                              style: TextStyle(
+                                color: Color(0xFFFEF08A),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -142,7 +175,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                               backgroundColor: const Color(0xFF081220),
                               side: BorderSide(color: _jokerMode == 'OPEN' ? AppColors.accent : AppColors.glassBorder),
                               labelStyle: TextStyle(color: _jokerMode == 'OPEN' ? Colors.black : Colors.white),
-                              onSelected: (_) => setState(() => _jokerMode = 'OPEN'),
+                              onSelected: widget.isReadOnly ? null : (_) => setState(() => _jokerMode = 'OPEN'),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -156,7 +189,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                               backgroundColor: const Color(0xFF081220),
                               side: BorderSide(color: _jokerMode == 'CLOSED' ? AppColors.accent : AppColors.glassBorder),
                               labelStyle: TextStyle(color: _jokerMode == 'CLOSED' ? Colors.black : Colors.white),
-                              onSelected: (_) => setState(() => _jokerMode = 'CLOSED'),
+                              onSelected: widget.isReadOnly ? null : (_) => setState(() => _jokerMode = 'CLOSED'),
                             ),
                           ),
                         ],
@@ -205,7 +238,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                               color: isSelected ? AppColors.accent : AppColors.glassBorder,
                               width: isSelected ? 1.5 : 1.0,
                             ),
-                            onSelected: (_) => setState(() => _turnTimer = sec),
+                            onSelected: widget.isReadOnly ? null : (_) => setState(() => _turnTimer = sec),
                           );
                         }).toList(),
                       ),
@@ -219,6 +252,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                     min: 5,
                     max: 100,
                     step: 5,
+                    isReadOnly: widget.isReadOnly,
                     onChanged: (val) => setState(() => _firstDrop = val),
                   ),
                   const Divider(color: AppColors.glassBorder, height: 28),
@@ -229,6 +263,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                     min: 10,
                     max: 120,
                     step: 5,
+                    isReadOnly: widget.isReadOnly,
                     onChanged: (val) => setState(() => _middleDrop = val),
                   ),
                   const Divider(color: AppColors.glassBorder, height: 28),
@@ -239,6 +274,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                     min: 40,
                     max: 160,
                     step: 10,
+                    isReadOnly: widget.isReadOnly,
                     onChanged: (val) => setState(() => _fullCount = val),
                   ),
                   const Divider(color: AppColors.glassBorder, height: 28),
@@ -250,6 +286,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                     max: 501,
                     step: 10,
                     quickOptions: const [101, 201, 301],
+                    isReadOnly: widget.isReadOnly,
                     onChanged: (val) => setState(() => _eliminationScore = val),
                   ),
                 ],
@@ -262,28 +299,49 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.glassBorder)),
               ),
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: _resetDefaults,
-                    child: const Text(
-                      'Reset to Defaults',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              child: widget.isReadOnly
+                  ? Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Settings are locked during an active tournament',
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: widget.onClose,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF222B32),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        TextButton(
+                          onPressed: _resetDefaults,
+                          child: const Text(
+                            'Reset to Defaults',
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                          ),
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          onPressed: _saveAndClose,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Save & Apply', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
                     ),
-                  ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _saveAndClose,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('Save & Apply', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -300,6 +358,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
     required int step,
     required ValueChanged<int> onChanged,
     List<int>? quickOptions,
+    bool isReadOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,8 +399,12 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.remove, size: 16, color: AppColors.accent),
-                    onPressed: value > min ? () => onChanged(value - step) : null,
+                    icon: Icon(
+                      Icons.remove,
+                      size: 16,
+                      color: isReadOnly ? AppColors.textMuted : AppColors.accent,
+                    ),
+                    onPressed: (!isReadOnly && value > min) ? () => onChanged(value - step) : null,
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     padding: EdgeInsets.zero,
                   ),
@@ -350,16 +413,20 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                     alignment: Alignment.center,
                     child: Text(
                       '$value',
-                      style: const TextStyle(
-                        color: AppColors.accent,
+                      style: TextStyle(
+                        color: isReadOnly ? AppColors.textSecondary : AppColors.accent,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.add, size: 16, color: AppColors.accent),
-                    onPressed: value < max ? () => onChanged(value + step) : null,
+                    icon: Icon(
+                      Icons.add,
+                      size: 16,
+                      color: isReadOnly ? AppColors.textMuted : AppColors.accent,
+                    ),
+                    onPressed: (!isReadOnly && value < max) ? () => onChanged(value + step) : null,
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     padding: EdgeInsets.zero,
                   ),
@@ -378,9 +445,11 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                 child: ChoiceChip(
                   label: Text('$opt Pool'),
                   selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) onChanged(opt);
-                  },
+                  onSelected: isReadOnly
+                      ? null
+                      : (selected) {
+                          if (selected) onChanged(opt);
+                        },
                   selectedColor: AppColors.accent.withValues(alpha: 0.25),
                   backgroundColor: AppColors.glass,
                   labelStyle: TextStyle(
