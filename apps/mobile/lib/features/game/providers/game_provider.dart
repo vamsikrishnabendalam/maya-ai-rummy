@@ -1278,8 +1278,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     if (oldIndex < 0 || oldIndex >= cards.length) return;
 
     final card = cards.removeAt(oldIndex);
-    final adjustedNew = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    cards.insert(adjustedNew.clamp(0, cards.length), card);
+    cards.insert(newIndex.clamp(0, cards.length), card);
     groups[idx] = groups[idx].copyWith(cards: cards);
 
     _revalidateGroups(groups);

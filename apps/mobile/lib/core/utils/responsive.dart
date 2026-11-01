@@ -63,10 +63,10 @@ class Responsive {
   /// - 72 on desktop
   static double cardWidth(BuildContext context) {
     if (isDesktop(context)) {
-      return 92.0;
+      return 110.0;
     }
     if (isTablet(context)) {
-      return 84.0;
+      return 88.0;
     }
     if (isMobileLandscape(context)) {
       return 76.0;
@@ -82,7 +82,10 @@ class Responsive {
   /// - 32 on mobile landscape
   /// - 36 on tablet / desktop
   static double cardOverlap(BuildContext context) {
-    if (isDesktop(context) || isTablet(context)) {
+    if (isDesktop(context)) {
+      return 50.0;
+    }
+    if (isTablet(context)) {
       return 42.0;
     }
     if (isMobileLandscape(context)) {

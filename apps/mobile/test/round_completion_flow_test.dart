@@ -71,8 +71,8 @@ void main() {
     );
     await tester.pump();
 
-    // Verify toast pill mentions round 2 completed
-    expect(find.textContaining('Round 2 completed!'), findsOneWidget);
+    // Verify toast pill / bottom instruction bar mentions round 2 completed
+    expect(find.textContaining('Round 2 completed!'), findsAtLeastNWidgets(1));
 
     // Verify Deal Next Round bar is visible with Deal #3
     expect(find.text('Deal Next Round (#3)'), findsOneWidget);
@@ -85,7 +85,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     // Verify a new deal was started (turn resets to DRAW_PHASE)
-    expect(find.textContaining('Your Turn!'), findsOneWidget);
+    expect(find.textContaining('Your Turn!'), findsAtLeastNWidgets(1));
     notifier.cancelTurnTimer();
   });
 }

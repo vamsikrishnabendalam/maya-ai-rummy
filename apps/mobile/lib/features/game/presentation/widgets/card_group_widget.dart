@@ -277,14 +277,64 @@ class CardGroupWidget extends StatelessWidget {
             },
             builder: (context, candidateData, rejectedData) {
               final isHoveredOnCard = candidateData.isNotEmpty;
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: isHoveredOnCard
-                      ? Border.all(color: AppColors.accent, width: 2)
-                      : null,
-                ),
-                child: cardWidget,
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: isHoveredOnCard
+                          ? Border.all(color: const Color(0xFFF2CA50), width: 2.2)
+                          : null,
+                      boxShadow: isHoveredOnCard
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFFF2CA50).withValues(alpha: 0.65),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: cardWidget,
+                  ),
+                  if (isHoveredOnCard)
+                    Positioned(
+                      left: -4,
+                      top: -8,
+                      bottom: -8,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Icon(
+                            Icons.arrow_drop_down_rounded,
+                            size: 18,
+                            color: Color(0xFFF2CA50),
+                          ),
+                          Container(
+                            width: 3.5,
+                            height: (cardHeight - 14).clamp(20.0, 200.0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF2CA50),
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFF2CA50).withValues(alpha: 0.85),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_drop_up_rounded,
+                            size: 18,
+                            color: Color(0xFFF2CA50),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               );
             },
           );

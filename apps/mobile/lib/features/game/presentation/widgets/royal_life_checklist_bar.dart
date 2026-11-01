@@ -3,10 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/utils/responsive.dart';
 
-/// Meld Status Bar positioned directly above the player hand matching the HTML reference:
-/// - Left: "Your Hand:" with verified "1st Life" and "2nd Life" status pills
-/// - Center: Turn status countdown timer pill
-/// - Right: "Deadwood: X pts" badge in error-container / victory emerald
+/// Meld Status Bar positioned directly below the player hand:
+/// - Top: Prominent game turn instructions spanning the bar
+/// - Bottom Row:
+///   - Left: "Your Hand:" with verified "1st Life" and "2nd Life" status pills
+///   - Center: Turn status countdown timer pill
+///   - Right: "Deadwood: X pts" badge in error-container / victory emerald
 class RoyalLifeChecklistBar extends StatelessWidget {
   final bool hasFirstLife;
   final bool hasSecondLife;
@@ -17,6 +19,7 @@ class RoyalLifeChecklistBar extends StatelessWidget {
   final VoidCallback? onDrop;
   final bool canAutoGroup;
   final bool canDrop;
+  final String? instructionText;
 
   const RoyalLifeChecklistBar({
     super.key,
@@ -29,6 +32,7 @@ class RoyalLifeChecklistBar extends StatelessWidget {
     this.onDrop,
     this.canAutoGroup = false,
     this.canDrop = false,
+    this.instructionText,
   });
 
   @override
@@ -40,206 +44,267 @@ class RoyalLifeChecklistBar extends StatelessWidget {
     final double pointsFont = isDesktop ? 12.0 : 9.5;
 
     return Container(
-      constraints: BoxConstraints(maxWidth: isDesktop ? 960 : 820),
-      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 18 : 12, vertical: isDesktop ? 5 : 3),
+      constraints: BoxConstraints(maxWidth: isDesktop ? 1080 : 920),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 16 : 10,
+        vertical: isDesktop ? 5 : 3.5,
+      ),
       decoration: BoxDecoration(
-        color: const Color(0xFF060F16).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF071116),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF222B32).withValues(alpha: 0.8),
-          width: 0.8,
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.6),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Colors.black.withValues(alpha: 0.7),
             blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+            blurRadius: 4,
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Left: Your Hand + 1st Life + 2nd Life
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'YOUR HAND:',
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFFD0C5AF),
-                  fontSize: labelFont,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              SizedBox(width: isDesktop ? 10 : 8),
-
-              // 1st Life Pill
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: isDesktop ? 8 : 6, vertical: isDesktop ? 3 : 2),
-                decoration: BoxDecoration(
-                  color: hasFirstLife
-                      ? const Color(0xFF1C5338)
-                      : const Color(0xFF141D24),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: hasFirstLife
-                        ? const Color(0xFF33CA90)
-                        : Colors.white12,
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      hasFirstLife ? Icons.verified : Icons.radio_button_unchecked,
-                      size: iconSz,
-                      color: hasFirstLife
-                          ? const Color(0xFF58E7AA)
-                          : const Color(0xFF99907C),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '1st Life',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: hasFirstLife
-                            ? const Color(0xFF58E7AA)
-                            : const Color(0xFF99907C),
-                        fontSize: pillFont,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: isDesktop ? 8 : 6),
-
-              // 2nd Life Pill
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: isDesktop ? 8 : 6, vertical: isDesktop ? 3 : 2),
-                decoration: BoxDecoration(
-                  color: hasSecondLife
-                      ? const Color(0xFF1C5338)
-                      : const Color(0xFF141D24),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: hasSecondLife
-                        ? const Color(0xFF33CA90)
-                        : Colors.white12,
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      hasSecondLife ? Icons.verified : Icons.radio_button_unchecked,
-                      size: iconSz,
-                      color: hasSecondLife
-                          ? const Color(0xFF58E7AA)
-                          : const Color(0xFF99907C),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '2nd Life',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: hasSecondLife
-                            ? const Color(0xFF58E7AA)
-                            : const Color(0xFF99907C),
-                        fontSize: pillFont,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // 2. Center: Turn Countdown Pill
-          if (isMyTurn)
+          if (instructionText != null && instructionText!.trim().isNotEmpty) ...[
             Container(
-              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 10 : 7, vertical: isDesktop ? 3 : 2),
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: isDesktop ? 4.5 : 3.0,
+              ),
+              margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
-                color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
-                    ? const Color(0xFFEF4444).withValues(alpha: 0.25)
-                    : const Color(0xFFF2CA50).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFF2CA50).withValues(alpha: 0.18),
+                    const Color(0xFFD4AF37).withValues(alpha: 0.08),
+                    const Color(0xFFF2CA50).withValues(alpha: 0.18),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
-                      ? const Color(0xFFEF4444).withValues(alpha: 0.8)
-                      : const Color(0xFFF2CA50).withValues(alpha: 0.5),
+                  color: const Color(0xFFF2CA50).withValues(alpha: 0.45),
                   width: 0.8,
                 ),
               ),
-              child: Row(
+              child: Center(
+                child: Text(
+                  instructionText!,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: isDesktop ? 12.5 : 10.0,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFFDE68A),
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // 1. Left: Your Hand + 1st Life + 2nd Life
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    (turnSeconds == null || turnSeconds == 0)
-                        ? Icons.all_inclusive_rounded
-                        : Icons.timer_outlined,
-                    size: isDesktop ? 13 : 10,
-                    color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
-                        ? const Color(0xFFF87171)
-                        : const Color(0xFFF2CA50),
-                  ),
-                  const SizedBox(width: 4),
                   Text(
-                    (turnSeconds == null || turnSeconds == 0)
-                        ? 'NO LIMIT • YOUR TURN'
-                        : '${turnSeconds}s YOUR TURN',
-                    style: GoogleFonts.jetBrainsMono(
-                      color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
-                          ? const Color(0xFFFCA5A5)
-                          : const Color(0xFFF2CA50),
-                      fontSize: pillFont,
+                    'YOUR HAND:',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFD0C5AF),
+                      fontSize: labelFont,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 10 : 8),
+
+                  // 1st Life Pill
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 8 : 6,
+                      vertical: isDesktop ? 3 : 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hasFirstLife
+                          ? const Color(0xFF1C5338)
+                          : const Color(0xFF141D24),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: hasFirstLife
+                            ? const Color(0xFF33CA90)
+                            : Colors.white12,
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          hasFirstLife ? Icons.verified : Icons.radio_button_unchecked,
+                          size: iconSz,
+                          color: hasFirstLife
+                              ? const Color(0xFF58E7AA)
+                              : const Color(0xFF99907C),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '1st Life',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: hasFirstLife
+                                ? const Color(0xFF58E7AA)
+                                : const Color(0xFF99907C),
+                            fontSize: pillFont,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: isDesktop ? 8 : 6),
+
+                  // 2nd Life Pill
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 8 : 6,
+                      vertical: isDesktop ? 3 : 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hasSecondLife
+                          ? const Color(0xFF1C5338)
+                          : const Color(0xFF141D24),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: hasSecondLife
+                            ? const Color(0xFF33CA90)
+                            : Colors.white12,
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          hasSecondLife ? Icons.verified : Icons.radio_button_unchecked,
+                          size: iconSz,
+                          color: hasSecondLife
+                              ? const Color(0xFF58E7AA)
+                              : const Color(0xFF99907C),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '2nd Life',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: hasSecondLife
+                                ? const Color(0xFF58E7AA)
+                                : const Color(0xFF99907C),
+                            fontSize: pillFont,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
 
-          // 3. Right: Deadwood Points Pill
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'DEADWOOD:',
-                style: GoogleFonts.outfit(
-                  color: const Color(0xFFD0C5AF),
-                  fontSize: labelFont,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              SizedBox(width: isDesktop ? 7 : 5),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: isDesktop ? 9 : 7, vertical: isDesktop ? 2.5 : 1.5),
-                decoration: BoxDecoration(
-                  color: points == 0
-                      ? const Color(0xFF1C5338)
-                      : const Color(0xFF93000A).withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: points == 0
-                        ? const Color(0xFF33CA90)
-                        : const Color(0xFFFFB4AB).withValues(alpha: 0.4),
-                    width: 0.8,
+              // 2. Center: Turn Countdown Pill
+              if (isMyTurn)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 10 : 7,
+                    vertical: isDesktop ? 3 : 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                        : const Color(0xFFF2CA50).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                          ? const Color(0xFFEF4444).withValues(alpha: 0.8)
+                          : const Color(0xFFF2CA50).withValues(alpha: 0.5),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        (turnSeconds == null || turnSeconds == 0)
+                            ? Icons.all_inclusive_rounded
+                            : Icons.timer_outlined,
+                        size: isDesktop ? 13 : 10,
+                        color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                            ? const Color(0xFFF87171)
+                            : const Color(0xFFF2CA50),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        (turnSeconds == null || turnSeconds == 0)
+                            ? 'NO LIMIT • YOUR TURN'
+                            : '${turnSeconds}s YOUR TURN',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                              ? const Color(0xFFFCA5A5)
+                              : const Color(0xFFF2CA50),
+                          fontSize: pillFont,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Text(
-                  '$points pts',
-                  style: GoogleFonts.jetBrainsMono(
-                    color: points == 0
-                        ? const Color(0xFF58E7AA)
-                        : const Color(0xFFFFB4AB),
-                    fontSize: pointsFont,
-                    fontWeight: FontWeight.w900,
+
+              // 3. Right: Deadwood Points Pill
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'DEADWOOD:',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFD0C5AF),
+                      fontSize: labelFont,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
+                  SizedBox(width: isDesktop ? 7 : 5),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 9 : 7,
+                      vertical: isDesktop ? 2.5 : 1.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: points == 0
+                          ? const Color(0xFF1C5338)
+                          : const Color(0xFF93000A).withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: points == 0
+                            ? const Color(0xFF33CA90)
+                            : const Color(0xFFFFB4AB).withValues(alpha: 0.4),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      '$points pts',
+                      style: GoogleFonts.jetBrainsMono(
+                        color: points == 0
+                            ? const Color(0xFF58E7AA)
+                            : const Color(0xFFFFB4AB),
+                        fontSize: pointsFont,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

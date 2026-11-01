@@ -228,6 +228,18 @@ class HandPartitioner {
       if (validDecl.isValidDeclaration) {
         return validDecl;
       }
+    } else if (hand.length == 14) {
+      // Find if any 13-card subset yields a valid 13-card declaration (winning hand + 1 discard)
+      for (int i = 0; i < hand.length; i++) {
+        final subset = List<Card>.from(hand)..removeAt(i);
+        final validDecl = findValidPartition(subset, openJoker);
+        if (validDecl.isValidDeclaration) {
+          final discardCard = hand[i];
+          final groups = validDecl.groups.map((g) => g.cards).toList();
+          groups.add([discardCard]);
+          return evaluateGroups(groups, openJoker);
+        }
+      }
     }
 
     // 2. Generate all candidate valid melds:
@@ -248,17 +260,21 @@ class HandPartitioner {
     impureCandidates.sort((a, b) => meldPointValue(b).compareTo(meldPointValue(a)));
     setCandidates.sort((a, b) => meldPointValue(b).compareTo(meldPointValue(a)));
 
+    // Take top candidates from each category so sets are never crowded out
+    final balancedCandidates = <List<Card>>[
+      ...pureCandidates.take(20),
+      ...impureCandidates.take(20),
+      ...setCandidates.take(20),
+    ];
+
     final seenCandidateKeys = <String>{};
-    final uniqueCandidates = <List<Card>>[];
-    for (final c in [...pureCandidates, ...impureCandidates, ...setCandidates]) {
+    final allCandidates = <List<Card>>[];
+    for (final c in balancedCandidates) {
       final key = (c.map((card) => card.cardId).toList()..sort()).join('_');
-      if (!seenCandidateKeys.contains(key)) {
-        seenCandidateKeys.add(key);
-        uniqueCandidates.add(c);
+      if (seenCandidateKeys.add(key)) {
+        allCandidates.add(c);
       }
     }
-    // Cap to top 50 highest-value candidates to prevent combinatorial explosion while retaining sets
-    final allCandidates = uniqueCandidates.length > 50 ? uniqueCandidates.sublist(0, 50) : uniqueCandidates;
 
     List<List<Card>> bestMelds = [];
     int lowestDeadwood = 999;
@@ -266,7 +282,7 @@ class HandPartitioner {
     int bestTotalSeqCount = 0;
     int maxMeldedCards = 0;
     int exploreIterations = 0;
-    const int maxExploreIterations = 400;
+    const int maxExploreIterations = 1200;
 
     void explore(int startIndex, List<List<Card>> currentMelds, List<Card> remaining) {
       if (exploreIterations++ >= maxExploreIterations) return;
@@ -338,31 +354,33 @@ class HandPartitioner {
       }
     }
 
-    // From remaining cards, extract 2-card potential sequences and 2-card pairs for clean visualization
-    final twoCardSeqs = _findCandidateTwoCardSequences(remainingCards, openJoker);
-    final visualTwoCards = <List<Card>>[];
-    for (final seq in twoCardSeqs) {
-      final rem = _removeSublist(remainingCards, seq);
-      if (rem != null) {
-        visualTwoCards.add(seq);
-        remainingCards.clear();
-        remainingCards.addAll(rem);
-      }
-    }
+    // Sort remaining cards by suit, then rank
+    remainingCards.sort((a, b) {
+      final suitA = a.suit?.index ?? 99;
+      final suitB = b.suit?.index ?? 99;
+      if (suitA != suitB) return suitA.compareTo(suitB);
+      return (a.rank?.index ?? 0).compareTo(b.rank?.index ?? 0);
+    });
 
-    final twoCardSets = _findCandidateTwoCardSets(remainingCards, openJoker);
-    for (final s in twoCardSets) {
-      final rem = _removeSublist(remainingCards, s);
-      if (rem != null) {
-        visualTwoCards.add(s);
-        remainingCards.clear();
-        remainingCards.addAll(rem);
+    final visualExtraGroups = <List<Card>>[];
+    // If we have remaining cards, allow at most ONE potential 2-card sequence to help the player see runs,
+    // and keep the rest together in 1 neat deadwood group.
+    if (bestMelds.length <= 3 && remainingCards.length >= 2) {
+      final twoCardSeqs = _findCandidateTwoCardSequences(remainingCards, openJoker);
+      if (twoCardSeqs.isNotEmpty) {
+        final bestSeq = twoCardSeqs.first;
+        final rem = _removeSublist(remainingCards, bestSeq);
+        if (rem != null) {
+          visualExtraGroups.add(bestSeq);
+          remainingCards.clear();
+          remainingCards.addAll(rem);
+        }
       }
     }
 
     final finalGroups = <List<Card>>[
       ...bestMelds,
-      ...visualTwoCards,
+      ...visualExtraGroups,
     ];
     if (remainingCards.isNotEmpty) {
       finalGroups.add(remainingCards);

@@ -46,8 +46,6 @@ import '../widgets/secret_joker_reveal_overlay.dart';
 
 import '../../../../core/utils/responsive.dart';
 
-
-
 /// The main game table screen — assembles all gameplay, manual discard,
 
 /// grouping suggestions, declaration, settings, and tournament scorecard
@@ -55,183 +53,107 @@ import '../../../../core/utils/responsive.dart';
 /// with full Mobile Landscape and Portrait responsive support.
 
 class GameTableScreen extends ConsumerWidget {
-
   const GameTableScreen({Key? key}) : super(key: key);
 
-
-
   static String _formatCoins(int amount) {
-
     return amount.toString().replaceAllMapped(
-
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-
-      (Match m) => '${m[1]},',
-
-    );
-
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
-
-
   String _computeToastMessage({
-
     required bool isHumanTurn,
-
     required bool isDrawPhase,
-
     required bool isDiscardPhase,
-
     required bool isGameComplete,
-
     required bool hasSelectedCard,
-
     required bool isAwaitingDeclarationShow,
-
     required bool isWinningDeclaration,
-
     required bool isTournamentOver,
-
     int? currentRound,
-
   }) {
-
     if (isGameComplete) {
-
       if (isTournamentOver) {
-
         return 'Tournament completed! Tap New Tournament to play again.';
-
       }
 
       return 'Round ${currentRound ?? ''} completed! Tap Next Deal below to continue.';
-
     }
 
-    if (isAwaitingDeclarationShow) return 'Maya Bot declared! Arrange cards and tap Submit Show.';
+    if (isAwaitingDeclarationShow)
+      return 'Maya Bot declared! Arrange cards and tap Submit Show.';
 
     if (!isHumanTurn) return 'Maya Bot is thinking...';
 
     if (isDrawPhase) return 'Your Turn! Tap Closed Deck or Open Pile to draw.';
 
     if (isDiscardPhase) {
-
       if (hasSelectedCard) {
-
         if (isWinningDeclaration) {
-
           return 'Valid Show (0 Pts)! Tap Declare to win!';
-
         }
 
         return 'Card selected! Tap Discard or drop in Finish Slot.';
-
       }
 
       return 'Drew 14th card! Select 1 card to Discard or Declare.';
-
     }
 
     return 'Play your hand!';
-
   }
 
-
-
-  Widget _buildToastPill(String message, {VoidCallback? onTap, bool isDesktop = false}) {
-
+  Widget _buildToastPill(String message,
+      {VoidCallback? onTap, bool isDesktop = false}) {
     final pill = Container(
-
       padding: EdgeInsets.symmetric(
-
         horizontal: isDesktop ? 14 : 10,
-
         vertical: isDesktop ? 5 : 3.5,
-
       ),
-
       decoration: BoxDecoration(
-
         color: const Color(0xFF0F172A).withValues(alpha: 0.92),
-
         borderRadius: BorderRadius.circular(16),
-
         border: Border.all(color: const Color(0xFF334155)),
-
       ),
-
       child: Row(
-
         mainAxisSize: MainAxisSize.min,
-
         children: [
-
-          Icon(Icons.auto_awesome, color: const Color(0xFFFBBF24), size: isDesktop ? 14 : 12),
-
+          Icon(Icons.auto_awesome,
+              color: const Color(0xFFFBBF24), size: isDesktop ? 14 : 12),
           const SizedBox(width: 4),
-
           Flexible(
-
             child: Text(
-
               message,
-
               maxLines: 1,
-
               overflow: TextOverflow.ellipsis,
-
               style: TextStyle(
-
                 color: const Color(0xFFFDE68A),
-
                 fontSize: isDesktop ? 12.0 : 10.0,
-
                 fontWeight: FontWeight.w600,
-
               ),
-
             ),
-
           ),
-
         ],
-
       ),
-
     );
 
-
-
     if (onTap != null) {
-
       return InkWell(
-
         onTap: onTap,
-
         borderRadius: BorderRadius.circular(16),
-
         child: pill,
-
       );
-
     }
 
     return pill;
-
   }
 
-
-
   @override
-
   Widget build(BuildContext context, WidgetRef ref) {
-
     final tableState = ref.watch(gameTableProvider);
 
     final notifier = ref.read(gameTableProvider.notifier);
     final uiState = ref.watch(gameUIProvider);
-
-
 
     final gameState = tableState.gameState;
 
@@ -249,23 +171,21 @@ class GameTableScreen extends ConsumerWidget {
 
     final wildJoker = notifier.wildJokerCard;
 
-
-
-    final isFirstDrop = gameState.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
+    final isFirstDrop =
+        gameState.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
 
     final dropPenalty = isFirstDrop
-
         ? tableState.gameSettings.firstDropPenalty
-
         : tableState.gameSettings.middleDropPenalty;
 
-    final canDrop = isHumanTurn && !isGameComplete && !tableState.isAwaitingHumanDeclarationShow;
+    final canDrop = isHumanTurn &&
+        !isGameComplete &&
+        !tableState.isAwaitingHumanDeclarationShow;
 
     final canDiscard = notifier.canDiscard;
 
-    final canDeclare = notifier.canDiscardAndDeclare || tableState.isAwaitingHumanDeclarationShow;
-
-
+    final canDeclare = notifier.canDiscardAndDeclare ||
+        tableState.isAwaitingHumanDeclarationShow;
 
     final size = MediaQuery.of(context).size;
 
@@ -275,68 +195,39 @@ class GameTableScreen extends ConsumerWidget {
 
     final isMobileLandscape = Responsive.isMobileLandscape(context);
 
-
-
-    final isTournamentOver = tableState.isHumanEliminated || tableState.isAiEliminated;
-
-
+    final isTournamentOver =
+        tableState.isHumanEliminated || tableState.isAiEliminated;
 
     final toastMessage = _computeToastMessage(
-
       isHumanTurn: isHumanTurn,
-
       isDrawPhase: isDrawPhase,
-
       isDiscardPhase: isDiscardPhase,
-
       isGameComplete: isGameComplete,
-
       hasSelectedCard: tableState.selectedCard != null,
-
       isAwaitingDeclarationShow: tableState.isAwaitingHumanDeclarationShow,
-
       isWinningDeclaration: notifier.remainingCardsFormValidDeclaration,
-
       isTournamentOver: isTournamentOver,
-
       currentRound: tableState.roundScores.length,
-
     );
-
-
 
     final nextDealNumber = tableState.roundScores.length + 1;
 
     final isPortrait = !isLandscape;
 
-
-
     // Virtual Design Canvas (1754 x 896 native reference space)
 
     final mayaAiCanvas = Center(
-
       child: AspectRatio(
-
         aspectRatio: 1754 / 896,
-
         child: FittedBox(
-
           fit: BoxFit.contain,
-
           alignment: Alignment.center,
-
           child: SizedBox(
-
             width: 1754,
-
             height: 896,
-
             child: Stack(
-
               clipBehavior: Clip.none,
-
               children: [
-
                 // -------------------------------------------------------------
 
                 // -------------------------------------------------------------
@@ -369,10 +260,15 @@ class GameTableScreen extends ConsumerWidget {
                                     context: context,
                                     count: gameState.closedDeck.length,
                                     wildJoker: wildJoker,
-                                    isClosedJoker: tableState.gameSettings.isClosedJoker,
-                                    isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
+                                    isClosedJoker:
+                                        tableState.gameSettings.isClosedJoker,
+                                    isJokerOpened:
+                                        tableState.gameSettings.jokerMode ==
+                                                'OPEN' ||
+                                            tableState.hasHumanOpenedJoker,
                                     hasLife: notifier.hasHumanLife,
-                                    onOpenClosedJoker: () => notifier.openClosedJoker(),
+                                    onOpenClosedJoker: () =>
+                                        notifier.openClosedJoker(),
                                     canDraw: isHumanTurn && isDrawPhase,
                                     onDraw: () => notifier.drawFromClosedDeck(),
                                   ),
@@ -387,17 +283,22 @@ class GameTableScreen extends ConsumerWidget {
                                     canDraw: isHumanTurn && isDrawPhase,
                                     onDraw: () => notifier.drawFromOpenDeck(),
                                     canDiscard: isHumanTurn && isDiscardPhase,
-                                    onDiscardCard: (card) => notifier.discardCard(card),
+                                    onDiscardCard: (card) =>
+                                        notifier.discardCard(card),
                                     onShowHistory: () {
                                       if (gameState.openPile.isNotEmpty) {
                                         DiscardHistoryModal.show(
                                           context,
                                           discardPile: gameState.openPile,
-                                          wildJoker: notifier.effectiveHumanWildJoker,
+                                          wildJoker:
+                                              notifier.effectiveHumanWildJoker,
                                         );
                                       }
                                     },
-                                    lastDiscardFrom: gameState.openPile.isNotEmpty ? 'Maya' : null,
+                                    lastDiscardFrom:
+                                        gameState.openPile.isNotEmpty
+                                            ? 'Maya'
+                                            : null,
                                   ),
 
                                   const SizedBox(width: 32),
@@ -405,23 +306,45 @@ class GameTableScreen extends ConsumerWidget {
                                   // 3. Finish / Declare Slot
                                   _buildPerspectiveFinishSlot(
                                     context: context,
-                                    isActivated: canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging),
-                                    canAcceptDrop: (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) || tableState.isAwaitingHumanDeclarationShow,
+                                    isActivated: canDeclare ||
+                                        (isHumanTurn &&
+                                            isDiscardPhase &&
+                                            uiState.isDragging),
+                                    canAcceptDrop: (isHumanTurn &&
+                                            isDiscardPhase &&
+                                            !tableState.isRoundOver) ||
+                                        tableState
+                                            .isAwaitingHumanDeclarationShow,
                                     canDeclare: canDeclare,
-                                    onDeclare: canDeclare ? () {
-                                      if (tableState.isAwaitingHumanDeclarationShow) {
-                                        _handleSubmitDeclarationShow(context, ref);
-                                      } else {
-                                        _handleDiscardAndDeclare(context, ref);
-                                      }
-                                    } : null,
-                                    onCardDeclared: ((isHumanTurn && isDiscardPhase && !tableState.isRoundOver) || tableState.isAwaitingHumanDeclarationShow) ? (card) {
-                                      if (tableState.isAwaitingHumanDeclarationShow) {
-                                        _handleSubmitDeclarationShow(context, ref);
-                                      } else {
-                                        _handleDiscardAndDeclare(context, ref, finishCard: card);
-                                      }
-                                    } : null,
+                                    onDeclare: canDeclare
+                                        ? () {
+                                            if (tableState
+                                                .isAwaitingHumanDeclarationShow) {
+                                              _handleSubmitDeclarationShow(
+                                                  context, ref);
+                                            } else {
+                                              _handleDiscardAndDeclare(
+                                                  context, ref);
+                                            }
+                                          }
+                                        : null,
+                                    onCardDeclared: ((isHumanTurn &&
+                                                isDiscardPhase &&
+                                                !tableState.isRoundOver) ||
+                                            tableState
+                                                .isAwaitingHumanDeclarationShow)
+                                        ? (card) {
+                                            if (tableState
+                                                .isAwaitingHumanDeclarationShow) {
+                                              _handleSubmitDeclarationShow(
+                                                  context, ref);
+                                            } else {
+                                              _handleDiscardAndDeclare(
+                                                  context, ref,
+                                                  finishCard: card);
+                                            }
+                                          }
+                                        : null,
                                   ),
                                 ],
                               ),
@@ -439,426 +362,194 @@ class GameTableScreen extends ConsumerWidget {
                 // Top HUD Navigation & Control Bar
 
                 Positioned(
-
                   top: 0,
-
                   left: 0,
-
                   right: 0,
-
                   child: _buildTopHudBar(
-
                     context,
-
                     ref,
-
                     tableState: tableState,
-
                     notifier: notifier,
-
                     toastMessage: toastMessage,
-
                     isGameComplete: isGameComplete,
-
                     isTournamentOver: isTournamentOver,
-
                     wildJoker: wildJoker,
-
                   ),
-
                 ),
-
-
 
                 // Maya AI Host Floating Status Pill
 
                 Positioned(
-
                   top: 54,
-
                   left: 0,
-
                   right: 0,
-
                   child: Center(
-
                     child: OpponentPanel(
-
                       opponent: aiPlayer,
-
                       isThinking: !isHumanTurn && !isGameComplete,
-
                       difficultyLabel: tableState.aiDifficultyLabel,
-
                       isDealer: tableState.isAiDealer,
-
                       scoreText: null,
-
                       isHostOverlay: true,
-
                     ),
-
                   ),
-
                 ),
-
-
-
-                // Table Pot Banner directly below host pill
-
-                Positioned(
-
-                  top: 94,
-
-                  left: 0,
-
-                  right: 0,
-
-                  child: Center(
-
-                    child: Container(
-
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-
-                      decoration: BoxDecoration(
-
-                        color: const Color(0xFF060F16).withValues(alpha: 0.88),
-
-                        borderRadius: BorderRadius.circular(16),
-
-                        border: Border.all(
-
-                          color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
-
-                          width: 1.0,
-
-                        ),
-
-                        boxShadow: [
-
-                          BoxShadow(
-
-                            color: Colors.black.withValues(alpha: 0.5),
-
-                            blurRadius: 8,
-
-                          ),
-
-                        ],
-
-                      ),
-
-                      child: Row(
-
-                        mainAxisSize: MainAxisSize.min,
-
-                        children: [
-
-                          const Text(
-
-                            'TABLE POT',
-
-                            style: TextStyle(
-
-                              color: Color(0xFFD0C5AF),
-
-                              fontSize: 10,
-
-                              fontWeight: FontWeight.w800,
-
-                              letterSpacing: 0.8,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(width: 6),
-
-                          const Text(
-
-                            '🪙 1,200',
-
-                            style: TextStyle(
-
-                              color: Color(0xFFF2CA50),
-
-                fontSize: 11,
-
-                              fontWeight: FontWeight.w900,
-
-                            ),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    ),
-
-                  ),
-
-                ),
-
-
 
                 // Player 13-Card Hand Tray (Centered on Table Axis, Info Bar BELOW Cards)
 
                 Positioned(
-
                   left: 0,
-
                   right: 0,
-
                   bottom: 6,
-
                   child: Center(
-
                     child: SizedBox(
-
-                      width: 1260,
-
+                      width: isDesktop
+                          ? 1440
+                          : (Responsive.isTablet(context) ? 1120 : 960),
                       child: Column(
-
                         mainAxisSize: MainAxisSize.min,
-
                         children: [
-
                           PlayerHand(
-
                             cardGroups: cardGroups,
-
                             wildJokerCard: notifier.effectiveHumanWildJoker,
-
                             selectedCard: tableState.selectedCard,
-
                             selectedCards: tableState.selectedCards,
-
                             isDiscardPhase: isHumanTurn && isDiscardPhase,
-
                             onCardTap: (card) => notifier.selectCard(card),
-
                             onCardMoved: (card, fromGroupId, toGroupId) {
-
                               notifier.moveCardBetweenGroups(
-
                                 card,
-
                                 fromGroupId,
-
                                 toGroupId,
-
-                                cardGroups.firstWhere((g) => g.id == toGroupId, orElse: () => cardGroups.first).cards.length,
-
+                                cardGroups
+                                    .firstWhere((g) => g.id == toGroupId,
+                                        orElse: () => cardGroups.first)
+                                    .cards
+                                    .length,
                               );
-
                             },
-
-                            onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
-
-                              notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
-
+                            onCardMovedToIndex:
+                                (card, fromGroupId, toGroupId, insertIndex) {
+                              notifier.moveCardBetweenGroups(
+                                  card, fromGroupId, toGroupId, insertIndex);
                             },
-
                             onCardReordered: (groupId, oldIndex, newIndex) {
-
-                              notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
-
+                              notifier.moveCardWithinGroup(
+                                  groupId, oldIndex, newIndex);
                             },
-
                             onCardMovedToNewGroup: (card, fromGroupId) {
-
                               notifier.moveCardToNewGroup(card, fromGroupId);
-
                             },
-
                             onCardDragStarted: (card, groupId) {
-
-                              ref.read(gameUIProvider.notifier).startDrag(card, groupId);
-
+                              ref
+                                  .read(gameUIProvider.notifier)
+                                  .startDrag(card, groupId);
                             },
-
                             onDragEnded: () {
-
                               ref.read(gameUIProvider.notifier).endDrag();
-
                             },
-
                             onDiscard: (card) {
-
                               if (isHumanTurn && isDiscardPhase) {
-
                                 notifier.discardCard(card);
-
                               }
-
                             },
-
                           ),
-
                           const SizedBox(height: 4),
-
                           RoyalLifeChecklistBar(
-
                             hasFirstLife: notifier.hasHumanLife,
-
                             hasSecondLife: notifier.hasHumanSecondLife,
-
                             points: tableState.currentScore,
-
                             isMyTurn: isHumanTurn,
-
                             turnSeconds: tableState.turnSecondsRemaining,
-
+                            instructionText: toastMessage,
                           ),
-
                         ],
-
                       ),
-
                     ),
-
                   ),
-
                 ),
-
-
 
                 // Left Action Controls: Drop (20), Sort Hand
 
                 Positioned(
-
                   left: 48,
-
                   bottom: 14,
-
                   child: _buildLeftThumbControls(
-
                     context,
-
                     ref,
-
                     canDrop: canDrop,
-
                     dropPenalty: dropPenalty,
-
                     notifier: notifier,
-
                     isDesktop: true,
-
                     isTablet: false,
-
                   ),
-
                 ),
-
-
 
                 // Right Action Controls: Group, Discard, Declare Hand
 
                 Positioned(
-
                   right: 48,
-
                   bottom: 14,
-
                   child: _buildRightThumbControls(
-
                     context,
-
                     ref,
-
                     notifier: notifier,
-
                     tableState: tableState,
-
                     uiState: uiState,
-
                     canDiscard: canDiscard,
-
                     canDeclare: canDeclare,
-
                     isGameComplete: isGameComplete,
-
                     isTournamentOver: isTournamentOver,
-
                     nextDealNumber: nextDealNumber,
-
                     isDesktop: true,
-
                     isTablet: false,
-
                   ),
-
                 ),
-
               ],
-
             ),
-
           ),
-
         ),
-
       ),
-
     );
 
-
-
     return Scaffold(
-
       backgroundColor: Colors.transparent,
-
       body: GameTableBackground(
-
         child: Stack(
-
           children: [
-
             SafeArea(
-
+              top: false,
+              bottom: true,
               child: mayaAiCanvas,
-
             ),
-
-
 
             // Card Animation Layer (Deals & discards flight)
 
             const Positioned.fill(
-
               child: CardAnimationLayer(),
-
             ),
 
-            if (uiState.showSecretJokerReveal && uiState.secretJokerCard != null)
+            if (uiState.showSecretJokerReveal &&
+                uiState.secretJokerCard != null)
               Positioned.fill(
                 child: SecretJokerRevealOverlay(
                   wildJoker: uiState.secretJokerCard!,
-                  onDismiss: () => ref.read(gameUIProvider.notifier).dismissSecretJokerReveal(),
+                  onDismiss: () => ref
+                      .read(gameUIProvider.notifier)
+                      .dismissSecretJokerReveal(),
                 ),
               ),
-
           ],
-
         ),
-
       ),
-
     );
-
   }
-
-
 
   // --- 3D Perspective Card Elements for Flat Table Surface ---
 
   static const double _tableCardW = 84.0;
 
   static const double _tableCardH = 117.6;
-
-
 
   /// Closed Deck Stack with Perpendicular Wild Joker tucked horizontally underneath
 
@@ -1057,8 +748,10 @@ class GameTableScreen extends ConsumerWidget {
         ? discardPile
         : discardPile.sublist(discardPile.length - 5);
     final count = visibleDiscards.length;
-    final double stepX = _tableCardW * 0.46; // ~50% overlap showing half of each previous card
-    final totalWidth = count <= 1 ? _tableCardW : (_tableCardW + (count - 1) * stepX);
+    final double stepX =
+        _tableCardW * 0.46; // ~50% overlap showing half of each previous card
+    final totalWidth =
+        count <= 1 ? _tableCardW : (_tableCardW + (count - 1) * stepX);
 
     final pileWidget = SizedBox(
       width: totalWidth,
@@ -1111,7 +804,8 @@ class GameTableScreen extends ConsumerWidget {
                   ),
                   child: CardWidget(
                     card: visibleDiscards[i],
-                    isWildJoker: JokerUtils.isWildJoker(visibleDiscards[i], wildJoker),
+                    isWildJoker:
+                        JokerUtils.isWildJoker(visibleDiscards[i], wildJoker),
                     width: _tableCardW,
                     height: _tableCardH,
                   ),
@@ -1132,7 +826,8 @@ class GameTableScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF0F172A),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFFBBF24), width: 1.0),
+                    border:
+                        Border.all(color: const Color(0xFFFBBF24), width: 1.0),
                     boxShadow: const [
                       BoxShadow(
                         color: Colors.black,
@@ -1157,11 +852,13 @@ class GameTableScreen extends ConsumerWidget {
               width: _tableCardW + 60,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF18222A).withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0x66D4AF37), width: 0.8),
+                    border:
+                        Border.all(color: const Color(0x66D4AF37), width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1251,15 +948,14 @@ class GameTableScreen extends ConsumerWidget {
             ),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: active
-                  ? const Color(0xFFFBBF24)
-                  : const Color(0x55F59E0B),
+              color: active ? const Color(0xFFFBBF24) : const Color(0x55F59E0B),
               width: active ? 2.2 : 1.5,
             ),
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: const Color(0xFFFBBF24).withValues(alpha: isHovering ? 0.8 : 0.55),
+                      color: const Color(0xFFFBBF24)
+                          .withValues(alpha: isHovering ? 0.8 : 0.55),
                       blurRadius: isHovering ? 20 : 14,
                       spreadRadius: isHovering ? 3.5 : 2.5,
                     ),
@@ -1292,7 +988,9 @@ class GameTableScreen extends ConsumerWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: active ? const Color(0xFFFDE68A).withValues(alpha: 0.8) : Colors.white38,
+                  color: active
+                      ? const Color(0xFFFDE68A).withValues(alpha: 0.8)
+                      : Colors.white38,
                 ),
               ),
             ],
@@ -1335,6 +1033,7 @@ class GameTableScreen extends ConsumerWidget {
 
     return buildSlotContainer(false);
   }
+
   Widget _buildTopHudBar(
     BuildContext context,
     WidgetRef ref, {
@@ -1347,25 +1046,40 @@ class GameTableScreen extends ConsumerWidget {
   }) {
     final size = MediaQuery.of(context).size;
     final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
-    final isTablet = Responsive.isTablet(context) || (size.width >= 768 && size.width < 1024);
+    final isTablet = Responsive.isTablet(context) ||
+        (size.width >= 768 && size.width < 1024);
     final isLockedJoker = tableState.gameSettings.isClosedJoker &&
         tableState.gameSettings.jokerMode != 'OPEN' &&
         !tableState.hasHumanOpenedJoker;
 
-    final authUser = ref.watch(authProvider);
-    final homeState = ref.watch(homeProvider);
-    final userCoins = authUser?.coins ?? homeState.coins;
-
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 18 : 8,
-        vertical: isDesktop ? 7 : 3.5,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + (isDesktop ? 6 : 4),
+        bottom: isDesktop ? 8 : 5,
+        left: isDesktop ? 18 : 8,
+        right: isDesktop ? 18 : 8,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xB3000000),
-        border: Border(
-          bottom: BorderSide(color: Color(0x33FFFFFF), width: 0.8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF09141A), Color(0xFF040A0D)],
         ),
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.8),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -1449,7 +1163,8 @@ class GameTableScreen extends ConsumerWidget {
                     ),
                   ),
                   SizedBox(width: isDesktop ? 8 : 5),
-                  _buildMiniWildJokerPill(wildJoker, isLockedJoker, isDesktop: isDesktop),
+                  _buildMiniWildJokerPill(wildJoker, isLockedJoker,
+                      isDesktop: isDesktop),
                 ],
               ),
 
@@ -1559,45 +1274,6 @@ class GameTableScreen extends ConsumerWidget {
                     ),
                   ),
                   SizedBox(width: isDesktop ? 8 : 5),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 12 : 8,
-                      vertical: isDesktop ? 6 : 3.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF182128),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFF2CA50).withValues(alpha: 0.4),
-                        width: 0.8,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '🪙',
-                          style: TextStyle(fontSize: isDesktop ? 15 : 11),
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          _formatCoins(userCoins),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: isDesktop ? 13 : 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFF2CA50),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: isDesktop ? 8 : 5),
                   if (isDesktop || size.width >= 980) ...[
                     Container(
                       padding: EdgeInsets.symmetric(
@@ -1642,62 +1318,81 @@ class GameTableScreen extends ConsumerWidget {
       ),
     );
   }
-  Widget _buildMiniWildJokerPill(Card? wildJoker, bool isLocked, {bool isDesktop = false}) {
 
+  Widget _buildMiniWildJokerPill(Card? wildJoker, bool isLocked,
+      {bool isDesktop = false}) {
     String rankStr = '7';
 
     String suitStr = '♠';
 
     bool isRed = false;
 
-
-
     if (wildJoker != null) {
-
       if (wildJoker.isPrintedJoker) {
-
         rankStr = 'JKR';
 
         suitStr = '★';
-
       } else {
-
         switch (wildJoker.rank) {
+          case Rank.ace:
+            rankStr = 'A';
+            break;
 
-          case Rank.ace: rankStr = 'A'; break;
+          case Rank.king:
+            rankStr = 'K';
+            break;
 
-          case Rank.king: rankStr = 'K'; break;
+          case Rank.queen:
+            rankStr = 'Q';
+            break;
 
-          case Rank.queen: rankStr = 'Q'; break;
+          case Rank.jack:
+            rankStr = 'J';
+            break;
 
-          case Rank.jack: rankStr = 'J'; break;
+          case Rank.ten:
+            rankStr = '10';
+            break;
 
-          case Rank.ten: rankStr = '10'; break;
+          case Rank.nine:
+            rankStr = '9';
+            break;
 
-          case Rank.nine: rankStr = '9'; break;
+          case Rank.eight:
+            rankStr = '8';
+            break;
 
-          case Rank.eight: rankStr = '8'; break;
+          case Rank.seven:
+            rankStr = '7';
+            break;
 
-          case Rank.seven: rankStr = '7'; break;
+          case Rank.six:
+            rankStr = '6';
+            break;
 
-          case Rank.six: rankStr = '6'; break;
+          case Rank.five:
+            rankStr = '5';
+            break;
 
-          case Rank.five: rankStr = '5'; break;
+          case Rank.four:
+            rankStr = '4';
+            break;
 
-          case Rank.four: rankStr = '4'; break;
+          case Rank.three:
+            rankStr = '3';
+            break;
 
-          case Rank.three: rankStr = '3'; break;
+          case Rank.two:
+            rankStr = '2';
+            break;
 
-          case Rank.two: rankStr = '2'; break;
-
-          default: rankStr = '7'; break;
-
+          default:
+            rankStr = '7';
+            break;
         }
 
         switch (wildJoker.suit) {
-
           case Suit.hearts:
-
             suitStr = '♥';
 
             isRed = true;
@@ -1705,7 +1400,6 @@ class GameTableScreen extends ConsumerWidget {
             break;
 
           case Suit.diamonds:
-
             suitStr = '♦';
 
             isRed = true;
@@ -1713,7 +1407,6 @@ class GameTableScreen extends ConsumerWidget {
             break;
 
           case Suit.clubs:
-
             suitStr = '♣';
 
             isRed = false;
@@ -1721,7 +1414,6 @@ class GameTableScreen extends ConsumerWidget {
             break;
 
           case Suit.spades:
-
             suitStr = '♠';
 
             isRed = false;
@@ -1729,570 +1421,321 @@ class GameTableScreen extends ConsumerWidget {
             break;
 
           default:
-
             suitStr = '♠';
 
             isRed = false;
-
         }
-
       }
-
     }
 
-
-
     return Container(
-
       padding: EdgeInsets.symmetric(
-
         horizontal: isDesktop ? 11 : 8,
-
         vertical: isDesktop ? 4.5 : 3,
-
       ),
-
       decoration: BoxDecoration(
-
         color: const Color(0xFF222B32).withValues(alpha: 0.9),
-
         borderRadius: BorderRadius.circular(16),
-
         boxShadow: [
-
           BoxShadow(
-
             color: Colors.black.withValues(alpha: 0.3),
-
             blurRadius: 4,
-
           ),
-
         ],
-
       ),
-
       child: Row(
-
         mainAxisSize: MainAxisSize.min,
-
         children: [
-
           Text(
-
             'JOKER',
-
             style: GoogleFonts.outfit(
-
               fontSize: isDesktop ? 10.5 : 8.5,
-
               fontWeight: FontWeight.w800,
-
               color: const Color(0xFFD0C5AF),
-
               letterSpacing: 0.8,
-
             ),
-
           ),
-
           SizedBox(width: isDesktop ? 7 : 5),
-
           if (isLocked || wildJoker == null)
-
             Container(
-
-              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 6 : 4, vertical: isDesktop ? 2 : 1),
-
+              padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 6 : 4, vertical: isDesktop ? 2 : 1),
               decoration: BoxDecoration(
-
                 color: const Color(0xFF141D24),
-
                 borderRadius: BorderRadius.circular(4),
-
                 border: Border.all(color: Colors.white24, width: 0.6),
-
               ),
-
               child: Row(
-
                 mainAxisSize: MainAxisSize.min,
-
                 children: [
-
-                  Icon(Icons.lock_rounded, size: isDesktop ? 11 : 8.5, color: const Color(0xFFF2CA50)),
-
+                  Icon(Icons.lock_rounded,
+                      size: isDesktop ? 11 : 8.5,
+                      color: const Color(0xFFF2CA50)),
                   const SizedBox(width: 2),
-
                   Text(
-
                     'LOCKED',
-
                     style: TextStyle(
-
                       fontSize: isDesktop ? 9.5 : 7.5,
-
                       color: const Color(0xFFF2CA50),
-
                       fontWeight: FontWeight.bold,
-
                     ),
-
                   ),
-
                 ],
-
               ),
-
             )
-
           else
-
             Container(
-
-              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 6 : 4, vertical: isDesktop ? 2 : 1),
-
+              padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 6 : 4, vertical: isDesktop ? 2 : 1),
               decoration: BoxDecoration(
-
                 color: const Color(0xFFFAF7F2),
-
                 borderRadius: BorderRadius.circular(3),
-
                 boxShadow: [
-
                   BoxShadow(
-
                     color: Colors.black.withValues(alpha: 0.25),
-
                     blurRadius: 2,
-
                   ),
-
                 ],
-
               ),
-
               child: Row(
-
                 mainAxisSize: MainAxisSize.min,
-
                 children: [
-
                   Text(
-
                     rankStr,
-
                     style: GoogleFonts.outfit(
-
                       fontSize: isDesktop ? 12 : 10,
-
                       fontWeight: FontWeight.w900,
-
-                      color: isRed ? const Color(0xFFB91C1C) : const Color(0xFF141D24),
-
+                      color: isRed
+                          ? const Color(0xFFB91C1C)
+                          : const Color(0xFF141D24),
                       height: 1.0,
-
                     ),
-
                   ),
-
                   const SizedBox(width: 1),
-
                   Text(
-
                     suitStr,
-
                     style: TextStyle(
-
                       fontSize: isDesktop ? 11 : 9,
-
-                      color: isRed ? const Color(0xFFB91C1C) : const Color(0xFF141D24),
-
+                      color: isRed
+                          ? const Color(0xFFB91C1C)
+                          : const Color(0xFF141D24),
                       height: 1.0,
-
                     ),
-
                   ),
-
                 ],
-
               ),
-
             ),
-
           SizedBox(width: isDesktop ? 6 : 4),
-
           Icon(
-
             Icons.workspace_premium_rounded,
-
             size: isDesktop ? 16 : 13,
-
             color: const Color(0xFFF2CA50),
-
           ),
-
         ],
-
       ),
-
     );
-
   }
-
-
 
   // --- Bottom Player Hand Dock ---
 
   Widget _buildBottomPlayerDock(
-
     BuildContext context,
-
     WidgetRef ref, {
-
     required dynamic tableState,
-
     required dynamic notifier,
-
     required List<CardGroup> cardGroups,
-
     required bool isHumanTurn,
-
     required bool isDiscardPhase,
-
     required bool canDrop,
-
     required int dropPenalty,
-
     required bool canDiscard,
-
     required bool canDeclare,
-
     required bool isGameComplete,
-
     required bool isTournamentOver,
-
     required int nextDealNumber,
-
   }) {
-
     final uiState = ref.watch(gameUIProvider);
 
     final size = MediaQuery.of(context).size;
 
     final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
 
-    final isTablet = Responsive.isTablet(context) || (size.width >= 768 && size.width < 1024);
+    final isTablet = Responsive.isTablet(context) ||
+        (size.width >= 768 && size.width < 1024);
 
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final isPortrait =
+        MediaQuery.of(context).orientation == Orientation.portrait;
 
     final isMobileLandscape = !isPortrait && !isDesktop;
 
-
-
     if (isMobileLandscape) {
-
       return Container(
-
         padding: const EdgeInsets.symmetric(
-
           horizontal: 8,
-
           vertical: 2,
-
         ),
-
         child: Column(
-
           mainAxisSize: MainAxisSize.min,
-
           children: [
-
             PlayerHand(
-
               cardGroups: cardGroups,
-
               wildJokerCard: notifier.effectiveHumanWildJoker,
-
               selectedCard: tableState.selectedCard,
-
-                            selectedCards: tableState.selectedCards,
-
+              selectedCards: tableState.selectedCards,
               isDiscardPhase: isHumanTurn && isDiscardPhase,
-
-                            onCardTap: (card) => notifier.selectCard(card),
-
+              onCardTap: (card) => notifier.selectCard(card),
               onCardMoved: (card, fromGroupId, toGroupId) {
-
                 notifier.moveCardBetweenGroups(
-
                   card,
-
                   fromGroupId,
-
                   toGroupId,
-
-                  cardGroups.firstWhere((g) => g.id == toGroupId, orElse: () => cardGroups.first).cards.length,
-
+                  cardGroups
+                      .firstWhere((g) => g.id == toGroupId,
+                          orElse: () => cardGroups.first)
+                      .cards
+                      .length,
                 );
-
               },
-
               onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
-
-                notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
-
+                notifier.moveCardBetweenGroups(
+                    card, fromGroupId, toGroupId, insertIndex);
               },
-
               onCardReordered: (groupId, oldIndex, newIndex) {
-
                 notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
-
               },
-
               onCardMovedToNewGroup: (card, fromGroupId) {
-
                 notifier.moveCardToNewGroup(card, fromGroupId);
-
               },
-
               onCardDragStarted: (card, groupId) {
-
                 ref.read(gameUIProvider.notifier).startDrag(card, groupId);
-
               },
-
               onDragEnded: () {
-
                 ref.read(gameUIProvider.notifier).endDrag();
-
               },
-
               onDiscard: (card) {
-
                 if (isHumanTurn && isDiscardPhase) {
-
                   notifier.discardCard(card);
-
                 }
-
               },
-
             ),
-
             const SizedBox(height: 2),
-
             RoyalLifeChecklistBar(
-
               hasFirstLife: notifier.hasHumanLife,
-
               hasSecondLife: notifier.hasHumanSecondLife,
-
               points: tableState.currentScore,
-
               isMyTurn: isHumanTurn,
-
               turnSeconds: tableState.turnSecondsRemaining,
-
             ),
-
           ],
-
         ),
-
       );
-
     }
 
-
-
     return Container(
-
       padding: EdgeInsets.symmetric(
-
         horizontal: isDesktop ? 18 : 10,
-
         vertical: isDesktop ? 4 : 2,
-
       ),
-
       child: Column(
-
         mainAxisSize: MainAxisSize.min,
-
         children: [
-
           // Bottom Controls + Hand Rack Row
 
           Row(
-
             crossAxisAlignment: CrossAxisAlignment.end,
-
             children: [
-
               // Left Thumb Controls: Drop, Sort Hand
 
               _buildLeftThumbControls(
-
                 context,
-
                 ref,
-
                 canDrop: canDrop,
-
                 dropPenalty: dropPenalty,
-
                 notifier: notifier,
-
                 isDesktop: isDesktop,
-
                 isTablet: isTablet,
-
               ),
-
-
 
               // Center Hand Rack
 
               Expanded(
-
                 child: PlayerHand(
-
                   cardGroups: cardGroups,
-
                   wildJokerCard: notifier.effectiveHumanWildJoker,
-
                   selectedCard: tableState.selectedCard,
-
                   isDiscardPhase: isHumanTurn && isDiscardPhase,
-
-                            onCardTap: (card) => notifier.selectCard(card),
-
+                  onCardTap: (card) => notifier.selectCard(card),
                   onCardMoved: (card, fromGroupId, toGroupId) {
-
                     notifier.moveCardBetweenGroups(
-
                       card,
-
                       fromGroupId,
-
                       toGroupId,
-
-                      cardGroups.firstWhere((g) => g.id == toGroupId, orElse: () => cardGroups.first).cards.length,
-
+                      cardGroups
+                          .firstWhere((g) => g.id == toGroupId,
+                              orElse: () => cardGroups.first)
+                          .cards
+                          .length,
                     );
-
                   },
-
-                  onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
-
-                    notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
-
+                  onCardMovedToIndex:
+                      (card, fromGroupId, toGroupId, insertIndex) {
+                    notifier.moveCardBetweenGroups(
+                        card, fromGroupId, toGroupId, insertIndex);
                   },
-
                   onCardReordered: (groupId, oldIndex, newIndex) {
-
                     notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
-
                   },
-
                   onCardMovedToNewGroup: (card, fromGroupId) {
-
                     notifier.moveCardToNewGroup(card, fromGroupId);
-
                   },
-
                   onCardDragStarted: (card, groupId) {
-
                     ref.read(gameUIProvider.notifier).startDrag(card, groupId);
-
                   },
-
                   onDragEnded: () {
-
                     ref.read(gameUIProvider.notifier).endDrag();
-
                   },
-
                   onDiscard: (card) {
-
                     if (isHumanTurn && isDiscardPhase) {
-
                       notifier.discardCard(card);
-
                     }
-
                   },
-
                 ),
-
               ),
-
-
 
               // Right Thumb Controls: Group, Discard, Declare (or Scorecard, Next Deal when complete)
 
               _buildRightThumbControls(
-
                 context,
-
                 ref,
-
                 notifier: notifier,
-
                 tableState: tableState,
-
                 uiState: uiState,
-
                 canDiscard: canDiscard,
-
                 canDeclare: canDeclare,
-
                 isGameComplete: isGameComplete,
-
                 isTournamentOver: isTournamentOver,
-
                 nextDealNumber: nextDealNumber,
-
                 isDesktop: isDesktop,
-
                 isTablet: isTablet,
-
               ),
-
             ],
-
           ),
 
           SizedBox(height: isDesktop ? 4 : 2),
 
-
-
           // Meld Status Bar directly BELOW cards
 
           RoyalLifeChecklistBar(
-
             hasFirstLife: notifier.hasHumanLife,
-
             hasSecondLife: notifier.hasHumanSecondLife,
-
             points: tableState.currentScore,
-
             isMyTurn: isHumanTurn,
-
             turnSeconds: tableState.turnSecondsRemaining,
-
           ),
-
         ],
-
       ),
-
     );
-
   }
-
-
 
   // --- Left Thumb Controls (Drop, Sort Hand) ---
 
@@ -2306,11 +1749,11 @@ class GameTableScreen extends ConsumerWidget {
     bool isDesktop = false,
     bool isTablet = false,
   }) {
-    final double padH = isDesktop ? 14.0 : (isTablet ? 11.0 : 8.0);
-    final double padV = isDesktop ? 9.0 : (isTablet ? 7.0 : 5.5);
-    final double iconSize = isDesktop ? 16.0 : (isTablet ? 14.0 : 12.0);
-    final double fontSize = isDesktop ? 12.5 : (isTablet ? 11.0 : 9.5);
-    final double gap = isDesktop ? 7.0 : 5.0;
+    final double padH = isDesktop ? 18.0 : (isTablet ? 14.0 : 10.0);
+    final double padV = isDesktop ? 11.0 : (isTablet ? 9.0 : 7.0);
+    final double iconSize = isDesktop ? 19.0 : (isTablet ? 16.0 : 14.0);
+    final double fontSize = isDesktop ? 14.0 : (isTablet ? 12.0 : 10.5);
+    final double gap = isDesktop ? 9.0 : 6.0;
 
     return Padding(
       padding: EdgeInsets.only(right: isDesktop ? 10 : 6, bottom: 4),
@@ -2329,24 +1772,26 @@ class GameTableScreen extends ConsumerWidget {
                     ? const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFF8B1E1E), Color(0xFF4A0E0E)],
+                        colors: [Color(0xFFB91C1C), Color(0xFF7F1D1D)],
                       )
                     : null,
-                color: canDrop ? null : const Color(0x33120424),
+                color: canDrop ? null : const Color(0xFF1B2228),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: canDrop ? const Color(0xFFE57373) : Colors.white12,
-                  width: canDrop ? 1.4 : 0.8,
+                  color: canDrop
+                      ? const Color(0xFFFCA5A5)
+                      : const Color(0x66D4AF37),
+                  width: canDrop ? 1.6 : 1.0,
                 ),
-                boxShadow: canDrop
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF8B1E1E).withValues(alpha: 0.5),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: canDrop
+                        ? const Color(0xFFDC2626).withValues(alpha: 0.6)
+                        : Colors.black.withValues(alpha: 0.4),
+                    blurRadius: canDrop ? 10 : 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -2354,15 +1799,19 @@ class GameTableScreen extends ConsumerWidget {
                   Icon(
                     Icons.flag_rounded,
                     size: iconSize,
-                    color: canDrop ? const Color(0xFFFFCDD2) : Colors.white24,
+                    color: canDrop
+                        ? const Color(0xFFFFF1F2)
+                        : const Color(0xFF94A3B8),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
                     'Drop ($dropPenalty)',
                     style: GoogleFonts.outfit(
-                      color: canDrop ? const Color(0xFFFFCDD2) : Colors.white30,
+                      color: canDrop
+                          ? const Color(0xFFFFF1F2)
+                          : const Color(0xFF94A3B8),
                       fontSize: fontSize,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: canDrop ? FontWeight.w900 : FontWeight.w700,
                     ),
                   ),
                 ],
@@ -2381,17 +1830,17 @@ class GameTableScreen extends ConsumerWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF134E35), Color(0xFF09291B)],
+                  colors: [Color(0xFF15803D), Color(0xFF0E4B24)],
                 ),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: const Color(0xFF48BB78),
-                  width: 1.2,
+                  color: const Color(0xFF86EFAC),
+                  width: 1.6,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF134E35).withValues(alpha: 0.5),
-                    blurRadius: 6,
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.6),
+                    blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -2399,14 +1848,15 @@ class GameTableScreen extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.swap_vert_rounded, size: iconSize, color: const Color(0xFFA7F3D0)),
-                  const SizedBox(width: 4),
+                  Icon(Icons.swap_vert_rounded,
+                      size: iconSize, color: const Color(0xFFDCFCE7)),
+                  const SizedBox(width: 5),
                   Text(
                     'Sort Hand',
                     style: GoogleFonts.outfit(
-                      color: const Color(0xFFD1FAE5),
+                      color: const Color(0xFFDCFCE7),
                       fontSize: fontSize,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -2425,30 +1875,31 @@ class GameTableScreen extends ConsumerWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF5B21B6), Color(0xFF2E1065)],
+                  colors: [Color(0xFF7C3AED), Color(0xFF4C1D95)],
                 ),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: const Color(0xFFF2CA50),
-                  width: 1.4,
+                  width: 1.8,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF5B21B6).withValues(alpha: 0.55),
-                    blurRadius: 7,
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.7),
+                    blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
                   BoxShadow(
-                    color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
-                    blurRadius: 4,
+                    color: const Color(0xFFF2CA50).withValues(alpha: 0.4),
+                    blurRadius: 6,
                   ),
                 ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.auto_awesome_rounded, size: iconSize, color: const Color(0xFFFDE68A)),
-                  const SizedBox(width: 4),
+                  Icon(Icons.auto_awesome_rounded,
+                      size: iconSize, color: const Color(0xFFFDE68A)),
+                  const SizedBox(width: 5),
                   Text(
                     'AI Group',
                     style: GoogleFonts.outfit(
@@ -2481,17 +1932,20 @@ class GameTableScreen extends ConsumerWidget {
     bool isDesktop = false,
     bool isTablet = false,
   }) {
-    final double padH = isDesktop ? 16.0 : (isTablet ? 12.0 : 8.0);
-    final double padV = isDesktop ? 9.5 : (isTablet ? 7.5 : 6.0);
-    final double iconSize = isDesktop ? 17.0 : (isTablet ? 15.0 : 13.0);
-    final double fontSize = isDesktop ? 13.0 : (isTablet ? 11.5 : 10.0);
-    final double declareFontSize = isDesktop ? 13.5 : (isTablet ? 12.0 : 10.5);
-    final double declarePadH = isDesktop ? 22.0 : (isTablet ? 16.0 : 14.0);
-    final double gap = isDesktop ? 7.0 : 5.0;
+    final double padH = isDesktop ? 18.0 : (isTablet ? 14.0 : 10.0);
+    final double padV = isDesktop ? 11.0 : (isTablet ? 9.0 : 7.0);
+    final double iconSize = isDesktop ? 19.0 : (isTablet ? 16.0 : 14.0);
+    final double fontSize = isDesktop ? 14.0 : (isTablet ? 12.0 : 10.5);
+    final double declareFontSize = isDesktop ? 14.5 : (isTablet ? 13.0 : 11.5);
+    final double declarePadH = isDesktop ? 26.0 : (isTablet ? 20.0 : 16.0);
+    final double gap = isDesktop ? 9.0 : 6.0;
     final bool isHumanTurn = notifier.isHumanTurn;
     final bool isDiscardPhase = notifier.isDiscardPhase;
-    final isFinishButtonActive = canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging);
-    final canAcceptFinishDrop = (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) || tableState.isAwaitingHumanDeclarationShow;
+    final isFinishButtonActive =
+        canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging);
+    final canAcceptFinishDrop =
+        (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
+            tableState.isAwaitingHumanDeclarationShow;
 
     if (isGameComplete) {
       return Padding(
@@ -2500,81 +1954,94 @@ class GameTableScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             InkWell(
-          onTap: () {
-            if (isTournamentOver) {
-              notifier.resetTournament();
-            } else {
-              _checkTournamentStatus(context, ref);
-            }
-          },
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: declarePadH, vertical: padV + 2),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFF2CA50), Color(0xFFD4AF37), Color(0xFFAA771C)],
+              onTap: () {
+                if (isTournamentOver) {
+                  notifier.resetTournament();
+                } else {
+                  _checkTournamentStatus(context, ref);
+                }
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: declarePadH, vertical: padV + 2),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFFF2CA50),
+                      Color(0xFFD4AF37),
+                      Color(0xFFAA771C)
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF2CA50).withValues(alpha: 0.6),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isTournamentOver
+                          ? Icons.emoji_events_rounded
+                          : Icons.play_arrow_rounded,
+                      size: iconSize + 2,
+                      color: const Color(0xFF241A00),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isTournamentOver
+                          ? 'New Tournament'
+                          : 'Deal Next Round (#$nextDealNumber)',
+                      style: GoogleFonts.outfit(
+                        color: const Color(0xFF241A00),
+                        fontSize: declareFontSize,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () => _openScoreCard(context, ref),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFF2CA50).withValues(alpha: 0.6),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 14 : 10, vertical: padV + 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF182128),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: const Color(0xFFF2CA50).withValues(alpha: 0.5),
+                      width: 1.0),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.leaderboard_rounded,
+                        size: 16, color: Color(0xFFFDE68A)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Scorecard',
+                      style: GoogleFonts.outfit(
+                        color: const Color(0xFFFDE68A),
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isTournamentOver ? Icons.emoji_events_rounded : Icons.play_arrow_rounded,
-                  size: iconSize + 2,
-                  color: const Color(0xFF241A00),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  isTournamentOver ? 'New Tournament' : 'Deal Next Round (#$nextDealNumber)',
-                  style: GoogleFonts.outfit(
-                    color: const Color(0xFF241A00),
-                    fontSize: declareFontSize,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
-        const SizedBox(width: 8),
-        InkWell(
-          onTap: () => _openScoreCard(context, ref),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: isDesktop ? 14 : 10, vertical: padV + 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFF182128),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFF2CA50).withValues(alpha: 0.5), width: 1.0),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.leaderboard_rounded, size: 16, color: Color(0xFFFDE68A)),
-                const SizedBox(width: 4),
-                Text(
-                  'Scorecard',
-                  style: GoogleFonts.outfit(
-                    color: const Color(0xFFFDE68A),
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        ],
-      ),
       );
     }
 
@@ -2592,22 +2059,23 @@ class GameTableScreen extends ConsumerWidget {
                 onTap: () => notifier.groupSelectedCards(),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: padH, vertical: padV),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF1E3A8A), Color(0xFF0F172A)],
+                      colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
                     ),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: const Color(0xFF60A5FA),
-                      width: 1.2,
+                      color: const Color(0xFF93C5FD),
+                      width: 1.6,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF1E3A8A).withValues(alpha: 0.5),
-                        blurRadius: 6,
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.6),
+                        blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -2615,21 +2083,22 @@ class GameTableScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.layers_rounded, size: iconSize, color: const Color(0xFFBFDBFE)),
-                      const SizedBox(width: 4),
+                      Icon(Icons.layers_rounded,
+                          size: iconSize, color: const Color(0xFFEFF6FF)),
+                      const SizedBox(width: 5),
                       Text(
                         'Group',
                         style: GoogleFonts.outfit(
-                          color: const Color(0xFFDBEAFE),
+                          color: const Color(0xFFEFF6FF),
                           fontSize: fontSize,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              SizedBox(width: isDesktop ? 6 : 4),
+              SizedBox(width: isDesktop ? 8 : 5),
 
               // 2. Discard Button (Royal Amber/Gold Theme)
               InkWell(
@@ -2637,30 +2106,32 @@ class GameTableScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 18 : 10,
+                    horizontal: isDesktop ? 20 : 12,
                     vertical: padV,
                   ),
                   decoration: BoxDecoration(
                     gradient: canDiscard
                         ? const LinearGradient(
-                            colors: [Color(0xFFF2CA50), Color(0xFFD4AF37)],
+                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
                           )
                         : null,
-                    color: canDiscard ? null : const Color(0x33120424),
+                    color: canDiscard ? null : const Color(0xFF1B2228),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: canDiscard ? const Color(0xFFFFF176) : Colors.white12,
-                      width: canDiscard ? 1.4 : 0.8,
+                      color: canDiscard
+                          ? const Color(0xFFFFFBEB)
+                          : const Color(0x66D4AF37),
+                      width: canDiscard ? 1.8 : 1.0,
                     ),
-                    boxShadow: canDiscard
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFF2CA50).withValues(alpha: 0.5),
-                              blurRadius: 7,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: canDiscard
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.7)
+                            : Colors.black.withValues(alpha: 0.4),
+                        blurRadius: canDiscard ? 10 : 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -2668,15 +2139,20 @@ class GameTableScreen extends ConsumerWidget {
                       Icon(
                         Icons.arrow_upward_rounded,
                         size: iconSize,
-                        color: canDiscard ? const Color(0xFF241A00) : Colors.white24,
+                        color: canDiscard
+                            ? const Color(0xFF1F1200)
+                            : const Color(0xFF94A3B8),
                       ),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 4),
                       Text(
                         'Discard',
                         style: GoogleFonts.outfit(
-                          color: canDiscard ? const Color(0xFF241A00) : Colors.white30,
+                          color: canDiscard
+                              ? const Color(0xFF1F1200)
+                              : const Color(0xFF94A3B8),
                           fontSize: fontSize,
-                          fontWeight: FontWeight.w900,
+                          fontWeight:
+                              canDiscard ? FontWeight.w900 : FontWeight.w700,
                         ),
                       ),
                     ],
@@ -2720,29 +2196,41 @@ class GameTableScreen extends ConsumerWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: declarePadH,
-                    vertical: padV + 1.5,
+                    vertical: padV + 2,
                   ),
                   decoration: BoxDecoration(
                     gradient: active
                         ? const LinearGradient(
-                            colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFB45309)],
+                            colors: [
+                              Color(0xFFF59E0B),
+                              Color(0xFFD97706),
+                              Color(0xFFB45309)
+                            ],
                           )
                         : null,
-                    color: active ? null : const Color(0x33120424),
+                    color: active ? null : const Color(0xFF1B2228),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: active ? const Color(0xFFFDE68A) : Colors.white12,
-                      width: active ? 1.6 : 0.8,
+                      color: active
+                          ? const Color(0xFFFEF08A)
+                          : const Color(0x66D4AF37),
+                      width: active ? 2.0 : 1.0,
                     ),
-                    boxShadow: active
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFF59E0B).withValues(alpha: isHovering ? 0.85 : 0.6),
-                              blurRadius: isHovering ? 14 : 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: active
+                            ? const Color(0xFFF59E0B)
+                                .withValues(alpha: isHovering ? 0.95 : 0.7)
+                            : Colors.black.withValues(alpha: 0.4),
+                        blurRadius: active ? (isHovering ? 16 : 12) : 4,
+                        offset: const Offset(0, 3),
+                      ),
+                      if (active)
+                        BoxShadow(
+                          color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                          blurRadius: 6,
+                        ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -2750,15 +2238,22 @@ class GameTableScreen extends ConsumerWidget {
                       Icon(
                         Icons.emoji_events_rounded,
                         size: iconSize + 2,
-                        color: active ? const Color(0xFF241A00) : Colors.white24,
+                        color: active
+                            ? const Color(0xFF241A00)
+                            : const Color(0xFF94A3B8),
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        tableState.isAwaitingHumanDeclarationShow ? 'Submit Show' : 'Declare Hand',
+                        tableState.isAwaitingHumanDeclarationShow
+                            ? 'Submit Show'
+                            : 'Declare Hand',
                         style: GoogleFonts.outfit(
-                          color: active ? const Color(0xFF241A00) : Colors.white30,
+                          color: active
+                              ? const Color(0xFF241A00)
+                              : const Color(0xFF94A3B8),
                           fontSize: declareFontSize,
-                          fontWeight: FontWeight.w900,
+                          fontWeight:
+                              active ? FontWeight.w900 : FontWeight.w700,
                           letterSpacing: 0.4,
                         ),
                       ),
@@ -2772,425 +2267,243 @@ class GameTableScreen extends ConsumerWidget {
       ),
     );
   }
+
   Widget _buildRoundCompleteBar(
-
     BuildContext context,
-
     WidgetRef ref, {
-
     required bool isDesktop,
-
     required bool isTournamentOver,
-
     required int nextDealNumber,
-
   }) {
-
     final notifier = ref.read(gameTableProvider.notifier);
 
-
-
     return Center(
-
       child: ConstrainedBox(
-
-        constraints: BoxConstraints(maxWidth: isDesktop ? 860 : double.infinity),
-
+        constraints:
+            BoxConstraints(maxWidth: isDesktop ? 860 : double.infinity),
         child: Padding(
-
           padding: EdgeInsets.symmetric(
-
             horizontal: isDesktop ? 16 : 10,
-
             vertical: isDesktop ? 5 : 3,
-
           ),
-
           child: Row(
-
             children: [
-
               // Scorecard Button
 
               Expanded(
-
                 flex: 1,
-
                 child: InkWell(
-
                   onTap: () => _openScoreCard(context, ref),
-
                   borderRadius: BorderRadius.circular(10),
-
                   child: Container(
-
                     padding: EdgeInsets.symmetric(vertical: isDesktop ? 9 : 7),
-
                     decoration: BoxDecoration(
-
                       color: const Color(0xFF0F172A),
-
                       borderRadius: BorderRadius.circular(10),
-
-                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
-
+                      border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.5)),
                     ),
-
                     child: const Row(
-
                       mainAxisAlignment: MainAxisAlignment.center,
-
                       children: [
-
-                        Icon(Icons.table_chart_outlined, size: 14, color: AppColors.accent),
-
+                        Icon(Icons.table_chart_outlined,
+                            size: 14, color: AppColors.accent),
                         SizedBox(width: 4),
-
                         Text(
-
                           'Scorecard',
-
                           style: TextStyle(
-
                             color: AppColors.accent,
-
                             fontSize: 11,
-
                             fontWeight: FontWeight.bold,
-
                           ),
-
                         ),
-
                       ],
-
                     ),
-
                   ),
-
                 ),
-
               ),
 
               const SizedBox(width: 6),
-
-
 
               // Group Button (inspect hand grouping)
 
               InkWell(
-
                 onTap: () => notifier.autoGroupHand(),
-
                 borderRadius: BorderRadius.circular(10),
-
                 child: Container(
-
                   padding: EdgeInsets.symmetric(
-
                     horizontal: 10,
-
                     vertical: isDesktop ? 9 : 7,
-
                   ),
-
                   decoration: BoxDecoration(
-
                     color: const Color(0xFF042F2E),
-
                     borderRadius: BorderRadius.circular(10),
-
-                    border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.5)),
-
+                    border: Border.all(
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.5)),
                   ),
-
                   child: const Row(
-
                     mainAxisSize: MainAxisSize.min,
-
                     children: [
-
-                      Icon(Icons.auto_awesome, size: 13, color: Color(0xFF00E5FF)),
-
+                      Icon(Icons.auto_awesome,
+                          size: 13, color: Color(0xFF00E5FF)),
                       SizedBox(width: 4),
-
                       Text(
-
                         'Group',
-
                         style: TextStyle(
-
                           color: Color(0xFF00E5FF),
-
                           fontSize: 10,
-
                           fontWeight: FontWeight.bold,
-
                         ),
-
                       ),
-
                     ],
-
                   ),
-
                 ),
-
               ),
 
               const SizedBox(width: 6),
 
-
-
               // Primary Action: Next Deal or New Tournament
 
               Expanded(
-
                 flex: 2,
-
                 child: InkWell(
-
                   onTap: () {
-
                     if (isTournamentOver) {
-
                       notifier.resetTournament();
-
                     } else {
-
                       _checkTournamentStatus(context, ref);
-
                     }
-
                   },
-
                   borderRadius: BorderRadius.circular(10),
-
                   child: Container(
-
                     padding: EdgeInsets.symmetric(vertical: isDesktop ? 9 : 7),
-
                     decoration: BoxDecoration(
-
                       gradient: isTournamentOver
-
                           ? const LinearGradient(
-
                               colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
-
                             )
-
                           : const LinearGradient(
-
                               colors: [Color(0xFFF59E0B), Color(0xFF10B981)],
-
                             ),
-
                       borderRadius: BorderRadius.circular(10),
-
                       border: Border.all(
-
                         color: isTournamentOver
-
                             ? const Color(0xFFFDA4AF)
-
                             : const Color(0xFFFDE68A),
-
                       ),
-
                       boxShadow: [
-
                         BoxShadow(
-
-                          color: (isTournamentOver ? const Color(0xFFE11D48) : const Color(0xFF10B981))
-
+                          color: (isTournamentOver
+                                  ? const Color(0xFFE11D48)
+                                  : const Color(0xFF10B981))
                               .withValues(alpha: 0.35),
-
                           blurRadius: 8,
-
                           offset: const Offset(0, 2),
-
                         ),
-
                       ],
-
                     ),
-
                     child: Row(
-
                       mainAxisAlignment: MainAxisAlignment.center,
-
                       children: [
-
                         Icon(
-
-                          isTournamentOver ? Icons.restart_alt_rounded : Icons.play_arrow_rounded,
-
+                          isTournamentOver
+                              ? Icons.restart_alt_rounded
+                              : Icons.play_arrow_rounded,
                           size: 17,
-
                           color: Colors.black,
-
                         ),
-
                         const SizedBox(width: 4),
-
                         Flexible(
-
                           child: Text(
-
                             isTournamentOver
-
                                 ? 'Start New Tournament'
-
                                 : 'Deal Next Round (#$nextDealNumber)',
-
                             maxLines: 1,
-
                             overflow: TextOverflow.ellipsis,
-
                             style: const TextStyle(
-
                               color: Colors.black,
-
                               fontSize: 11.5,
-
                               fontWeight: FontWeight.w900,
-
                               letterSpacing: 0.2,
-
                             ),
-
                           ),
-
                         ),
-
                       ],
-
                     ),
-
                   ),
-
                 ),
-
               ),
-
             ],
-
           ),
-
         ),
-
       ),
-
     );
-
   }
 
-
-
   void _openScoreCard(BuildContext context, WidgetRef ref) {
-
     final tableState = ref.read(gameTableProvider);
 
     final notifier = ref.read(gameTableProvider.notifier);
 
     final isRoundComplete = notifier.isGameComplete;
 
-    final isTournamentOver = tableState.isHumanEliminated || tableState.isAiEliminated;
-
-
+    final isTournamentOver =
+        tableState.isHumanEliminated || tableState.isAiEliminated;
 
     showDialog(
-
       context: context,
-
       builder: (ctx) {
-
         return ScoreCardModal(
-
           roundScores: tableState.roundScores,
-
           totalHumanScore: tableState.totalHumanScore,
-
           totalAiScore: tableState.totalAiScore,
-
           eliminationScore: tableState.gameSettings.eliminationScore,
-
           isHumanEliminated: tableState.isHumanEliminated,
-
           isAiEliminated: tableState.isAiEliminated,
-
           isRoundComplete: isRoundComplete,
-
           onClose: () => Navigator.of(ctx).pop(),
-
           onResetTournament: () {
-
             Navigator.of(ctx).pop();
 
             notifier.resetTournament();
-
           },
-
           onNextDeal: (isRoundComplete && !isTournamentOver)
-
               ? () {
-
                   Navigator.of(ctx).pop();
 
                   _checkTournamentStatus(context, ref);
-
                 }
-
               : null,
-
         );
-
       },
-
     );
-
   }
 
-
-
   void _openSettings(BuildContext context, WidgetRef ref) {
-
     final tableState = ref.read(gameTableProvider);
 
     final notifier = ref.read(gameTableProvider.notifier);
 
-
-
     showDialog(
-
       context: context,
-
       builder: (ctx) {
-
         return GameSettingsModal(
-
           currentSettings: tableState.gameSettings,
-
           onSave: (newSettings) {
             notifier.updateSettings(newSettings);
-            ref.read(homeProvider.notifier).setTurnTimer(newSettings.turnTimerSeconds);
+            ref
+                .read(homeProvider.notifier)
+                .setTurnTimer(newSettings.turnTimerSeconds);
             ref.read(homeProvider.notifier).setJokerMode(newSettings.jokerMode);
           },
-
           onClose: () => Navigator.of(ctx).pop(),
-
         );
-
       },
-
     );
-
   }
 
-
-
-  void _handleDiscardAndDeclare(BuildContext context, WidgetRef ref, {Card? finishCard}) {
+  void _handleDiscardAndDeclare(BuildContext context, WidgetRef ref,
+      {Card? finishCard}) {
     final notifier = ref.read(gameTableProvider.notifier);
     final openJoker = notifier.wildJokerCard;
     final result = notifier.discardAndDeclareSelectedCard(finishCard);
@@ -3217,530 +2530,323 @@ class GameTableScreen extends ConsumerWidget {
       },
     );
   }
-  void _handleSubmitDeclarationShow(BuildContext context, WidgetRef ref) {
 
+  void _handleSubmitDeclarationShow(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(gameTableProvider.notifier);
 
     final tableState = ref.read(gameTableProvider);
 
     final currentDeadwood = tableState.currentScore;
 
-
-
     // Check if an even lower optimal score exists with HandPartitioner
 
     final allCards = notifier.allGroupedCards();
 
-    final optimalPartition = HandPartitioner.findBestPartition(allCards, notifier.wildJokerCard);
+    final optimalPartition =
+        HandPartitioner.findBestPartition(allCards, notifier.wildJokerCard);
 
     final optimalDeadwood = optimalPartition.penaltyScore;
 
-
-
     void executeSubmit() {
-
       notifier.submitHumanDeclarationShow();
 
       final updatedState = ref.read(gameTableProvider);
 
       final humanScore = updatedState.currentScore;
 
-      final isBotWinner = (updatedState.roundScores.isNotEmpty && updatedState.roundScores.last.aiScore == 0);
-
-
+      final isBotWinner = (updatedState.roundScores.isNotEmpty &&
+          updatedState.roundScores.last.aiScore == 0);
 
       showDialog(
-
         context: context,
-
         barrierDismissible: false,
-
         builder: (ctx) {
-
           return AlertDialog(
-
             backgroundColor: const Color(0xFF141E18),
-
             shape: RoundedRectangleBorder(
-
               borderRadius: BorderRadius.circular(16),
-
               side: const BorderSide(color: AppColors.glassBorder),
-
             ),
-
             title: Row(
-
               children: [
-
                 Icon(
-
                   isBotWinner ? Icons.emoji_events : Icons.celebration,
-
                   color: isBotWinner ? AppColors.accent : AppColors.success,
-
                 ),
-
                 const SizedBox(width: 8),
-
                 Text(
-
                   isBotWinner ? 'Round Complete' : 'Won by Default!',
-
-                  style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-
+                  style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold),
                 ),
-
               ],
-
             ),
-
             content: Column(
-
               mainAxisSize: MainAxisSize.min,
-
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
-
                 Text(
-
                   isBotWinner
-
                       ? 'Maya Bot declared a valid show (0 pts).\n\nYour submitted hand count is $humanScore pts.'
-
                       : 'Maya Bot made an invalid show!\nYou win the round with 0 pts!',
-
-                  style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
-
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, height: 1.4),
                 ),
-
                 const SizedBox(height: 12),
-
                 Container(
-
                   padding: const EdgeInsets.all(8),
-
                   decoration: BoxDecoration(
-
                     color: Colors.black26,
-
                     borderRadius: BorderRadius.circular(8),
-
                   ),
-
                   child: Row(
-
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
                     children: [
-
-                      Text('Your Total: ${updatedState.totalHumanScore} pts', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-
-                      Text('Bot Total: ${updatedState.totalAiScore} pts', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-
+                      Text('Your Total: ${updatedState.totalHumanScore} pts',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12)),
+                      Text('Bot Total: ${updatedState.totalAiScore} pts',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12)),
                     ],
-
                   ),
-
                 ),
-
               ],
-
             ),
-
             actions: [
-
               TextButton(
-
                 onPressed: () {
-
                   Navigator.of(ctx).pop();
 
                   _openScoreCard(context, ref);
-
                 },
-
-                child: const Text('Scorecard', style: TextStyle(color: AppColors.accent)),
-
+                child: const Text('Scorecard',
+                    style: TextStyle(color: AppColors.accent)),
               ),
-
               OutlinedButton(
-
                 style: OutlinedButton.styleFrom(
-
                   foregroundColor: Colors.white70,
-
                   side: const BorderSide(color: Colors.white24),
-
                 ),
-
                 onPressed: () {
-
                   Navigator.of(ctx).pop();
 
                   // User closed dialog to review table; Next Deal button is available on table!
-
                 },
-
                 child: const Text('Review Table'),
-
               ),
-
               ElevatedButton(
-
                 style: ElevatedButton.styleFrom(
-
                   backgroundColor: AppColors.accent,
-
                   foregroundColor: Colors.black,
-
                 ),
-
                 onPressed: () {
-
                   Navigator.of(ctx).pop();
 
                   _checkTournamentStatus(context, ref);
-
                 },
-
-                child: const Text('Next Deal', style: TextStyle(fontWeight: FontWeight.bold)),
-
+                child: const Text('Next Deal',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-
             ],
-
           );
-
         },
-
       );
-
     }
 
-
-
     if (optimalDeadwood < currentDeadwood) {
-
       showDialog(
-
         context: context,
-
         builder: (ctx) => AlertDialog(
-
           backgroundColor: const Color(0xFF141E18),
-
           shape: RoundedRectangleBorder(
-
             borderRadius: BorderRadius.circular(16),
-
             side: const BorderSide(color: AppColors.accent, width: 1.5),
-
           ),
-
           title: const Row(
-
             children: [
-
               Icon(Icons.auto_awesome, color: AppColors.accent, size: 24),
-
               SizedBox(width: 8),
-
-              Text('Lower Score Available!', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-
+              Text('Lower Score Available!',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
             ],
-
           ),
-
           content: Text(
-
             'Your current arrangement has $currentDeadwood PTS.\n\n'
-
             'Auto-Arrange can reorganize your sequences and jokers to achieve $optimalDeadwood PTS (saves ${currentDeadwood - optimalDeadwood} pts)!',
-
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
-
+            style: const TextStyle(
+                color: AppColors.textSecondary, fontSize: 14, height: 1.4),
           ),
-
           actions: [
-
             TextButton(
-
               onPressed: () {
-
                 Navigator.of(ctx).pop();
 
                 executeSubmit();
-
               },
-
               child: Text(
-
                 'Keep $currentDeadwood PTS',
-
                 style: const TextStyle(color: AppColors.textMuted),
-
               ),
-
             ),
-
             ElevatedButton(
-
               style: ElevatedButton.styleFrom(
-
                 backgroundColor: AppColors.accent,
-
                 foregroundColor: Colors.black,
-
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-
               onPressed: () {
-
                 Navigator.of(ctx).pop();
 
                 notifier.autoGroupHand();
 
                 executeSubmit();
-
               },
-
               child: Text(
-
                 'Auto-Arrange to $optimalDeadwood PTS & Submit',
-
                 style: const TextStyle(fontWeight: FontWeight.bold),
-
               ),
-
             ),
-
           ],
-
         ),
-
       );
-
     } else {
-
       executeSubmit();
-
     }
-
   }
 
-
-
   void _handleDrop(BuildContext context, WidgetRef ref) {
-
     final notifier = ref.read(gameTableProvider.notifier);
 
     final tableState = ref.read(gameTableProvider);
 
-    final isFirstDrop = tableState.gameState.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
+    final isFirstDrop =
+        tableState.gameState.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
 
     final penalty = isFirstDrop
-
         ? tableState.gameSettings.firstDropPenalty
-
         : tableState.gameSettings.middleDropPenalty;
 
-
-
     showDialog(
-
       context: context,
-
       builder: (ctx) {
-
         return AlertDialog(
-
           backgroundColor: const Color(0xFF141E18),
-
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-
-          title: const Text('Drop Current Hand?', style: TextStyle(color: AppColors.textPrimary)),
-
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Drop Current Hand?',
+              style: TextStyle(color: AppColors.textPrimary)),
           content: Text(
-
             'You will drop this hand and receive $penalty penalty points (${isFirstDrop ? "First Drop" : "Middle Drop"}).',
-
             style: const TextStyle(color: AppColors.textSecondary),
-
           ),
-
           actions: [
-
             TextButton(
-
               onPressed: () => Navigator.of(ctx).pop(),
-
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textMuted)),
             ),
-
             ElevatedButton(
-
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
               onPressed: () {
-
                 Navigator.of(ctx).pop();
 
                 notifier.dropCurrentHand();
 
                 _checkTournamentStatus(context, ref);
-
               },
-
-              child: const Text('Confirm Drop', style: TextStyle(color: Colors.white)),
-
+              child: const Text('Confirm Drop',
+                  style: TextStyle(color: Colors.white)),
             ),
-
           ],
-
         );
-
       },
-
     );
-
   }
 
-
-
   void _checkTournamentStatus(BuildContext context, WidgetRef ref) {
-
     final tableState = ref.read(gameTableProvider);
 
     final notifier = ref.read(gameTableProvider.notifier);
 
-
-
     if (tableState.isHumanEliminated || tableState.isAiEliminated) {
-
-      final isHumanWinner = tableState.isAiEliminated && !tableState.isHumanEliminated;
+      final isHumanWinner =
+          tableState.isAiEliminated && !tableState.isHumanEliminated;
 
       showDialog(
-
         context: context,
-
         barrierDismissible: false,
-
         builder: (ctx) {
-
           return AlertDialog(
-
             backgroundColor: const Color(0xFF141E18),
-
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text(
-
               isHumanWinner ? '🏆 VICTORY!' : '💀 ELIMINATED',
-
               style: TextStyle(
-
                 color: isHumanWinner ? AppColors.success : AppColors.danger,
-
                 fontWeight: FontWeight.bold,
-
               ),
-
             ),
-
             content: Text(
-
               isHumanWinner
-
                   ? 'Congratulations! AI Bot reached ${tableState.totalAiScore} points and is eliminated! You won the tournament with ${tableState.totalHumanScore} points!'
-
                   : 'You reached ${tableState.totalHumanScore} points (limit ${tableState.gameSettings.eliminationScore}) and have been eliminated.',
-
               style: const TextStyle(color: AppColors.textPrimary),
-
             ),
-
             actions: [
-
               TextButton(
-
                 onPressed: () {
-
                   Navigator.of(ctx).pop();
 
                   _openScoreCard(context, ref);
-
                 },
-
-                child: const Text('View Scorecard', style: TextStyle(color: AppColors.accent)),
-
+                child: const Text('View Scorecard',
+                    style: TextStyle(color: AppColors.accent)),
               ),
-
               OutlinedButton(
-
                 style: OutlinedButton.styleFrom(
-
                   foregroundColor: Colors.white70,
-
                   side: const BorderSide(color: Colors.white24),
-
                 ),
-
                 onPressed: () {
-
                   Navigator.of(ctx).pop();
 
                   // Close to review final table state
-
                 },
-
                 child: const Text('Review Table'),
-
               ),
-
               ElevatedButton(
-
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
                 onPressed: () {
-
                   Navigator.of(ctx).pop();
 
                   notifier.resetTournament();
-
                 },
-
-                child: const Text('New Tournament', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-
+                child: const Text('New Tournament',
+                    style: TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.bold)),
               ),
-
             ],
-
           );
-
         },
-
       );
-
     } else {
-
       notifier.startNextRound();
-
     }
-
   }
-
 }
 
-
-
 class _DashedBorderPainter extends CustomPainter {
-
   final Color color;
 
   final double strokeWidth;
@@ -3751,79 +2857,47 @@ class _DashedBorderPainter extends CustomPainter {
 
   final double radius;
 
-
-
   const _DashedBorderPainter({
-
     required this.color,
-
     this.strokeWidth = 1.5,
-
     this.dash = 6.0,
-
     this.gap = 4.0,
-
     this.radius = 12.0,
-
   });
 
-
-
   @override
-
   void paint(Canvas canvas, Size size) {
-
     final paint = Paint()
-
       ..color = color
-
       ..strokeWidth = strokeWidth
-
       ..style = PaintingStyle.stroke;
 
-
-
     final path = Path()
-
       ..addRRect(RRect.fromRectAndRadius(
-
         Rect.fromLTWH(0, 0, size.width, size.height),
-
         Radius.circular(radius),
-
       ));
-
-
 
     final dashPath = Path();
 
     for (final metric in path.computeMetrics()) {
-
       double distance = 0.0;
 
       while (distance < metric.length) {
+        final length =
+            (distance + dash > metric.length) ? metric.length - distance : dash;
 
-        final length = (distance + dash > metric.length) ? metric.length - distance : dash;
-
-        dashPath.addPath(metric.extractPath(distance, distance + length), Offset.zero);
+        dashPath.addPath(
+            metric.extractPath(distance, distance + length), Offset.zero);
 
         distance += dash + gap;
-
       }
-
     }
 
     canvas.drawPath(dashPath, paint);
-
   }
 
-
-
   @override
-
   bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) =>
-
       color != oldDelegate.color || strokeWidth != oldDelegate.strokeWidth;
-
 }
-
