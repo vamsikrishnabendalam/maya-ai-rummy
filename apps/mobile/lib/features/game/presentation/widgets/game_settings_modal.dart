@@ -25,6 +25,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
   late int _fullCount;
   late int _eliminationScore;
   late String _jokerMode;
+  late int _turnTimer;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
     _fullCount = widget.currentSettings.fullCountPenalty;
     _eliminationScore = widget.currentSettings.eliminationScore;
     _jokerMode = widget.currentSettings.jokerMode;
+    _turnTimer = widget.currentSettings.turnTimerSeconds;
   }
 
   void _resetDefaults() {
@@ -43,6 +45,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
       _fullCount = 80;
       _eliminationScore = 201;
       _jokerMode = 'OPEN';
+      _turnTimer = 30;
     });
   }
 
@@ -53,6 +56,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
       fullCountPenalty: _fullCount,
       eliminationScore: _eliminationScore,
       jokerMode: _jokerMode,
+      turnTimerSeconds: _turnTimer,
     ));
     widget.onClose();
   }
@@ -156,6 +160,54 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  const Divider(color: AppColors.glassBorder, height: 28),
+                  // Turn Timer Duration Row
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.timer_outlined, color: AppColors.accent, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Turn Timer Duration',
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Time allowed per turn (similar to multiplayer game rules)',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [30, 45, 60, 0].map((sec) {
+                          final isSelected = _turnTimer == sec;
+                          return ChoiceChip(
+                            label: Text(
+                              sec == 0 ? 'No Limit' : '${sec}s',
+                              style: TextStyle(
+                                color: isSelected ? Colors.black : Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: AppColors.accent,
+                            backgroundColor: const Color(0xFF081220),
+                            side: BorderSide(
+                              color: isSelected ? AppColors.accent : AppColors.glassBorder,
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                            onSelected: (_) => setState(() => _turnTimer = sec),
+                          );
+                        }).toList(),
                       ),
                     ],
                   ),

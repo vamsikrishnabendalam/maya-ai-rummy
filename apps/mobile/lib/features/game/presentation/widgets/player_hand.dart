@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:game_engine/game_engine.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -73,15 +74,19 @@ class PlayerHand extends StatelessWidget {
           final requiredWidth = (groupCount * cw) + (nonFirstCards * overlap);
 
           if (requiredWidth > availableForCards && availableForCards > 60) {
-            // Compress cards smoothly to fit in one go!
-            if (isCompact) {
-              cw = (availableForCards * 0.38 / groupCount).clamp(38.0, 48.0);
-            } else {
-              cw = (availableForCards * 0.35 / groupCount).clamp(48.0, 82.0);
-            }
-            final remainingForOverlap = availableForCards - (groupCount * cw);
+            // First adjust overlap so cards stay large and readable
             if (nonFirstCards > 0) {
-              overlap = (remainingForOverlap / nonFirstCards).clamp(16.0, isCompact ? 24.0 : 40.0);
+              final neededForCw = groupCount * cw;
+              if (availableForCards > neededForCw + (nonFirstCards * 20.0)) {
+                overlap = ((availableForCards - neededForCw) / nonFirstCards).clamp(20.0, 48.0);
+              } else {
+                // Scale cw gently only if even minimum overlap overflows
+                final scale = (availableForCards / (neededForCw + nonFirstCards * 20.0)).clamp(0.72, 1.0);
+                cw = (cw * scale).clamp(56.0, Responsive.cardWidth(context));
+                overlap = (20.0 * scale).clamp(18.0, 38.0);
+              }
+            } else {
+              cw = (availableForCards / groupCount).clamp(56.0, Responsive.cardWidth(context));
             }
           }
         }
@@ -200,52 +205,96 @@ class PlayerHand extends StatelessWidget {
   }
 
   Widget _buildAddGroupTarget(double cw, double ch, bool isCompact) {
-    final targetWidth = isCompact ? 24.0 : cw * 0.7;
-    return DragTarget<CardDragData>(
+    final targetWidth = isCompact ? 36.0 : (cw * 0.62).clamp(44.0, 60.0);
+    return DragTarget<Object>(
       onWillAcceptWithDetails: (_) => true,
       onAcceptWithDetails: (details) {
-        onCardMovedToNewGroup?.call(details.data.card, details.data.fromGroupId);
+        if (details.data is CardDragData) {
+          final d = details.data as CardDragData;
+          onCardMovedToNewGroup?.call(d.card, d.fromGroupId);
+        } else if (details.data is Card) {
+          onCardMovedToNewGroup?.call(details.data as Card, '');
+        }
       },
       builder: (context, candidateData, rejectedData) {
         final isAccepting = candidateData.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: targetWidth,
-          height: ch,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isAccepting
-                  ? AppColors.accent.withValues(alpha: 0.5)
-                  : Colors.white.withValues(alpha: 0.12),
-              width: isAccepting ? 2 : 1,
-            ),
-            color: isAccepting ? AppColors.accentSubtle : Colors.white.withValues(alpha: 0.03),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.add_circle_outline,
-                size: isCompact ? 15 : 18,
-                color: isAccepting
-                    ? AppColors.accent
-                    : Colors.white.withValues(alpha: 0.35),
+        return GestureDetector(
+          onTap: () {
+            if (selectedCards.isNotEmpty) {
+              for (final c in selectedCards) {
+                onCardMovedToNewGroup?.call(c, '');
+              }
+            } else if (selectedCard != null) {
+              onCardMovedToNewGroup?.call(selectedCard!, '');
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: targetWidth,
+            height: ch,
+            margin: const EdgeInsets.only(left: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isAccepting
+                    ? [
+                        const Color(0xFFF2CA50).withValues(alpha: 0.35),
+                        const Color(0xFFD4AF37).withValues(alpha: 0.18),
+                      ]
+                    : [
+                        const Color(0x33120424),
+                        const Color(0x22241A00),
+                      ],
               ),
-              if (!isCompact) ...[
-                const SizedBox(height: 2),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isAccepting
+                    ? const Color(0xFFF2CA50)
+                    : const Color(0x66D4AF37),
+                width: isAccepting ? 2.0 : 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                    border: Border.all(
+                      color: const Color(0xFFF2CA50).withValues(alpha: 0.7),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.add_rounded,
+                    size: isCompact ? 14 : 18,
+                    color: const Color(0xFFF2CA50),
+                  ),
+                ),
+                const SizedBox(height: 3),
                 Text(
-                  'New\nGroup',
+                  'NEW\nGROUP',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 8,
-                    color: isAccepting
-                        ? AppColors.accent
-                        : Colors.white.withValues(alpha: 0.35),
+                  style: GoogleFonts.outfit(
+                    fontSize: isCompact ? 7.5 : 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFFDE68A),
+                    letterSpacing: 0.5,
+                    height: 1.15,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         );
       },

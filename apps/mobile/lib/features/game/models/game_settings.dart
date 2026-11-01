@@ -15,12 +15,16 @@ class GameSettings {
   /// Joker mode: 'OPEN' (default) or 'CLOSED'.
   final String jokerMode;
 
+  /// Turn timer duration in seconds: 30, 45, 60, or 0 (No Limit). Default: 30s.
+  final int turnTimerSeconds;
+
   const GameSettings({
     this.firstDropPenalty = 20,
     this.middleDropPenalty = 40,
     this.fullCountPenalty = 80,
     this.eliminationScore = 201,
     this.jokerMode = 'OPEN',
+    this.turnTimerSeconds = 30,
   });
 
   bool get isClosedJoker => jokerMode == 'CLOSED';
@@ -31,6 +35,7 @@ class GameSettings {
     int? fullCountPenalty,
     int? eliminationScore,
     String? jokerMode,
+    int? turnTimerSeconds,
   }) {
     return GameSettings(
       firstDropPenalty: firstDropPenalty ?? this.firstDropPenalty,
@@ -38,6 +43,7 @@ class GameSettings {
       fullCountPenalty: fullCountPenalty ?? this.fullCountPenalty,
       eliminationScore: eliminationScore ?? this.eliminationScore,
       jokerMode: jokerMode ?? this.jokerMode,
+      turnTimerSeconds: turnTimerSeconds ?? this.turnTimerSeconds,
     );
   }
 }

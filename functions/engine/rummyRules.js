@@ -360,4 +360,37 @@ module.exports = {
   validateDeclaration,
   calculateLoserScore,
   getCardDeadwoodValue,
+  hasPureSequenceInHand,
 };
+
+/**
+ * Checks whether a collection of cards contains at least one valid Pure Sequence (Life)
+ * of 3 or more consecutive cards of the same suit without any jokers.
+ */
+function hasPureSequenceInHand(cards) {
+  if (!cards || cards.length < 3) return false;
+  const suitCards = {};
+  for (const c of cards) {
+    if (c.isPrintedJoker || !c.suit || !c.rank) continue;
+    if (!suitCards[c.suit]) suitCards[c.suit] = [];
+    suitCards[c.suit].push(c);
+  }
+  for (const suit of Object.keys(suitCards)) {
+    const list = suitCards[suit];
+    if (list.length < 3) continue;
+    const ranks = [...new Set(list.map(c => rankToLowValue(c.rank)))].sort((a, b) => a - b);
+    if (ranks.includes(1)) {
+      ranks.push(14); // Ace as high
+    }
+    let streak = 1;
+    for (let i = 1; i < ranks.length; i++) {
+      if (ranks[i] === ranks[i - 1] + 1) {
+        streak++;
+        if (streak >= 3) return true;
+      } else {
+        streak = 1;
+      }
+    }
+  }
+  return false;
+}

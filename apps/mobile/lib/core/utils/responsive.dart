@@ -63,19 +63,19 @@ class Responsive {
   /// - 72 on desktop
   static double cardWidth(BuildContext context) {
     if (isDesktop(context)) {
-      return 82.0;
+      return 92.0;
     }
     if (isTablet(context)) {
-      return 76.0;
+      return 84.0;
     }
     if (isMobileLandscape(context)) {
-      return 66.0;
+      return 76.0;
     }
-    return 54.0;
+    return 62.0;
   }
 
-  /// Returns card height calculated as `cardWidth * 1.5`.
-  static double cardHeight(BuildContext context) => cardWidth(context) * 1.5;
+  /// Returns card height calculated as `cardWidth * 1.4` (matching custom card 5:7 aspect ratio).
+  static double cardHeight(BuildContext context) => cardWidth(context) * 1.4;
 
   /// Returns the amount of card visible horizontally when fanned:
   /// - 28 on mobile portrait
@@ -83,12 +83,12 @@ class Responsive {
   /// - 36 on tablet / desktop
   static double cardOverlap(BuildContext context) {
     if (isDesktop(context) || isTablet(context)) {
-      return 36.0;
+      return 42.0;
     }
     if (isMobileLandscape(context)) {
-      return 32.0;
+      return 36.0;
     }
-    return 28.0;
+    return 30.0;
   }
 
   /// Returns spacing between card groups:

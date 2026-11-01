@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:game_engine/game_engine.dart';
 import 'package:ai_engine/ai_engine.dart' hide CardGroup;
@@ -13,6 +14,7 @@ class GameTableState {
   final List<CardGroup> cardGroups;
   final bool hasDrawnThisTurn;
   final Card? selectedCard;
+  final Set<Card> selectedCards;
   final int currentScore;
   final HandPartitionResult? declarationResult;
   final bool isHandLocked;
@@ -26,12 +28,14 @@ class GameTableState {
   final String dealerId; // 'ai_bot_1' or 'human_player'
   final bool hasHumanOpenedJoker;
   final bool hasBotOpenedJoker;
+  final int turnSecondsRemaining;
 
   const GameTableState({
     required this.gameState,
     required this.cardGroups,
     this.hasDrawnThisTurn = false,
     this.selectedCard,
+    this.selectedCards = const <Card>{},
     this.currentScore = 0,
     this.declarationResult,
     this.isHandLocked = false,
@@ -45,6 +49,7 @@ class GameTableState {
     this.dealerId = 'ai_bot_1',
     this.hasHumanOpenedJoker = true,
     this.hasBotOpenedJoker = true,
+    this.turnSecondsRemaining = 30,
   });
 
   int get totalHumanScore => roundScores.fold(0, (sum, r) => sum + r.humanScore);
@@ -73,6 +78,7 @@ class GameTableState {
     List<CardGroup>? cardGroups,
     bool? hasDrawnThisTurn,
     Card? selectedCard,
+    Set<Card>? selectedCards,
     bool clearSelectedCard = false,
     int? currentScore,
     HandPartitionResult? declarationResult,
@@ -87,12 +93,14 @@ class GameTableState {
     String? dealerId,
     bool? hasHumanOpenedJoker,
     bool? hasBotOpenedJoker,
+    int? turnSecondsRemaining,
   }) {
     return GameTableState(
       gameState: gameState ?? this.gameState,
       cardGroups: cardGroups ?? this.cardGroups,
       hasDrawnThisTurn: hasDrawnThisTurn ?? this.hasDrawnThisTurn,
       selectedCard: clearSelectedCard ? null : (selectedCard ?? this.selectedCard),
+      selectedCards: selectedCards ?? (clearSelectedCard ? const <Card>{} : this.selectedCards),
       currentScore: currentScore ?? this.currentScore,
       declarationResult: declarationResult ?? this.declarationResult,
       isHandLocked: isHandLocked ?? this.isHandLocked,
@@ -107,6 +115,7 @@ class GameTableState {
       dealerId: dealerId ?? this.dealerId,
       hasHumanOpenedJoker: hasHumanOpenedJoker ?? this.hasHumanOpenedJoker,
       hasBotOpenedJoker: hasBotOpenedJoker ?? this.hasBotOpenedJoker,
+      turnSecondsRemaining: turnSecondsRemaining ?? this.turnSecondsRemaining,
     );
   }
 }
@@ -118,6 +127,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   int _groupIdCounter = 0;
   final BotStrategyEngine _botStrategy = BotStrategyEngine();
   OpponentThreatTracker _opponentThreatTracker = OpponentThreatTracker();
+  Timer? _turnCountdownTimer;
 
   GameTableNotifier(this._ref)
       : super(GameTableState(
@@ -197,9 +207,17 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           ? state.gameState.wildJoker
           : null;
 
-  bool get hasHumanLife => SequenceValidator.hasPureSequenceInHand(humanPlayer.hand);
+  bool get hasHumanLife {
+    if (state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker) {
+      return false;
+    }
+    return SequenceValidator.hasPureSequenceInHand(humanPlayer.hand);
+  }
 
   bool get hasHumanSecondLife {
+    if (state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker) {
+      return false;
+    }
     final pureCount = state.cardGroups.where((g) => g.type == CardGroupType.pureSequence).length;
     final impureCount = state.cardGroups.where((g) => g.type == CardGroupType.impureSequence).length;
     return pureCount >= 1 && (pureCount + impureCount) >= 2;
@@ -210,8 +228,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
   void openClosedJoker() {
     if (!state.gameSettings.isClosedJoker || state.hasHumanOpenedJoker) return;
-    if (!hasHumanLife) return;
+    if (isDiscardPhase) return; // Cannot open before discarding while holding 14 cards!
+    if (!SequenceValidator.hasPureSequenceInHand(humanPlayer.hand)) return;
     state = state.copyWith(hasHumanOpenedJoker: true);
+    if (state.gameState.wildJoker != null) {
+      _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(state.gameState.wildJoker!);
+    }
     _revalidateGroups(state.cardGroups);
     final score = _recalculateScore(state.cardGroups);
     state = state.copyWith(currentScore: score);
@@ -234,6 +256,92 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     state = state.copyWith(currentScore: newScore);
   }
 
+  void setTurnTimer(int sec) {
+    final newSettings = state.gameSettings.copyWith(turnTimerSeconds: sec);
+    state = state.copyWith(
+      gameSettings: newSettings,
+      turnSecondsRemaining: sec,
+    );
+    if (sec <= 0) {
+      cancelTurnTimer();
+      state = state.copyWith(turnSecondsRemaining: 0);
+    } else if (isHumanTurn && !state.isRoundOver) {
+      _startTurnCountdown(reset: true);
+    }
+  }
+
+  void updateGameSettings(GameSettings settings) {
+    updateSettings(settings);
+  }
+
+  void cancelTurnTimer() {
+    _turnCountdownTimer?.cancel();
+  }
+
+  @override
+  set state(GameTableState value) {
+    if (value.isRoundOver) {
+      _turnCountdownTimer?.cancel();
+    }
+    super.state = value;
+  }
+
+  void _startTurnCountdown({bool reset = true}) {
+    _turnCountdownTimer?.cancel();
+    final totalSec = state.gameSettings.turnTimerSeconds;
+    if (totalSec <= 0) {
+      state = state.copyWith(turnSecondsRemaining: 0);
+      return;
+    }
+    final initialRemaining = reset
+        ? totalSec
+        : (state.turnSecondsRemaining > 0 ? state.turnSecondsRemaining : totalSec);
+    state = state.copyWith(turnSecondsRemaining: initialRemaining);
+    _turnCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || state.isRoundOver || !isHumanTurn) {
+        timer.cancel();
+        return;
+      }
+      if (state.gameSettings.turnTimerSeconds <= 0) {
+        timer.cancel();
+        state = state.copyWith(turnSecondsRemaining: 0);
+        return;
+      }
+      final remaining = state.turnSecondsRemaining - 1;
+      if (remaining <= 0) {
+        timer.cancel();
+        state = state.copyWith(turnSecondsRemaining: 0);
+        _handleTurnTimeout();
+      } else {
+        state = state.copyWith(turnSecondsRemaining: remaining);
+      }
+    });
+  }
+
+  void _handleTurnTimeout() {
+    if (!mounted || state.isRoundOver || !isHumanTurn) return;
+    if (state.gameSettings.turnTimerSeconds <= 0) return; // Safeguard No Limit
+    if (isDrawPhase) {
+      drawFromClosedDeck();
+      if (state.gameSettings.turnTimerSeconds > 0) {
+        _startTurnCountdown(reset: true);
+      }
+    } else if (isDiscardPhase) {
+      Card? toDiscard = state.selectedCard;
+      if (toDiscard == null) {
+        final allCards = _allGroupedCards();
+        if (allCards.isNotEmpty) {
+          final candidates = List<Card>.from(allCards);
+          candidates.sort((a, b) => Scoring.getCardValue(b, effectiveHumanWildJoker).compareTo(Scoring.getCardValue(a, effectiveHumanWildJoker)));
+          toDiscard = candidates.first;
+        }
+      }
+      if (toDiscard != null) {
+        discardCard(toDiscard);
+      }
+    }
+  }
+
   /// Whether the remaining 13 cards (after discarding selectedCard) form a valid declaration
   bool get remainingCardsFormValidDeclaration {
     if (state.selectedCard == null || !isDiscardPhase) return false;
@@ -250,15 +358,136 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   void selectCard(Card card) {
     if (state.isHandLocked || state.isRoundOver) return;
 
-    if (state.selectedCard == card) {
-      state = state.copyWith(clearSelectedCard: true);
+    final updated = Set<Card>.from(state.selectedCards);
+    if (updated.contains(card)) {
+      updated.remove(card);
     } else {
-      state = state.copyWith(selectedCard: card);
+      updated.add(card);
     }
+    final single = updated.isNotEmpty ? updated.last : null;
+    state = state.copyWith(
+      selectedCards: updated,
+      selectedCard: single,
+      clearSelectedCard: single == null,
+    );
   }
 
   void deselectCard() {
-    state = state.copyWith(clearSelectedCard: true);
+    state = state.copyWith(
+      clearSelectedCard: true,
+      selectedCards: const <Card>{},
+    );
+  }
+
+  void groupSelectedCards() {
+    if (state.isHandLocked || state.isRoundOver) return;
+    final selected = state.selectedCards;
+    if (selected.isEmpty) return;
+
+    final remainingGroups = <CardGroup>[];
+    final cardsToGroup = <Card>[];
+
+    for (final group in state.cardGroups) {
+      final keptCards = <Card>[];
+      for (final card in group.cards) {
+        if (selected.contains(card)) {
+          cardsToGroup.add(card);
+        } else {
+          keptCards.add(card);
+        }
+      }
+      if (keptCards.isNotEmpty) {
+        remainingGroups.add(group.copyWith(cards: keptCards));
+      }
+    }
+
+    if (cardsToGroup.isNotEmpty) {
+      remainingGroups.add(CardGroup(
+        id: _nextGroupId(),
+        type: CardGroupType.deadwood,
+        cards: cardsToGroup,
+        isValid: false,
+      ));
+    }
+
+    if (remainingGroups.isEmpty) {
+      remainingGroups.add(CardGroup(
+        id: _nextGroupId(),
+        type: CardGroupType.deadwood,
+        cards: [],
+        isValid: false,
+      ));
+    }
+
+    state = state.copyWith(
+      clearSelectedCard: true,
+      selectedCards: const <Card>{},
+    );
+
+    _revalidateGroups(remainingGroups);
+    final score = _recalculateScore(remainingGroups);
+    state = state.copyWith(
+      cardGroups: remainingGroups,
+      currentScore: score,
+    );
+  }
+
+  void sortHandAscending() {
+    if (state.isHandLocked || state.isRoundOver) return;
+    final allCards = _allGroupedCards();
+    if (allCards.isEmpty) return;
+
+    final printedJokers = allCards.where((c) => c.isPrintedJoker).toList();
+    final suitedCards = allCards.where((c) => !c.isPrintedJoker).toList();
+
+    const suitOrder = [Suit.spades, Suit.hearts, Suit.clubs, Suit.diamonds];
+    final Map<Suit, List<Card>> suitMap = {
+      for (final s in suitOrder) s: <Card>[],
+    };
+
+    for (final card in suitedCards) {
+      if (card.suit != null) {
+        suitMap[card.suit!]?.add(card);
+      }
+    }
+
+    for (final s in suitOrder) {
+      suitMap[s]!.sort((a, b) => (a.rank?.index ?? 0).compareTo(b.rank?.index ?? 0));
+    }
+
+    final newGroups = <CardGroup>[];
+    for (final s in suitOrder) {
+      final cards = suitMap[s]!;
+      if (cards.isNotEmpty) {
+        newGroups.add(CardGroup(
+          id: _nextGroupId(),
+          type: CardGroupType.deadwood,
+          cards: cards,
+          isValid: false,
+        ));
+      }
+    }
+
+    if (printedJokers.isNotEmpty) {
+      newGroups.add(CardGroup(
+        id: _nextGroupId(),
+        type: CardGroupType.deadwood,
+        cards: printedJokers,
+        isValid: false,
+      ));
+    }
+
+    state = state.copyWith(
+      clearSelectedCard: true,
+      selectedCards: const <Card>{},
+    );
+
+    _revalidateGroups(newGroups);
+    final score = _recalculateScore(newGroups);
+    state = state.copyWith(
+      cardGroups: newGroups,
+      currentScore: score,
+    );
   }
 
   // --------------- Game Setup & Actions ---------------
@@ -305,9 +534,15 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     ];
 
     final bool isOpen = state.gameSettings.jokerMode == 'OPEN';
+    final bool humanHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(humanHand);
+    final bool botHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(botHand);
+
+    final bool initialHumanOpened = isOpen || humanHasPureOnDeal;
+    final bool initialBotOpened = isOpen || botHasPureOnDeal;
+
     final initialScore = Scoring.calculateHandDeadwood(
       groups: [humanHand],
-      wildJoker: isOpen ? newGameState.wildJoker : null,
+      wildJoker: initialHumanOpened ? newGameState.wildJoker : null,
       maxPenalty: state.gameSettings.fullCountPenalty,
     );
 
@@ -321,12 +556,24 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       roundScores: state.roundScores,
       isRoundOver: false,
       dealerId: 'ai_bot_1',
-      hasHumanOpenedJoker: isOpen,
-      hasBotOpenedJoker: isOpen,
+      hasHumanOpenedJoker: initialHumanOpened,
+      hasBotOpenedJoker: initialBotOpened,
+      turnSecondsRemaining: state.gameSettings.turnTimerSeconds,
     );
 
     _ref.read(gameUIProvider.notifier).resetUI();
     _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.dealing);
+
+    if (isHumanTurn) {
+      _startTurnCountdown(reset: true);
+    }
+
+    if (!isOpen && humanHasPureOnDeal && newGameState.wildJoker != null) {
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (!mounted || state.isRoundOver) return;
+        _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(newGameState.wildJoker!);
+      });
+    }
 
     SpectatorSyncService.syncState(
       gameState: newGameState,
@@ -405,9 +652,15 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     ];
 
     final bool isOpen = state.gameSettings.jokerMode == 'OPEN';
+    final bool humanHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(humanHand);
+    final bool botHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(botHand);
+
+    final bool initialHumanOpened = isOpen || humanHasPureOnDeal;
+    final bool initialBotOpened = isOpen || botHasPureOnDeal;
+
     final initialScore = Scoring.calculateHandDeadwood(
       groups: [humanHand],
-      wildJoker: isOpen ? newGameState.wildJoker : null,
+      wildJoker: initialHumanOpened ? newGameState.wildJoker : null,
       maxPenalty: state.gameSettings.fullCountPenalty,
     );
 
@@ -424,12 +677,24 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       botDeclarationResult: null,
       botDiscardCard: null,
       dealerId: nextDealerId,
-      hasHumanOpenedJoker: isOpen,
-      hasBotOpenedJoker: isOpen,
+      hasHumanOpenedJoker: initialHumanOpened,
+      hasBotOpenedJoker: initialBotOpened,
+      turnSecondsRemaining: state.gameSettings.turnTimerSeconds,
     );
 
     _ref.read(gameUIProvider.notifier).resetUI();
     _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.dealing);
+
+    if (firstPlayerIndex == 0) {
+      _startTurnCountdown(reset: true);
+    }
+
+    if (!isOpen && humanHasPureOnDeal && newGameState.wildJoker != null) {
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (!mounted || state.isRoundOver) return;
+        _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(newGameState.wildJoker!);
+      });
+    }
 
     SpectatorSyncService.syncState(
       gameState: newGameState,
@@ -483,7 +748,14 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       currentScore: newScore,
       hasHumanOpenedJoker: newSettings.jokerMode == 'OPEN' ? true : state.hasHumanOpenedJoker,
       hasBotOpenedJoker: newSettings.jokerMode == 'OPEN' ? true : state.hasBotOpenedJoker,
+      turnSecondsRemaining: newSettings.turnTimerSeconds,
     );
+    if (newSettings.turnTimerSeconds <= 0) {
+      cancelTurnTimer();
+      state = state.copyWith(turnSecondsRemaining: 0);
+    } else if (isHumanTurn && !state.isRoundOver) {
+      _startTurnCountdown(reset: true);
+    }
   }
 
   // --------------- Draw Flow (Places drawn card separately at end) ---------------
@@ -531,6 +803,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     _ref
         .read(gameUIProvider.notifier)
         .triggerAction(GameActionType.drewFromClosed, card: drawnCard);
+
+    if (state.gameSettings.turnTimerSeconds > 0) {
+      if (_turnCountdownTimer == null || !_turnCountdownTimer!.isActive) {
+        _startTurnCountdown(reset: false);
+      }
+    }
 
     SpectatorSyncService.syncState(
       gameState: newGameState,
@@ -596,6 +874,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
         .read(gameUIProvider.notifier)
         .triggerAction(GameActionType.drewFromOpen, card: drawnCard);
 
+    if (state.gameSettings.turnTimerSeconds > 0) {
+      if (_turnCountdownTimer == null || !_turnCountdownTimer!.isActive) {
+        _startTurnCountdown(reset: false);
+      }
+    }
+
     SpectatorSyncService.syncState(
       gameState: newGameState,
       humanGroups: updatedGroups,
@@ -632,6 +916,8 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       return;
     }
 
+    _turnCountdownTimer?.cancel();
+
     final action = DiscardCard(
       card,
       playerId: 'human_player',
@@ -645,6 +931,23 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
     final updatedGroups = _removeCardFromGroups(state.cardGroups, card);
     _clearDrawnTags(updatedGroups);
+
+    // Scenario 2: Check if Pure Sequence is formed after discard in Closed Joker mode
+    bool newlyOpenedJoker = false;
+    if (state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker) {
+      final remainingHand = updatedGroups.expand((g) => g.cards).toList();
+      if (SequenceValidator.hasPureSequenceInHand(remainingHand)) {
+        newlyOpenedJoker = true;
+      }
+    }
+
+    if (newlyOpenedJoker) {
+      state = state.copyWith(hasHumanOpenedJoker: true);
+      if (state.gameState.wildJoker != null) {
+        _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(state.gameState.wildJoker!);
+      }
+    }
+
     _revalidateGroups(updatedGroups);
     final score = _recalculateScore(updatedGroups);
 
@@ -654,8 +957,10 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       hasDrawnThisTurn: false,
       currentScore: score,
       clearSelectedCard: true,
+      hasHumanOpenedJoker: newlyOpenedJoker ? true : state.hasHumanOpenedJoker,
     );
 
+    _turnCountdownTimer?.cancel();
     _ref
         .read(gameUIProvider.notifier)
         .triggerAction(GameActionType.discarded, card: card);
@@ -691,12 +996,23 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
   // --------------- Discard & Declare Flow ---------------
 
-  HandPartitionResult discardAndDeclareSelectedCard() {
+  HandPartitionResult discardAndDeclareSelectedCard([Card? explicitCard]) {
+    _turnCountdownTimer?.cancel();
     state = state.copyWith(isHandLocked: true);
 
-    Card? cardToDiscard = state.selectedCard;
-    List<CardGroup> remainingGroups = state.cardGroups;
+    Card? cardToDiscard = explicitCard ?? state.selectedCard;
+    final allCards = _allGroupedCards();
+    if (cardToDiscard == null && allCards.length == 14) {
+      final deadwoodGroup = state.cardGroups.firstWhere(
+        (g) => g.type == CardGroupType.deadwood && g.cards.isNotEmpty,
+        orElse: () => state.cardGroups.last,
+      );
+      if (deadwoodGroup.cards.isNotEmpty) {
+        cardToDiscard = deadwoodGroup.cards.last;
+      }
+    }
 
+    List<CardGroup> remainingGroups = state.cardGroups;
     if (cardToDiscard != null) {
       remainingGroups = _removeCardFromGroups(state.cardGroups, cardToDiscard);
     }
@@ -1221,9 +1537,18 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           ),
         );
 
+        final remainingBotHand = discardState.players.firstWhere((p) => p.id == 'ai_bot_1').hand;
+        bool botNewlyOpened = false;
+        if (state.gameSettings.isClosedJoker && !state.hasBotOpenedJoker) {
+          if (SequenceValidator.hasPureSequenceInHand(remainingBotHand)) {
+            botNewlyOpened = true;
+          }
+        }
+
         state = state.copyWith(
           gameState: discardState,
           hasDrawnThisTurn: false,
+          hasBotOpenedJoker: botNewlyOpened ? true : state.hasBotOpenedJoker,
         );
         _ref
             .read(gameUIProvider.notifier)
@@ -1244,6 +1569,9 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           orElse: () => discardResult.allCandidates.first,
         );
 
+        if (!state.isRoundOver) {
+          _startTurnCountdown();
+        }
         // Sync bot discard event to Spectator Dashboard
         SpectatorSyncService.syncState(
           gameState: discardState,
@@ -1573,6 +1901,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     }
 
     return CardGroupType.deadwood;
+  }
+
+  @override
+  void dispose() {
+    _turnCountdownTimer?.cancel();
+    super.dispose();
   }
 }
 

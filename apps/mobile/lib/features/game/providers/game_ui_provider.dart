@@ -37,6 +37,8 @@ class GameUIState {
   final Card? animatingCard;
   final int? newCardIndex;
   final int actionId;
+  final bool showSecretJokerReveal;
+  final Card? secretJokerCard;
 
   const GameUIState({
     this.isDragging = false,
@@ -50,6 +52,8 @@ class GameUIState {
     this.animatingCard,
     this.newCardIndex,
     this.actionId = 0,
+    this.showSecretJokerReveal = false,
+    this.secretJokerCard,
   });
 
   GameUIState copyWith({
@@ -64,6 +68,8 @@ class GameUIState {
     Card? animatingCard,
     int? newCardIndex,
     int? actionId,
+    bool? showSecretJokerReveal,
+    Card? secretJokerCard,
   }) {
     return GameUIState(
       isDragging: isDragging ?? this.isDragging,
@@ -77,6 +83,8 @@ class GameUIState {
       animatingCard: animatingCard ?? this.animatingCard,
       newCardIndex: newCardIndex ?? this.newCardIndex,
       actionId: actionId ?? this.actionId,
+      showSecretJokerReveal: showSecretJokerReveal ?? this.showSecretJokerReveal,
+      secretJokerCard: secretJokerCard ?? this.secretJokerCard,
     );
   }
 
@@ -154,6 +162,21 @@ class GameUINotifier extends StateNotifier<GameUIState> {
 
   void hideDeclareDialog() {
     state = state.copyWith(showDeclareConfirm: false);
+  }
+
+  void triggerSecretJokerReveal(Card jokerCard) {
+    if (!mounted) return;
+    state = state.copyWith(
+      showSecretJokerReveal: true,
+      secretJokerCard: jokerCard,
+    );
+  }
+
+  void dismissSecretJokerReveal() {
+    if (!mounted) return;
+    state = state.copyWith(
+      showSecretJokerReveal: false,
+    );
   }
 
   void resetUI() {

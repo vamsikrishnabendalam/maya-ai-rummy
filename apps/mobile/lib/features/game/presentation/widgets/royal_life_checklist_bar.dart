@@ -162,22 +162,38 @@ class RoyalLifeChecklistBar extends StatelessWidget {
             Container(
               padding: EdgeInsets.symmetric(horizontal: isDesktop ? 10 : 7, vertical: isDesktop ? 3 : 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFF2CA50).withValues(alpha: 0.15),
+                color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                    ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                    : const Color(0xFFF2CA50).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: const Color(0xFFF2CA50).withValues(alpha: 0.5),
-                  width: 0.6,
+                  color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.8)
+                      : const Color(0xFFF2CA50).withValues(alpha: 0.5),
+                  width: 0.8,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.timer_outlined, size: isDesktop ? 13 : 10, color: const Color(0xFFF2CA50)),
-                  const SizedBox(width: 3),
+                  Icon(
+                    (turnSeconds == null || turnSeconds == 0)
+                        ? Icons.all_inclusive_rounded
+                        : Icons.timer_outlined,
+                    size: isDesktop ? 13 : 10,
+                    color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                        ? const Color(0xFFF87171)
+                        : const Color(0xFFF2CA50),
+                  ),
+                  const SizedBox(width: 4),
                   Text(
-                    '${turnSeconds ?? 30}s YOUR TURN',
+                    (turnSeconds == null || turnSeconds == 0)
+                        ? 'NO LIMIT • YOUR TURN'
+                        : '${turnSeconds}s YOUR TURN',
                     style: GoogleFonts.jetBrainsMono(
-                      color: const Color(0xFFF2CA50),
+                      color: (turnSeconds != null && turnSeconds! > 0 && turnSeconds! <= 10)
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFF2CA50),
                       fontSize: pillFont,
                       fontWeight: FontWeight.w800,
                     ),

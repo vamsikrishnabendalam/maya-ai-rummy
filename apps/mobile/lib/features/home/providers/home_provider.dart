@@ -16,6 +16,7 @@ class HomeState {
   final int playerXP;
   final int activeBottomNavIndex;
   final String selectedJokerMode; // 'OPEN' or 'CLOSED'
+  final int selectedTurnTimer; // 30, 45, 60, or 0 (No Limit)
 
   const HomeState({
     this.selectedDifficulty = AILevel.intermediate,
@@ -30,6 +31,7 @@ class HomeState {
     this.playerXP = 0,
     this.activeBottomNavIndex = 0,
     this.selectedJokerMode = 'OPEN',
+    this.selectedTurnTimer = 30,
   });
 
   HomeState copyWith({
@@ -45,6 +47,7 @@ class HomeState {
     int? playerXP,
     int? activeBottomNavIndex,
     String? selectedJokerMode,
+    int? selectedTurnTimer,
   }) {
     return HomeState(
       selectedDifficulty: selectedDifficulty ?? this.selectedDifficulty,
@@ -59,6 +62,7 @@ class HomeState {
       playerXP: playerXP ?? this.playerXP,
       activeBottomNavIndex: activeBottomNavIndex ?? this.activeBottomNavIndex,
       selectedJokerMode: selectedJokerMode ?? this.selectedJokerMode,
+      selectedTurnTimer: selectedTurnTimer ?? this.selectedTurnTimer,
     );
   }
 
@@ -147,6 +151,10 @@ class HomeNotifier extends StateNotifier<HomeState> {
 
   void setJokerMode(String mode) {
     state = state.copyWith(selectedJokerMode: mode);
+  }
+
+  void setTurnTimer(int sec) {
+    state = state.copyWith(selectedTurnTimer: sec);
   }
 
   void setBottomNavIndex(int index) {

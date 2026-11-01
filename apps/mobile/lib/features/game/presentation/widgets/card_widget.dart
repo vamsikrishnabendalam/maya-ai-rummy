@@ -105,21 +105,24 @@ class _CardWidgetState extends State<CardWidget>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(
-              color: widget.isSelected
-                  ? const Color(0xFFF2CA50)
-                  : _isHovered
-                      ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
-                      : const Color(0xFFE2E8F0),
-              width: widget.isSelected ? 2.5 : 1.0,
-            ),
+            border: widget.isSelected
+                ? Border.all(
+                    color: const Color(0xFFF2CA50),
+                    width: 2.5,
+                  )
+                : _isHovered
+                    ? Border.all(
+                        color: const Color(0xFFF2CA50).withValues(alpha: 0.7),
+                        width: 1.5,
+                      )
+                    : null,
             boxShadow: [
               BoxShadow(
                 color: widget.isSelected
-                    ? const Color(0xFFF2CA50).withValues(alpha: 0.45)
-                    : Colors.black.withValues(alpha: 0.35),
+                    ? const Color(0xFFF2CA50).withValues(alpha: 0.55)
+                    : Colors.black.withValues(alpha: isLifted ? 0.38 : 0.28),
                 blurRadius: widget.isSelected ? 16.0 : (isLifted ? 8.0 : 4.0),
                 offset: Offset(0, widget.isSelected ? -4 : (isLifted ? 4 : 2)),
                 spreadRadius: widget.isSelected ? 1.5 : 0.0,

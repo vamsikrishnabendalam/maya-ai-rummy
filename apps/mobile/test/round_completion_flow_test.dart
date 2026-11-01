@@ -62,6 +62,7 @@ void main() {
 
     // Now set the round completed state (matching user's state after deal 2)
     final notifier = container.read(gameTableProvider.notifier);
+    addTearDown(() => notifier.cancelTurnTimer());
     notifier.state = notifier.state.copyWith(
       gameState: notifier.state.gameState.copyWith(phase: GamePhase.COMPLETE),
       roundScores: roundScores,
@@ -85,5 +86,6 @@ void main() {
 
     // Verify a new deal was started (turn resets to DRAW_PHASE)
     expect(find.textContaining('Your Turn!'), findsOneWidget);
+    notifier.cancelTurnTimer();
   });
 }

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
+  <defs>
+    <!-- Rich 3D Royal Ruby Gradient Matching Court Card Pip Inlays -->
+    <linearGradient id="cardRedShine_4" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FF3840" />
+      <stop offset="25%" stop-color="#D9141D" />
+      <stop offset="65%" stop-color="#9C0A11" />
+      <stop offset="100%" stop-color="#540307" />
+    </linearGradient>
+
+    <!-- Subtle Top-to-Bottom Specular Light Accent -->
+    <linearGradient id="specularGlow_4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFA4A8" stop-opacity="0.6" />
+      <stop offset="40%" stop-color="#FF2E38" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.35" />
+    </linearGradient>
+  </defs>
+
+  <!-- Base Gradient Fill -->
+  <path d="M 190.44 197.94 L 190.44 228.99 L 158.91 228.99 L 158.91 197.94 L 93.88 197.94 L 93.88 178.82 L 164.64 71.01 L 190.44 71.01 L 190.44 173.91 L 206.12 173.91 L 206.12 197.94 L 190.44 197.94 Z M 158.91 127.41 Q 158.91 124.33 159.02 120.96 Q 159.13 117.54 159.32 114.21 Q 159.51 110.87 159.66 107.91 Q 159.84 104.91 160.07 102.54 L 113.31 173.91 L 158.91 173.91 L 158.91 127.41 Z" fill="url(#cardRedShine_4)" />
+  
+  <!-- Overlay Shine / Depth Layer -->
+  <path d="M 190.44 197.94 L 190.44 228.99 L 158.91 228.99 L 158.91 197.94 L 93.88 197.94 L 93.88 178.82 L 164.64 71.01 L 190.44 71.01 L 190.44 173.91 L 206.12 173.91 L 206.12 197.94 L 190.44 197.94 Z M 158.91 127.41 Q 158.91 124.33 159.02 120.96 Q 159.13 117.54 159.32 114.21 Q 159.51 110.87 159.66 107.91 Q 159.84 104.91 160.07 102.54 L 113.31 173.91 L 158.91 173.91 L 158.91 127.41 Z" fill="url(#specularGlow_4)" />
+</svg>

@@ -116,17 +116,19 @@ class _OpponentPanelState extends State<OpponentPanel> with SingleTickerProvider
                 color: const Color(0xFFF8FAFC),
               ),
             ),
-            const SizedBox(width: 6),
-            const Text('•', style: TextStyle(color: Colors.white38, fontSize: 10)),
-            const SizedBox(width: 6),
-            Text(
-              widget.scoreText ?? widget.difficultyLabel,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: isDesktop ? 10.5 : 9.0,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFFBAE6FD),
+            if (widget.scoreText != null && widget.scoreText!.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              const Text('•', style: TextStyle(color: Colors.white38, fontSize: 10)),
+              const SizedBox(width: 6),
+              Text(
+                widget.scoreText!,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: isDesktop ? 10.5 : 9.0,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFBAE6FD),
+                ),
               ),
-            ),
+            ],
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),

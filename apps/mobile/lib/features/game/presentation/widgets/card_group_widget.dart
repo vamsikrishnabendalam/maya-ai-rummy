@@ -32,7 +32,7 @@ class CardGroupWidget extends StatelessWidget {
     this.totalHandCards = 13,
     this.wildJokerCard,
     this.cardWidth = 52,
-    this.cardHeight = 78,
+    this.cardHeight = 73,
     this.cardOverlap = 28,
     this.isHovered = false,
     this.selectedCard,

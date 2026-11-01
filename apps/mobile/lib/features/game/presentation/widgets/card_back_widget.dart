@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 
-/// Face-down card for opponent's hand and closed deck display.
+/// Face-down card displaying the authentic custom card back artwork.
 class CardBackWidget extends StatelessWidget {
   final double width;
   final double height;
@@ -28,57 +27,36 @@ class CardBackWidget extends StatelessWidget {
           width: width,
           height: height,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.deckBack,
-                AppColors.deckBackAccent,
-                AppColors.deckBack,
-              ],
-              stops: [0.0, 0.5, 1.0],
-            ),
             borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
-              width: 1.0,
-            ),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: AppColors.cardShadow,
-                blurRadius: 4.0,
-                offset: Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 5.0,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(7.0),
-            child: CustomPaint(
-              painter: _CardBackPatternPainter(),
-              child: Center(
-                child: Container(
-                  width: width * 0.5,
-                  height: height * 0.35,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
+            borderRadius: BorderRadius.circular(7.5),
+            child: Image.asset(
+              'assets/cards/card_back.png',
+              fit: BoxFit.fill,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: const Color(0xFF1E3A8A),
                   child: Center(
                     child: Text(
-                      'M',
+                      'CARD',
                       style: TextStyle(
-                        fontSize: width * 0.3,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white.withValues(alpha: 0.3),
-                        letterSpacing: 1,
+                        fontSize: width * 0.22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white70,
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -91,33 +69,6 @@ class CardBackWidget extends StatelessWidget {
 
     return card;
   }
-}
-
-/// Paints a subtle diamond pattern on the card back.
-class _CardBackPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.04)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-
-    const spacing = 12.0;
-    for (double x = 0; x < size.width + spacing; x += spacing) {
-      for (double y = 0; y < size.height + spacing; y += spacing) {
-        final path = Path()
-          ..moveTo(x, y - 4)
-          ..lineTo(x + 4, y)
-          ..lineTo(x, y + 4)
-          ..lineTo(x - 4, y)
-          ..close();
-        canvas.drawPath(path, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Wraps a widget with a subtle scale pulse animation (for draw hints).

@@ -82,6 +82,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final notifier = ref.read(gameTableProvider.notifier);
     notifier.setAILevel(homeState.selectedDifficulty);
     notifier.setJokerMode(homeState.selectedJokerMode);
+    final currentTimer = ref.read(gameTableProvider).gameSettings.turnTimerSeconds;
+    notifier.setTurnTimer(currentTimer);
     notifier.startNewGame();
 
     Navigator.of(context).push(
@@ -109,6 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         currentSettings: tableState.gameSettings,
         onSave: (newSettings) {
           notifier.updateSettings(newSettings);
+          ref.read(homeProvider.notifier).setTurnTimer(newSettings.turnTimerSeconds);
+          ref.read(homeProvider.notifier).setJokerMode(newSettings.jokerMode);
         },
         onClose: () => Navigator.of(ctx).pop(),
       ),
@@ -145,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                   Text(
-                    'Drop: ${settings.firstDropPenalty}/${settings.middleDropPenalty}/${settings.fullCountPenalty} • Elim: ${settings.eliminationScore}',
+                    'Drop: ${settings.firstDropPenalty}/${settings.middleDropPenalty}/${settings.fullCountPenalty} • Elim: ${settings.eliminationScore} • Timer: ${settings.turnTimerSeconds == 0 ? 'No Limit' : '${settings.turnTimerSeconds}s'}',
                     style: const TextStyle(
                       color: AppColors.accent,
                       fontSize: 10,

@@ -29,3 +29,6 @@ Thumbs.db
 
 # Media & recordings
 *.mp4
+*.pptx
+*.py
+apps/mobile/assets/cards_backup/
