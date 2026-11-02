@@ -47,15 +47,21 @@ class _GameLogsModalState extends State<GameLogsModal> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isCompactLandscape = size.width > size.height && size.height < 550;
+
     final filteredLogs = _selectedRound != null
         ? widget.logs.where((l) => l.roundNumber == _selectedRound).toList()
         : widget.logs;
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompactLandscape ? 8 : 24),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 620),
+        constraints: BoxConstraints(
+          maxWidth: 720,
+          maxHeight: isCompactLandscape ? 340 : 620,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFF09141A),
           borderRadius: BorderRadius.circular(18),
@@ -76,7 +82,10 @@ class _GameLogsModalState extends State<GameLogsModal> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: isCompactLandscape ? 8 : 14,
+              ),
               decoration: const BoxDecoration(
                 border: Border(
                   bottom: BorderSide(color: Color(0x33D4AF37), width: 1.0),

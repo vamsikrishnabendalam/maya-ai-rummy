@@ -635,79 +635,81 @@ class GameTableScreen extends ConsumerWidget {
               children: [
                 // 1. Center Table Cards (Inside Table Circle Felt - Tilted 46 deg)
                 Positioned(
-                  left: 396,
+                  left: 0,
+                  right: 0,
                   top: 243,
-                  child: Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.0016)
-                      ..rotateX(-0.8028)
-                      ..translate(0.0, 0.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Closed Deck Stack with Perpendicular Tucked Wild Joker
-                        _buildMobilePerspectiveClosedDeck(
-                          context: context,
-                          count: gameState.closedDeck.length,
-                          wildJoker: wildJoker,
-                          isClosedJoker: tableState.gameSettings.isClosedJoker,
-                          isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
-                          hasLife: notifier.hasHumanLife,
-                          onOpenClosedJoker: () => notifier.openClosedJoker(),
-                          canDraw: isHumanTurn && isDrawPhase,
-                          onDraw: () => notifier.drawFromClosedDeck(),
-                        ),
-                        const SizedBox(width: 28),
-                        // Open Discard Pile
-                        _buildMobilePerspectiveOpenPile(
-                          context: context,
-                          discardPile: gameState.openPile,
-                          wildJoker: notifier.effectiveHumanWildJoker,
-                          canDraw: isHumanTurn && isDrawPhase,
-                          onDraw: () => notifier.drawFromOpenDeck(),
-                          canDiscard: isHumanTurn && isDiscardPhase,
-                          onDiscardCard: (card) => notifier.discardCard(card),
-                          onShowHistory: () {
-                            if (gameState.openPile.isNotEmpty) {
-                              DiscardHistoryModal.show(
-                                context,
-                                discardPile: gameState.openPile,
-                                wildJoker: notifier.effectiveHumanWildJoker,
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(width: 28),
-                        // Finish / Declare Slot
-                        _buildMobilePerspectiveFinishSlot(
-                          context: context,
-                          isActivated: canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging),
-                          canAcceptDrop: (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
-                              tableState.isAwaitingHumanDeclarationShow,
-                          canDeclare: canDeclare,
-                          onDeclare: canDeclare
-                              ? () {
-                                  if (tableState.isAwaitingHumanDeclarationShow) {
-                                    _handleSubmitDeclarationShow(context, ref);
-                                  } else {
-                                    _handleDiscardAndDeclare(context, ref);
+                  child: Center(
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0016)
+                        ..rotateX(-0.8028),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Closed Deck Stack with Perpendicular Tucked Wild Joker
+                          _buildMobilePerspectiveClosedDeck(
+                            context: context,
+                            count: gameState.closedDeck.length,
+                            wildJoker: wildJoker,
+                            isClosedJoker: tableState.gameSettings.isClosedJoker,
+                            isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
+                            hasLife: notifier.hasHumanLife,
+                            onOpenClosedJoker: () => notifier.openClosedJoker(),
+                            canDraw: isHumanTurn && isDrawPhase,
+                            onDraw: () => notifier.drawFromClosedDeck(),
+                          ),
+                          const SizedBox(width: 22),
+                          // Open Discard Pile
+                          _buildMobilePerspectiveOpenPile(
+                            context: context,
+                            discardPile: gameState.openPile,
+                            wildJoker: notifier.effectiveHumanWildJoker,
+                            canDraw: isHumanTurn && isDrawPhase,
+                            onDraw: () => notifier.drawFromOpenDeck(),
+                            canDiscard: isHumanTurn && isDiscardPhase,
+                            onDiscardCard: (card) => notifier.discardCard(card),
+                            onShowHistory: () {
+                              if (gameState.openPile.isNotEmpty) {
+                                DiscardHistoryModal.show(
+                                  context,
+                                  discardPile: gameState.openPile,
+                                  wildJoker: notifier.effectiveHumanWildJoker,
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 22),
+                          // Finish / Declare Slot
+                          _buildMobilePerspectiveFinishSlot(
+                            context: context,
+                            isActivated: canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging),
+                            canAcceptDrop: (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
+                                tableState.isAwaitingHumanDeclarationShow,
+                            canDeclare: canDeclare,
+                            onDeclare: canDeclare
+                                ? () {
+                                    if (tableState.isAwaitingHumanDeclarationShow) {
+                                      _handleSubmitDeclarationShow(context, ref);
+                                    } else {
+                                      _handleDiscardAndDeclare(context, ref);
+                                    }
                                   }
-                                }
-                              : null,
-                          onCardDeclared: ((isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
-                                  tableState.isAwaitingHumanDeclarationShow)
-                              ? (card) {
-                                  if (tableState.isAwaitingHumanDeclarationShow) {
-                                    _handleSubmitDeclarationShow(context, ref);
-                                  } else {
-                                    _handleDiscardAndDeclare(context, ref, finishCard: card);
+                                : null,
+                            onCardDeclared: ((isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
+                                    tableState.isAwaitingHumanDeclarationShow)
+                                ? (card) {
+                                    if (tableState.isAwaitingHumanDeclarationShow) {
+                                      _handleSubmitDeclarationShow(context, ref);
+                                    } else {
+                                      _handleDiscardAndDeclare(context, ref, finishCard: card);
+                                    }
                                   }
-                                }
-                              : null,
-                        ),
-                      ],
+                                : null,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1457,53 +1459,103 @@ class GameTableScreen extends ConsumerWidget {
   }) {
     const double cardW = 58.0;
     const double cardH = 82.0;
-    final topCard = discardPile.isNotEmpty ? discardPile.last : null;
+    final visibleDiscards = discardPile.length <= 5
+        ? discardPile
+        : discardPile.sublist(discardPile.length - 5);
+    final count = visibleDiscards.length;
+    final double stepX = 18.0;
+    final double totalWidth = count <= 1 ? cardW : (cardW + (count - 1) * stepX);
 
-    final pileWidget = Container(
-      width: cardW,
+    final pileWidget = SizedBox(
+      width: totalWidth,
       height: cardH,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: canDraw
-                ? const Color(0xFF10B981).withValues(alpha: 0.6)
-                : Colors.black.withValues(alpha: 0.7),
-            blurRadius: canDraw ? 10 : 6,
-          ),
-        ],
-      ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (topCard != null)
-            CardWidget(
-              card: topCard,
-              width: cardW,
-              height: cardH,
-              isWildJoker: wildJoker != null && topCard.rank == wildJoker.rank,
-              onTap: canDraw ? onDraw : onShowHistory,
-            )
-          else
-            Container(
-              width: cardW,
-              height: cardH,
-              decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white24, width: 1),
-              ),
-              child: const Center(
-                child: Text('EMPTY', style: TextStyle(color: Colors.white38, fontSize: 9)),
+          if (count == 0)
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: const Center(
+                  child: Text('EMPTY', style: TextStyle(color: Colors.white38, fontSize: 9)),
+                ),
               ),
             ),
+
+          // Render up to 5 cards with horizontal fan overlap (replicated from desktop)
+          for (var i = 0; i < count; i++) ...[
+            Positioned(
+              left: i * stepX,
+              top: 0,
+              child: GestureDetector(
+                onTap: (i == count - 1 && canDraw) ? onDraw : onShowHistory,
+                child: Container(
+                  width: cardW,
+                  height: cardH,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (i == count - 1 && canDraw)
+                            ? const Color(0xFF10B981).withValues(alpha: 0.7)
+                            : Colors.black.withValues(alpha: 0.55),
+                        blurRadius: (i == count - 1 && canDraw) ? 10 : 4,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                  child: CardWidget(
+                    card: visibleDiscards[i],
+                    width: cardW,
+                    height: cardH,
+                    isWildJoker: wildJoker != null && visibleDiscards[i].rank == wildJoker.rank,
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          // History icon on top right of the fan if there are cards
+          if (count > 0)
+            Positioned(
+              top: -8,
+              right: -8,
+              child: GestureDetector(
+                onTap: onShowHistory,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFBBF24), width: 1.0),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, blurRadius: 4),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    size: 11,
+                    color: Color(0xFFFBBF24),
+                  ),
+                ),
+              ),
+            ),
+
           Positioned(
-            bottom: -14,
+            bottom: -15,
             left: 0,
             right: 0,
             child: Center(
               child: Text(
-                'OPEN PILE',
+                count > 1 ? 'OPEN PILE ($count)' : 'OPEN PILE',
                 style: GoogleFonts.outfit(
                   fontSize: 8.5,
                   fontWeight: FontWeight.w800,
@@ -1761,199 +1813,163 @@ class GameTableScreen extends ConsumerWidget {
   }
 
   void _showMobileGameMenu(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      barrierColor: Colors.black38,
+      barrierDismissible: true,
       builder: (ctx) {
-        return Center(
-          child: Container(
-            width: 480,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xF010192A), Color(0xF7090F1A)],
-              ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFF2CA50), width: 1.6),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.85),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-                BoxShadow(
-                  color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
-                  blurRadius: 14,
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.menu_rounded, color: Color(0xFFF2CA50), size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'ROYAL GAME MENU',
-                          style: GoogleFonts.cinzel(
-                            color: const Color(0xFFF2CA50),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
+        return Stack(
+          children: [
+            Positioned(
+              top: 48,
+              right: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 205,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xF510192A), Color(0xF9090F1A)],
                     ),
-                    InkWell(
-                      onTap: () => Navigator.of(ctx).pop(),
-                      borderRadius: BorderRadius.circular(16),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF2CA50), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        blurRadius: 18,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Divider(color: Color(0x33D4AF37), height: 1),
-                const SizedBox(height: 10),
-                // Compact 2x2 Grid optimized for mobile landscape
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildCompactMenuItem(
+                      BoxShadow(
+                        color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.menu_rounded, color: Color(0xFFF2CA50), size: 15),
+                              const SizedBox(width: 6),
+                              Text(
+                                'GAME MENU',
+                                style: GoogleFonts.cinzel(
+                                  color: const Color(0xFFF2CA50),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          InkWell(
+                            onTap: () => Navigator.of(ctx).pop(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: const Padding(
+                              padding: EdgeInsets.all(2),
+                              child: Icon(Icons.close_rounded, color: Colors.white60, size: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Divider(color: Color(0x33D4AF37), height: 1),
+                      const SizedBox(height: 6),
+                      _buildMenuButton(
                         icon: Icons.leaderboard_rounded,
                         iconColor: const Color(0xFF60A5FA),
                         title: 'Live Scorecard',
-                        subtitle: 'Round tracker',
                         onTap: () {
                           Navigator.of(ctx).pop();
                           _openScoreCard(context, ref);
                         },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildCompactMenuItem(
+                      _buildMenuButton(
                         icon: Icons.settings_rounded,
                         iconColor: const Color(0xFFFBBF24),
                         title: 'Table Settings',
-                        subtitle: 'Audio & rules',
                         onTap: () {
                           Navigator.of(ctx).pop();
                           _openSettings(context, ref);
                         },
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildCompactMenuItem(
+                      _buildMenuButton(
                         icon: Icons.history_rounded,
                         iconColor: const Color(0xFFA78BFA),
                         title: 'Action Logs',
-                        subtitle: 'Turn history',
                         onTap: () {
                           Navigator.of(ctx).pop();
                           _openGameLogs(context, ref);
                         },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildCompactMenuItem(
+                      _buildMenuButton(
                         icon: Icons.exit_to_app_rounded,
                         iconColor: const Color(0xFFF87171),
                         title: 'Exit Game',
-                        subtitle: 'Leave table',
                         isDestructive: true,
                         onTap: () {
                           Navigator.of(ctx).pop();
                           _handleExitGame(context, ref);
                         },
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildCompactMenuItem({
+  Widget _buildMenuButton({
     required IconData icon,
     required Color iconColor,
     required String title,
-    required String subtitle,
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        margin: const EdgeInsets.symmetric(vertical: 2.5),
         decoration: BoxDecoration(
-          color: isDestructive ? const Color(0x22EF4444) : const Color(0x22FFFFFF),
-          borderRadius: BorderRadius.circular(10),
+          color: isDestructive ? const Color(0x22EF4444) : const Color(0x18FFFFFF),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isDestructive ? const Color(0x66EF4444) : const Color(0x33D4AF37),
+            color: isDestructive ? const Color(0x55EF4444) : const Color(0x28D4AF37),
             width: 1.0,
           ),
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 16),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.outfit(
-                      color: isDestructive ? const Color(0xFFFCA5A5) : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.outfit(
-                      color: isDestructive ? const Color(0x99FCA5A5) : Colors.white60,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+            Icon(icon, color: iconColor, size: 16),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                color: isDestructive ? const Color(0xFFFCA5A5) : Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
               ),
             ),
+            const Spacer(),
             Icon(
               Icons.chevron_right_rounded,
               color: isDestructive ? const Color(0x66FCA5A5) : Colors.white30,
-              size: 16,
+              size: 15,
             ),
           ],
         ),

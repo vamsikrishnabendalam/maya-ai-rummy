@@ -33,11 +33,17 @@ class ScoreCardModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isCompactLandscape = size.width > size.height && size.height < 550;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isCompactLandscape ? 8 : 24),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 600),
+        constraints: BoxConstraints(
+          maxWidth: isCompactLandscape ? 640 : 580,
+          maxHeight: isCompactLandscape ? 340 : 600,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFF141E18),
           borderRadius: BorderRadius.circular(20),
@@ -54,7 +60,10 @@ class ScoreCardModal extends StatelessWidget {
           children: [
             // --- Header ---
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: isCompactLandscape ? 8 : 16,
+              ),
               decoration: const BoxDecoration(
                 border: Border(bottom: BorderSide(color: AppColors.glassBorder)),
               ),
@@ -85,7 +94,10 @@ class ScoreCardModal extends StatelessWidget {
             // --- Elimination Limit Rule Banner ---
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: isCompactLandscape ? 4 : 8,
+              ),
               color: AppColors.glass,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +121,10 @@ class ScoreCardModal extends StatelessWidget {
 
             // --- Player Summary Cards ---
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: isCompactLandscape ? 6 : 14,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -212,7 +227,10 @@ class ScoreCardModal extends StatelessWidget {
 
             // --- Footer Actions ---
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: isCompactLandscape ? 6 : 10,
+              ),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.glassBorder)),
               ),
