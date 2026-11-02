@@ -148,10 +148,10 @@ void main() {
     });
 
     // ----------------- Seated Avatar & Empty Chair Tests -----------------
-    test('AvatarCatalog contains 26 total avatars (1 default, 9 female, 16 male)', () {
-      expect(AvatarCatalog.all.length, equals(26));
-      expect(AvatarCatalog.femaleAvatars.length, equals(9));
-      expect(AvatarCatalog.maleAvatars.length, equals(16));
+    test('AvatarCatalog contains 45 total avatars (1 default, 18 female, 26 male)', () {
+      expect(AvatarCatalog.all.length, equals(45));
+      expect(AvatarCatalog.femaleAvatars.length, equals(18));
+      expect(AvatarCatalog.maleAvatars.length, equals(26));
       expect(AvatarCatalog.defaultAvatar.id, equals('default_avatar'));
 
       final rand = AvatarCatalog.getRandom();

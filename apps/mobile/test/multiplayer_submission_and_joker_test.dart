@@ -489,6 +489,89 @@ void main() {
       expect(notifier.state.finishCard, equals(finishCard));
       expect(notifier.state.gameState!.finishCard, equals(finishCard));
     });
+
+    test('startNextRound cleanly clears declarationDeadline, finishCard, and declarer from Round 1', () async {
+      final service = MultiplayerService();
+      final round1OverGame = MultiplayerGameState(
+        gameId: 'game_r1_transition',
+        tableId: 'tbl_r1',
+        roomCode: 'R1R201',
+        tableName: 'Pool 201 Table',
+        gameMode: 'Pool 201',
+        status: 'ROUND_OVER',
+        currentRound: 1,
+        playerCount: 2,
+        currentTurnPlayerId: 'user_p1',
+        turnNumber: 15,
+        phase: 'DECLARATION',
+        turnTimerSeconds: 30,
+        declarationDeadline: DateTime.now().add(const Duration(seconds: 30)),
+        finishCard: const Card(suit: Suit.spades, rank: Rank.two, deckIndex: 0),
+        declaringPlayerId: 'user_p1',
+        declaringPlayerName: 'Player 1',
+        submittedPlayerUids: const ['user_p1', 'user_p2'],
+        openedJokerPlayerUids: const ['user_p1', 'user_p2'],
+        finalResults: const [
+          MultiplayerFinalResult(uid: 'user_p1', displayName: 'Player 1', photoURL: '', seatIndex: 0, score: 0, isWinner: true),
+          MultiplayerFinalResult(uid: 'user_p2', displayName: 'Player 2', photoURL: '', seatIndex: 1, score: 23, isWinner: false),
+        ],
+        jokerMode: 'CLOSED',
+        openJoker: const Card(suit: Suit.spades, rank: Rank.four, deckIndex: 0),
+        openPile: const [Card(suit: Suit.diamonds, rank: Rank.queen, deckIndex: 0)],
+        players: const [
+          TablePlayer(uid: 'user_p1', displayName: 'Player 1', photoURL: '', seatIndex: 0, cardCount: 13, isHost: true),
+          TablePlayer(uid: 'user_p2', displayName: 'Player 2', photoURL: '', seatIndex: 1, cardCount: 13, isHost: false),
+        ],
+        dealerPlayerId: 'user_p1',
+      );
+
+      service.setMockGame(round1OverGame);
+
+      await service.startNextRound('game_r1_transition');
+
+      final round2Game = service.getMockGame('game_r1_transition')!;
+      expect(round2Game.currentRound, equals(2));
+      expect(round2Game.status, equals('IN_PROGRESS'));
+      expect(round2Game.phase, equals('DRAW_PHASE'));
+      expect(round2Game.declarationDeadline, isNull);
+      expect(round2Game.finishCard, isNull);
+      expect(round2Game.declaringPlayerId, isNull);
+      expect(round2Game.declaringPlayerName, isNull);
+      expect(round2Game.openedJokerPlayerUids, isEmpty);
+      expect(round2Game.submittedPlayerUids, isEmpty);
+      expect(round2Game.finalResults, isEmpty);
+      expect(round2Game.winnerPlayerId, isNull);
+    });
+
+    test('openClosedJoker is strictly rejected if game is not IN_PROGRESS', () async {
+      final service = MultiplayerService();
+      final roundOverGame = MultiplayerGameState(
+        gameId: 'game_joker_reject',
+        tableId: 'tbl_j1',
+        roomCode: 'JKR001',
+        tableName: 'Closed Joker Table',
+        gameMode: 'Pool 201',
+        status: 'ROUND_OVER',
+        currentRound: 1,
+        playerCount: 2,
+        currentTurnPlayerId: 'user_p1',
+        turnNumber: 10,
+        phase: 'DECLARATION',
+        jokerMode: 'CLOSED',
+        openJoker: const Card(suit: Suit.hearts, rank: Rank.nine, deckIndex: 0),
+        players: const [
+          TablePlayer(uid: 'user_p1', displayName: 'Player 1', photoURL: '', seatIndex: 0, cardCount: 13),
+          TablePlayer(uid: 'user_p2', displayName: 'Player 2', photoURL: '', seatIndex: 1, cardCount: 13),
+        ],
+        openedJokerPlayerUids: const [],
+      );
+
+      service.setMockGame(roundOverGame);
+      await service.openClosedJoker(gameId: 'game_joker_reject', myUid: 'user_p2');
+
+      final unchanged = service.getMockGame('game_joker_reject')!;
+      expect(unchanged.openedJokerPlayerUids, isEmpty);
+    });
   });
 }
 

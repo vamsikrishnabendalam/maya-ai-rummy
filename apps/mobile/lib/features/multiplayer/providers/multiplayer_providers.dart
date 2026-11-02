@@ -215,19 +215,21 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     return pureCount >= 1 && (pureCount + impureCount) >= 2;
   }
 
-  void _persistGroups(String gameId, String uid, List<CardGroup> groups) {
+  void _persistGroups(String gameId, String uid, List<CardGroup> groups, [int? round]) {
     try {
+      final r = round ?? state.gameState?.currentRound ?? 1;
       final jsonList = groups.map((g) => g.toJson()).toList();
-      _storage.setString('saved_groups_${gameId}_$uid', jsonEncode(jsonList));
-      _storage.setBool('dealt_${gameId}_$uid', true);
+      _storage.setString('saved_groups_${gameId}_${uid}_r$r', jsonEncode(jsonList));
+      _storage.setBool('dealt_${gameId}_${uid}_r$r', true);
     } catch (e) {
       debugPrint('[MultiplayerNotifier] Persisting groups error: $e');
     }
   }
 
-  List<CardGroup>? _loadSavedGroups(String gameId, String uid) {
+  List<CardGroup>? _loadSavedGroups(String gameId, String uid, [int? round]) {
     try {
-      final raw = _storage.getString('saved_groups_${gameId}_$uid');
+      final r = round ?? state.gameState?.currentRound ?? 1;
+      final raw = _storage.getString('saved_groups_${gameId}_${uid}_r$r');
       if (raw != null && raw.isNotEmpty) {
         final decoded = jsonDecode(raw) as List<dynamic>;
         return decoded
@@ -260,8 +262,10 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       List<CardGroup> groups = state.cardGroups;
       if (isNewRound) {
         // Clear cached groups from previous round so fresh 13 cards are clean-dealt
-        _storage.setString('saved_groups_${gameId}_${user.uid}', '');
-        _storage.setBool('dealt_${gameId}_${user.uid}', false);
+        _storage.setString('saved_groups_${gameId}_${user.uid}_r${prevGame.currentRound}', '');
+        _storage.setBool('dealt_${gameId}_${user.uid}_r${prevGame.currentRound}', false);
+        _storage.setString('saved_groups_${gameId}_${user.uid}_r${g.currentRound}', '');
+        _storage.setBool('dealt_${gameId}_${user.uid}_r${g.currentRound}', false);
         _hasTriggeredInitialDeal = false;
         groups = [];
       }
@@ -271,10 +275,10 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       // Section 7: Authoritative Hand State Synchronization (localHand = serverHand)
       // When 13 cards first arrive on initial deal or on page reload / tab shift:
       if (groups.isEmpty && g.myHand.isNotEmpty) {
-        final saved = isNewRound ? null : _loadSavedGroups(gameId, user.uid);
+        final saved = isNewRound ? null : _loadSavedGroups(gameId, user.uid, g.currentRound);
         if (saved != null && saved.isNotEmpty) {
           _hasTriggeredInitialDeal = true;
-          _storage.setBool('dealt_${gameId}_${user.uid}', true);
+          _storage.setBool('dealt_${gameId}_${user.uid}_r${g.currentRound}', true);
           groups = _syncGroupsWithHand(saved, g.myHand, effectiveJoker);
         } else {
           final partition = HandPartitioner.findBestPartition(g.myHand, effectiveJoker);
@@ -290,19 +294,19 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
               ));
             }
           }
-          final alreadyDealt = _storage.getBool('dealt_${gameId}_${user.uid}') ?? false;
+          final alreadyDealt = _storage.getBool('dealt_${gameId}_${user.uid}_r${g.currentRound}') ?? false;
           if (!_hasTriggeredInitialDeal && !alreadyDealt) {
             _hasTriggeredInitialDeal = true;
-            _storage.setBool('dealt_${gameId}_${user.uid}', true);
+            _storage.setBool('dealt_${gameId}_${user.uid}_r${g.currentRound}', true);
             _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.dealing);
           } else {
             _hasTriggeredInitialDeal = true;
           }
         }
-        _persistGroups(gameId, user.uid, groups);
+        _persistGroups(gameId, user.uid, groups, g.currentRound);
       } else if (groups.isNotEmpty && g.myHand.isNotEmpty) {
         groups = _syncGroupsWithHand(groups, g.myHand, effectiveJoker);
-        _persistGroups(gameId, user.uid, groups);
+        _persistGroups(gameId, user.uid, groups, g.currentRound);
       }
 
       _revalidateGroups(groups, effectiveJoker);
@@ -323,7 +327,14 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       // Auto-unlock Closed Joker ONLY if dealt hand already contains a Pure Sequence (Life) on deal (13 cards, before any draw)
       if (g.isClosedJoker && !g.openedJokerPlayerUids.contains(user.uid) && groups.isNotEmpty) {
         final allCards = groups.expand((grp) => grp.cards).toList();
-        if (allCards.length == 13 && !has14Cards && !state.hasDrawnThisTurn && !normalizedGame.isDiscardPhase) {
+        if (allCards.length == 13 &&
+            g.myHand.length == 13 &&
+            !has14Cards &&
+            !state.hasDrawnThisTurn &&
+            !normalizedGame.isDiscardPhase &&
+            !g.isRoundOver &&
+            !g.isDeclaring &&
+            g.status == 'IN_PROGRESS') {
           if (SequenceValidator.hasPureSequenceInHand(allCards)) {
             openClosedJoker();
           }
@@ -1130,6 +1141,26 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       if (keptCards.isNotEmpty) {
         updatedGroups.add(group.copyWith(cards: keptCards));
       }
+    }
+
+    int totalKept = updatedGroups.fold<int>(0, (sum, g) => sum + g.cards.length);
+    // If fewer than 10 cards matched out of a full 13+ card hand, currentGroups is stale (e.g. from a prior round).
+    // Discard stale grouping and partition the entire fresh hand cleanly!
+    if (serverHand.length >= 13 && totalKept < 10) {
+      final partition = HandPartitioner.findBestPartition(serverHand, openJoker);
+      final cleanGroups = <CardGroup>[];
+      for (final grp in partition.groups) {
+        if (grp.cards.isNotEmpty) {
+          final type = _detectGroupType(grp.cards, openJoker);
+          cleanGroups.add(CardGroup(
+            id: 'grp_${_groupIdCounter++}',
+            type: type,
+            cards: List<Card>.from(grp.cards),
+            isValid: type != CardGroupType.deadwood,
+          ));
+        }
+      }
+      return cleanGroups;
     }
 
     // Newly arrived cards from server:

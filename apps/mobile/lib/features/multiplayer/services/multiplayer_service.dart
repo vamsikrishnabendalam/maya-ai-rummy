@@ -709,7 +709,11 @@ class MultiplayerService {
           final hand = playerHands[p.uid] ?? [];
           batch.set(
             _firestore!.collection('games').doc(gameId).collection('privateHands').doc(p.uid),
-            {'cards': hand.map((c) => c.toInt()).toList()},
+            {
+              'cards': hand.map((c) => c.toInt()).toList(),
+              'round': 1,
+              'updatedAt': now.toIso8601String(),
+            },
           );
         }
         await batch.commit();
@@ -1579,6 +1583,7 @@ class MultiplayerService {
   }) async {
     final game = _mockGames[gameId];
     if (game == null) return;
+    if (game.status != 'IN_PROGRESS') return;
     if (game.jokerMode != 'CLOSED') return;
     if (game.openedJokerPlayerUids.contains(myUid)) return;
 
@@ -2355,7 +2360,8 @@ class MultiplayerService {
       clearCardDrawnFromOpen: true,
       openedJokerPlayerUids: [],
       clearDeclarer: true,
-      declarationDeadline: null,
+      clearDeclarationDeadline: true,
+      clearFinishCard: true,
       submittedPlayerUids: [],
       finalResults: [],
       clearWinner: true,
@@ -2369,27 +2375,29 @@ class MultiplayerService {
 
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
-        await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
-        await _firestore!.collection('tables').doc(activeGame.tableId).update({
+        final batch = _firestore!.batch();
+        final gameRef = _firestore!.collection('games').doc(gameId);
+        final tableRef = _firestore!.collection('tables').doc(activeGame.tableId);
+
+        batch.update(gameRef, updatedGame.toJson());
+        batch.update(tableRef, {
           'status': 'PLAYING',
           'activeGameId': gameId,
         });
+
         for (final entry in playerHands.entries) {
-          await _firestore!
-              .collection('games')
-              .doc(gameId)
-              .collection('privateHands')
-              .doc(entry.key)
-              .set({
+          final handRef = gameRef.collection('privateHands').doc(entry.key);
+          batch.set(handRef, {
             'cards': entry.value.map((c) => c.toInt()).toList(),
+            'round': nextRoundNum,
             'updatedAt': now.toIso8601String(),
           });
         }
+        await batch.commit();
       } catch (e) {
         debugPrint('[MultiplayerService] startNextRound Firestore update notice: $e');
       }
-    }
-  }
+    }  }
 
   // --------------- Connection & Turn Timeout Management ---------------
 
@@ -3388,7 +3396,19 @@ class MultiplayerService {
           return;
         }
 
-        final rawCards = (latestHandSnap?.data()?['cards'] as List<dynamic>?) ?? [];
+        final gameData = latestGameSnap!.data()!;
+        final gameRound = (gameData['currentRound'] as int?) ?? 1;
+
+        final handData = latestHandSnap?.data();
+        final handRound = (handData?['round'] as int?);
+
+        // If a new round has started on server, but this client's privateHand snapshot
+        // is still from a previous round, DO NOT emit the stale previous-round hand!
+        if (handRound != null && handRound < gameRound) {
+          return;
+        }
+
+        final rawCards = (handData?['cards'] as List<dynamic>?) ?? [];
         final parsedHand = rawCards.map((c) {
           if (c is int) return Card.fromInt(c);
           if (c is Map<String, dynamic>) {
