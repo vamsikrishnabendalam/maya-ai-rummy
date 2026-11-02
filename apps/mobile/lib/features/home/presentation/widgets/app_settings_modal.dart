@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'google_sign_in_config_dialog.dart';
 import '../../providers/home_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/presentation/widgets/profile_setup_modal.dart';
@@ -317,12 +318,18 @@ class AppSettingsModal extends ConsumerWidget {
                                         }
                                       } catch (e) {
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Sign in notice: $e'),
-                                              backgroundColor: Colors.redAccent,
-                                            ),
-                                          );
+                                          if (e.toString().contains('10') ||
+                                              e.toString().contains('DEVELOPER_ERROR') ||
+                                              e.toString().contains('sign_in_failed')) {
+                                            GoogleSignInConfigDialog.show(context);
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Sign in notice: $e'),
+                                                backgroundColor: Colors.redAccent,
+                                              ),
+                                            );
+                                          }
                                         }
                                       }
                                     },

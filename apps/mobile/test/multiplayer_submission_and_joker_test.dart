@@ -19,6 +19,13 @@ class MockAuthNotifier extends StateNotifier<MultiplayerUser?> implements AuthNo
   Future<MultiplayerUser?> signInWithGoogle() async => state;
 
   @override
+  Future<MultiplayerUser> signInWithProfileDetails({
+    required String name,
+    required String email,
+    String? photoURL,
+  }) async => state!;
+
+  @override
   Future<MultiplayerUser> signInAsGuest({String? name, bool forceNewSession = false}) async => state!;
 
   @override

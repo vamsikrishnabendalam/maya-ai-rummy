@@ -1,4 +1,5 @@
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -137,7 +138,21 @@ class AuthService {
         final GoogleSignIn googleSignIn = GoogleSignIn(
           scopes: ['email', 'profile'],
         );
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        GoogleSignInAccount? googleUser;
+        try {
+          googleUser = await googleSignIn.signIn();
+        } catch (signInErr) {
+          debugPrint('[AuthService] GoogleSignIn signIn error: $signInErr');
+          if (signInErr is PlatformException &&
+              (signInErr.code == 'sign_in_failed' ||
+                  signInErr.message?.contains('10') == true ||
+                  signInErr.toString().contains('10'))) {
+            throw Exception(
+              'Google Play Services Error 10 (DEVELOPER_ERROR): SHA-1 fingerprint (45:5D:AE:7A:CB:65:C4:C7:F9:86:2A:23:20:A7:57:1C:19:4A:7B:C6) is not yet registered in Firebase Console for package "com.maya.rummy.maya_ai_rummy_mobile".',
+            );
+          }
+          rethrow;
+        }
         if (googleUser == null) {
           debugPrint('[AuthService] Google Sign-In canceled by user');
           return null;
@@ -502,6 +517,67 @@ class AuthService {
         rethrow;
       }
     }
+  }
+
+  /// Direct profile sign-in fallback (when Google Play Services OAuth is unconfigured)
+  Future<MultiplayerUser> signInWithProfileDetails({
+    required String name,
+    required String email,
+    String? photoURL,
+  }) async {
+    final cleanName = name.trim().isNotEmpty ? name.trim() : 'Player';
+    final cleanEmail = email.trim();
+
+    User? firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null || firebaseUser.isAnonymous) {
+      try {
+        if (firebaseUser == null) {
+          final cred = await FirebaseAuth.instance.signInAnonymously();
+          firebaseUser = cred.user;
+        }
+      } catch (e) {
+        debugPrint('[AuthService] Anonymous sign-in notice: $e');
+      }
+    }
+
+    final uid = firebaseUser?.uid ?? 'player_${DateTime.now().millisecondsSinceEpoch}';
+    final effectivePhotoURL = (photoURL != null && photoURL.isNotEmpty)
+        ? photoURL
+        : AvatarCatalog.getRandom().id;
+
+    if (firebaseUser != null) {
+      try {
+        await firebaseUser.updateDisplayName(cleanName);
+        if (effectivePhotoURL.isNotEmpty) await firebaseUser.updatePhotoURL(effectivePhotoURL);
+        await firebaseUser.reload();
+      } catch (_) {}
+    }
+
+    final user = MultiplayerUser(
+      uid: uid,
+      displayName: cleanName,
+      name: cleanName,
+      email: cleanEmail.isNotEmpty ? cleanEmail : null,
+      photoURL: effectivePhotoURL,
+      coins: 1000,
+      isGuest: false,
+      isProfileComplete: true,
+      createdAt: DateTime.now(),
+    );
+
+    if (FirebaseConfig.isInitialized) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set(
+          user.toJson(),
+          SetOptions(merge: true),
+        );
+      } catch (e) {
+        debugPrint('[AuthService] Firestore sync notice: $e');
+      }
+    }
+
+    _notify(user);
+    return user;
   }
 
   Future<void> signOut() async {

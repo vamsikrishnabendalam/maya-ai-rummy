@@ -19,6 +19,20 @@ class AuthNotifier extends StateNotifier<MultiplayerUser?> {
     return await _authService.signInWithGoogle();
   }
 
+  Future<MultiplayerUser> signInWithProfileDetails({
+    required String name,
+    required String email,
+    String? photoURL,
+  }) async {
+    final u = await _authService.signInWithProfileDetails(
+      name: name,
+      email: email,
+      photoURL: photoURL,
+    );
+    state = u;
+    return u;
+  }
+
   Future<MultiplayerUser> signInAsGuest({String? name, bool forceNewSession = false}) async {
     return await _authService.signInAsGuest(name: name, forceNewSession: forceNewSession);
   }

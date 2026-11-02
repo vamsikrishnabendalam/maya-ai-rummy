@@ -243,3 +243,4 @@
 - **Expected Result**:
   - Redundant "Download Android App" option is removed on mobile app.
   - Modals feature compact headers with action buttons aligned to the right.
+
