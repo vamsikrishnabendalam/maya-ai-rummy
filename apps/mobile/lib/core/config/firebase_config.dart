@@ -33,8 +33,8 @@ class FirebaseConfig {
         } catch (_) {
           await Firebase.initializeApp(
             options: const FirebaseOptions(
-              apiKey: 'AIzaSyCZPnOUntPGcJPQ2tOrAs_p6NZtSnIWTNo',
-              appId: '1:1017354829104:android:60e7b7d88caac5a0479cf5',
+              apiKey: 'AIzaSyDie-a9ukkmSlRnTpLSsY4c8oLLhrbQ7p0',
+              appId: '1:1017354829104:android:e17c06708a6d602e479cf5',
               messagingSenderId: '1017354829104',
               projectId: projectId,
               storageBucket: storageBucket,

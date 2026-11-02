@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1017354829104",
+    "project_id": "maya-rummy-vk",
+    "storage_bucket": "maya-rummy-vk.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1017354829104:android:e17c06708a6d602e479cf5",
+        "android_client_info": {
+          "package_name": "com.maya.rummy.maya_ai_rummy_mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1017354829104-tcjjij7l6n8435gmf6nnc9pcuit8o2o8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.maya.rummy.maya_ai_rummy_mobile",
+            "certificate_hash": "455dae7acb65c4c7f9862a2320a7571c194a7bc6"
+          }
+        },
+        {
+          "client_id": "1017354829104-1bl9bms1l4kclj4v6ltb2d46def4s2h0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDie-a9ukkmSlRnTpLSsY4c8oLLhrbQ7p0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1017354829104-1bl9bms1l4kclj4v6ltb2d46def4s2h0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

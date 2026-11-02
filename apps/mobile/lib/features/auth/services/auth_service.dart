@@ -136,6 +136,7 @@ class AuthService {
         }
       } else {
         final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId: '1017354829104-1bl9bms1l4kclj4v6ltb2d46def4s2h0.apps.googleusercontent.com',
           scopes: ['email', 'profile'],
         );
         GoogleSignInAccount? googleUser;
