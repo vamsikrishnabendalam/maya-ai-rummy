@@ -37,7 +37,7 @@ void main() {
       expect(pos2p.first.isCenter, isTrue);
       expect(pos2p.first.centerX, equals(512.0));
       expect(pos2p.first.top, equals(40.0));
-      expect(pos2p.first.avatarHeight, equals(185.0));
+      expect(pos2p.first.avatarHeight, equals(140.0));
 
       // 3 Players: 2 opponents in twin armchairs
       final pos3p = MultiplayerOpponentsLayer.getMobilePositionsForPlayerCount(3);

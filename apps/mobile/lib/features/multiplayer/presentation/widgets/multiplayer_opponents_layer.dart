@@ -172,12 +172,12 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     switch (capacity) {
       case 2:
         return const [
-          // 2-Player: Single opponent centered directly in the central royal armchair
+          // 2-Player: Single opponent centered in central armchair, strictly behind the table rim
           MultiplayerSeatPosition(
             centerX: 512,
             top: 40,
-            avatarTop: 85,
-            avatarHeight: 185,
+            avatarTop: 82,
+            avatarHeight: 140,
             isCenter: true,
           ),
         ];
@@ -187,14 +187,14 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           MultiplayerSeatPosition(
             centerX: 330,
             top: 42,
-            avatarTop: 85,
-            avatarHeight: 180,
+            avatarTop: 82,
+            avatarHeight: 138,
           ),
           MultiplayerSeatPosition(
             centerX: 695,
             top: 42,
-            avatarTop: 85,
-            avatarHeight: 180,
+            avatarTop: 82,
+            avatarHeight: 138,
           ),
         ];
       case 4:
@@ -202,22 +202,22 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           // 4-Player: 3 opponents arrayed across the 3 armchairs
           MultiplayerSeatPosition(
             centerX: 196,
-            top: 70,
-            avatarTop: 105,
-            avatarHeight: 155,
+            top: 60,
+            avatarTop: 95,
+            avatarHeight: 125,
           ),
           MultiplayerSeatPosition(
             centerX: 512,
             top: 40,
-            avatarTop: 85,
-            avatarHeight: 180,
+            avatarTop: 82,
+            avatarHeight: 140,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
             centerX: 828,
-            top: 70,
-            avatarTop: 105,
-            avatarHeight: 155,
+            top: 60,
+            avatarTop: 95,
+            avatarHeight: 125,
           ),
         ];
       case 5:
@@ -225,27 +225,27 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           // 5-Player: 4 opponents in royal arc
           MultiplayerSeatPosition(
             centerX: 184,
-            top: 70,
-            avatarTop: 105,
-            avatarHeight: 155,
+            top: 62,
+            avatarTop: 95,
+            avatarHeight: 125,
           ),
           MultiplayerSeatPosition(
             centerX: 386,
-            top: 45,
-            avatarTop: 90,
-            avatarHeight: 175,
+            top: 42,
+            avatarTop: 84,
+            avatarHeight: 136,
           ),
           MultiplayerSeatPosition(
             centerX: 644,
-            top: 45,
-            avatarTop: 90,
-            avatarHeight: 175,
+            top: 42,
+            avatarTop: 84,
+            avatarHeight: 136,
           ),
           MultiplayerSeatPosition(
             centerX: 856,
-            top: 70,
-            avatarTop: 105,
-            avatarHeight: 155,
+            top: 62,
+            avatarTop: 95,
+            avatarHeight: 125,
           ),
         ];
       case 6:
@@ -254,34 +254,34 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           // 6-Player: 5 opponents arrayed across 5 armchairs
           MultiplayerSeatPosition(
             centerX: 158,
-            top: 70,
-            avatarTop: 105,
-            avatarHeight: 150,
+            top: 62,
+            avatarTop: 95,
+            avatarHeight: 120,
           ),
           MultiplayerSeatPosition(
             centerX: 330,
-            top: 48,
-            avatarTop: 95,
-            avatarHeight: 170,
+            top: 45,
+            avatarTop: 88,
+            avatarHeight: 130,
           ),
           MultiplayerSeatPosition(
             centerX: 506,
-            top: 42,
-            avatarTop: 88,
-            avatarHeight: 175,
+            top: 40,
+            avatarTop: 82,
+            avatarHeight: 138,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
             centerX: 682,
-            top: 48,
-            avatarTop: 95,
-            avatarHeight: 170,
+            top: 45,
+            avatarTop: 88,
+            avatarHeight: 130,
           ),
           MultiplayerSeatPosition(
             centerX: 860,
-            top: 70,
-            avatarTop: 105,
-            avatarHeight: 150,
+            top: 62,
+            avatarTop: 95,
+            avatarHeight: 120,
           ),
         ];
     }
@@ -408,7 +408,7 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           return const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0.0, 0.85, 1.0],
+            stops: [0.0, 0.70, 0.95],
             colors: [Colors.white, Colors.white, Colors.transparent],
           ).createShader(bounds);
         },
@@ -788,7 +788,7 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                       border: Border.all(color: const Color(0xFFF59E0B)),
                     ),
                     child: Text(
-                      '⏱️ ${widget.remainingTurnSeconds}s',
+                      (widget.remainingTurnSeconds <= 0 ? '⏱️ ∞' : '⏱️ ${widget.remainingTurnSeconds}s'),
                       style: TextStyle(
                         color: const Color(0xFFFEF08A),
                         fontSize: isMobile ? 8.5 : 10,

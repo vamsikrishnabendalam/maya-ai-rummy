@@ -320,17 +320,22 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     });
   }
 
-  // Card selection (matches Maya Bot single-card exclusive selection for clean, deterministic discard)
+  // Card selection: toggles selectedCards for grouping, single card active for discard
   void selectCard(Card card) {
     if (state.isHandLocked) return;
-    if (state.selectedCard == card) {
-      state = state.copyWith(clearSelectedCard: true, selectedCards: const {});
+
+    final updated = Set<Card>.from(state.selectedCards);
+    if (updated.contains(card)) {
+      updated.remove(card);
     } else {
-      state = state.copyWith(
-        selectedCard: card,
-        selectedCards: {card},
-      );
+      updated.add(card);
     }
+    final single = updated.isNotEmpty ? updated.last : null;
+    state = state.copyWith(
+      selectedCards: updated,
+      selectedCard: single,
+      clearSelectedCard: single == null,
+    );
   }
 
   // Toggle multi-selection (for grouping multiple cards)
@@ -405,25 +410,36 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     state = state.copyWith(isSubmitting: true);
     try {
       final drawn = await _service.drawFromClosed(gameId: game.gameId, myUid: user.uid);
-      final updatedGroups = List<CardGroup>.from(state.cardGroups);
-      updatedGroups.add(CardGroup(
-        id: 'grp_${_groupIdCounter++}',
-        type: CardGroupType.deadwood,
-        cards: [drawn],
-        isValid: false,
-        customLabel: 'DRAWN',
-      ));
-      _revalidateGroups(updatedGroups, game.openJoker);
-      final score = _recalculateScore(updatedGroups, game.openJoker);
-      _persistGroups(game.gameId, user.uid, updatedGroups);
 
-      state = state.copyWith(
-        cardGroups: updatedGroups,
-        currentScore: score,
-        hasDrawnThisTurn: true,
-        isSubmitting: false,
-        clearSelectedCard: true,
-      );
+      // Check if the realtime watchGame stream already incorporated the drawn card
+      final currentCards = _allCards();
+      if (!currentCards.contains(drawn) && currentCards.length < 14) {
+        final updatedGroups = List<CardGroup>.from(state.cardGroups);
+        updatedGroups.add(CardGroup(
+          id: 'grp_${_groupIdCounter++}',
+          type: CardGroupType.deadwood,
+          cards: [drawn],
+          isValid: false,
+          customLabel: 'DRAWN',
+        ));
+        _revalidateGroups(updatedGroups, game.openJoker);
+        final score = _recalculateScore(updatedGroups, game.openJoker);
+        _persistGroups(game.gameId, user.uid, updatedGroups);
+
+        state = state.copyWith(
+          cardGroups: updatedGroups,
+          currentScore: score,
+          hasDrawnThisTurn: true,
+          isSubmitting: false,
+          clearSelectedCard: true,
+        );
+      } else {
+        state = state.copyWith(
+          hasDrawnThisTurn: true,
+          isSubmitting: false,
+          clearSelectedCard: true,
+        );
+      }
 
       _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.drewFromClosed, card: drawn);
     } catch (e) {
@@ -442,25 +458,36 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     state = state.copyWith(isSubmitting: true);
     try {
       final drawn = await _service.drawFromOpen(gameId: game.gameId, myUid: user.uid);
-      final updatedGroups = List<CardGroup>.from(state.cardGroups);
-      updatedGroups.add(CardGroup(
-        id: 'grp_${_groupIdCounter++}',
-        type: CardGroupType.deadwood,
-        cards: [drawn],
-        isValid: false,
-        customLabel: 'DRAWN',
-      ));
-      _revalidateGroups(updatedGroups, _effectiveWildJoker);
-      final score = _recalculateScore(updatedGroups, _effectiveWildJoker);
-      _persistGroups(game.gameId, user.uid, updatedGroups);
 
-      state = state.copyWith(
-        cardGroups: updatedGroups,
-        currentScore: score,
-        hasDrawnThisTurn: true,
-        isSubmitting: false,
-        clearSelectedCard: true,
-      );
+      // Check if the realtime watchGame stream already incorporated the drawn card
+      final currentCards = _allCards();
+      if (!currentCards.contains(drawn) && currentCards.length < 14) {
+        final updatedGroups = List<CardGroup>.from(state.cardGroups);
+        updatedGroups.add(CardGroup(
+          id: 'grp_${_groupIdCounter++}',
+          type: CardGroupType.deadwood,
+          cards: [drawn],
+          isValid: false,
+          customLabel: 'DRAWN',
+        ));
+        _revalidateGroups(updatedGroups, _effectiveWildJoker);
+        final score = _recalculateScore(updatedGroups, _effectiveWildJoker);
+        _persistGroups(game.gameId, user.uid, updatedGroups);
+
+        state = state.copyWith(
+          cardGroups: updatedGroups,
+          currentScore: score,
+          hasDrawnThisTurn: true,
+          isSubmitting: false,
+          clearSelectedCard: true,
+        );
+      } else {
+        state = state.copyWith(
+          hasDrawnThisTurn: true,
+          isSubmitting: false,
+          clearSelectedCard: true,
+        );
+      }
 
       _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.drewFromOpen, card: drawn);
     } catch (e) {
@@ -1066,14 +1093,37 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       }
     }
 
-    // Newly drawn cards that arrived from server are appended as a separate group
-    for (final missingCard in serverCardsRemaining) {
+    // Newly arrived cards from server:
+    if (updatedGroups.isEmpty && serverCardsRemaining.isNotEmpty) {
+      // Entire hand arrived clean without matching stale saved groups -> find optimal partition!
+      final partition = HandPartitioner.findBestPartition(serverCardsRemaining, openJoker);
+      for (final grp in partition.groups) {
+        if (grp.cards.isNotEmpty) {
+          final type = _detectGroupType(grp.cards, openJoker);
+          updatedGroups.add(CardGroup(
+            id: 'grp_${_groupIdCounter++}',
+            type: type,
+            cards: List<Card>.from(grp.cards),
+            isValid: type != CardGroupType.deadwood,
+          ));
+        }
+      }
+    } else if (serverCardsRemaining.length == 1) {
+      // Exactly 1 newly drawn card arrived from server
       updatedGroups.add(CardGroup(
         id: 'grp_${_groupIdCounter++}',
         type: CardGroupType.deadwood,
-        cards: [missingCard],
+        cards: [serverCardsRemaining.first],
         isValid: false,
         customLabel: 'DRAWN',
+      ));
+    } else if (serverCardsRemaining.length > 1) {
+      // Multiple surplus cards -> bundle together into 1 deadwood group rather than splitting into 1-card groups!
+      updatedGroups.add(CardGroup(
+        id: 'grp_${_groupIdCounter++}',
+        type: CardGroupType.deadwood,
+        cards: List<Card>.from(serverCardsRemaining),
+        isValid: false,
       ));
     }
 

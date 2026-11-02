@@ -1316,9 +1316,11 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
       isDropped: isDropped,
     );
 
-    final int remainingTurnSeconds = game.turnDeadline != null
-        ? game.turnDeadline!.difference(DateTime.now()).inSeconds.clamp(0, 99)
-        : 30;
+    final int remainingTurnSeconds = game.turnTimerSeconds == 0
+        ? 0
+        : (game.turnDeadline != null
+            ? game.turnDeadline!.difference(DateTime.now()).inSeconds.clamp(0, 99)
+            : game.turnTimerSeconds);
 
     final Card? wildJoker = (game.hasPlayerOpenedJoker(user.uid) || !game.isClosedJoker) ? game.openJoker : null;
     final int activeCapacity = (game.status == 'IN_PROGRESS' || game.status == 'DECLARING' || game.status == 'COMPLETED')
@@ -3574,7 +3576,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  '⏱️ ${remainingTurnSeconds}s',
+                                  (game.turnTimerSeconds == 0 ? '⏱️ ∞' : '⏱️ ${remainingTurnSeconds}s'),
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w800,
