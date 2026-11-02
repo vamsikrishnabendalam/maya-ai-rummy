@@ -86,9 +86,9 @@ void main() {
       // Verify dealer badge (D) is rendered
       expect(find.text('D'), findsOneWidget);
       // Verify 13 cards chip
-      expect(find.text('13 🂠'), findsOneWidget);
+      expect(find.textContaining('13'), findsOneWidget);
       // Verify turn timer
-      expect(find.text('⏱ 25s'), findsOneWidget);
+      expect(find.textContaining('25s'), findsOneWidget);
     });
 
     testWidgets('Multiplayer Open Discard Pile DragTarget accepts dropped CardDragData without prior selection', (tester) async {

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/models/avatar_catalog.dart';
 import '../../models/table_models.dart';
 
-/// Specification for where an opponent avatar and pod are seated across the 1754x896 reference canvas.
+/// Specification for where an opponent avatar and pod are seated across the reference canvas.
 class MultiplayerSeatPosition {
   final double? left;
   final double? right;
@@ -33,6 +33,7 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
   final String dealerPlayerId;
   final int remainingTurnSeconds;
   final void Function(TablePlayer)? onOpponentTap;
+  final bool isMobile;
 
   const MultiplayerOpponentsLayer({
     super.key,
@@ -42,10 +43,10 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     required this.dealerPlayerId,
     required this.remainingTurnSeconds,
     this.onOpponentTap,
+    this.isMobile = false,
   });
 
-  /// Seat coordinates configured for each table capacity (2, 3, 4, 5, 6 players),
-  /// perfectly matched to the royal velvet armchair crests in each hall artwork.
+  /// Seat coordinates configured for desktop/tablet (1754x896 reference canvas).
   static List<MultiplayerSeatPosition> getPositionsForPlayerCount(int capacity) {
     switch (capacity) {
       case 2:
@@ -165,11 +166,134 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     }
   }
 
+  /// Mobile seat coordinates configured for each table capacity (2, 3, 4, 5, 6 players)
+  /// tailored for the 1024x491 mobile landscape canvas with chairs in the background.
+  static List<MultiplayerSeatPosition> getMobilePositionsForPlayerCount(int capacity) {
+    switch (capacity) {
+      case 2:
+        return const [
+          // 2-Player: Single opponent centered directly in the central royal armchair
+          MultiplayerSeatPosition(
+            centerX: 512,
+            top: 40,
+            avatarTop: 85,
+            avatarHeight: 185,
+            isCenter: true,
+          ),
+        ];
+      case 3:
+        return const [
+          // 3-Player: 2 opponents in the 2 armchairs
+          MultiplayerSeatPosition(
+            centerX: 330,
+            top: 42,
+            avatarTop: 85,
+            avatarHeight: 180,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 695,
+            top: 42,
+            avatarTop: 85,
+            avatarHeight: 180,
+          ),
+        ];
+      case 4:
+        return const [
+          // 4-Player: 3 opponents arrayed across the 3 armchairs
+          MultiplayerSeatPosition(
+            centerX: 196,
+            top: 70,
+            avatarTop: 105,
+            avatarHeight: 155,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 512,
+            top: 40,
+            avatarTop: 85,
+            avatarHeight: 180,
+            isCenter: true,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 828,
+            top: 70,
+            avatarTop: 105,
+            avatarHeight: 155,
+          ),
+        ];
+      case 5:
+        return const [
+          // 5-Player: 4 opponents in royal arc
+          MultiplayerSeatPosition(
+            centerX: 184,
+            top: 70,
+            avatarTop: 105,
+            avatarHeight: 155,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 386,
+            top: 45,
+            avatarTop: 90,
+            avatarHeight: 175,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 644,
+            top: 45,
+            avatarTop: 90,
+            avatarHeight: 175,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 856,
+            top: 70,
+            avatarTop: 105,
+            avatarHeight: 155,
+          ),
+        ];
+      case 6:
+      default:
+        return const [
+          // 6-Player: 5 opponents arrayed across 5 armchairs
+          MultiplayerSeatPosition(
+            centerX: 158,
+            top: 70,
+            avatarTop: 105,
+            avatarHeight: 150,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 330,
+            top: 48,
+            avatarTop: 95,
+            avatarHeight: 170,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 506,
+            top: 42,
+            avatarTop: 88,
+            avatarHeight: 175,
+            isCenter: true,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 682,
+            top: 48,
+            avatarTop: 95,
+            avatarHeight: 170,
+          ),
+          MultiplayerSeatPosition(
+            centerX: 860,
+            top: 70,
+            avatarTop: 105,
+            avatarHeight: 150,
+          ),
+        ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (opponents.isEmpty) return const SizedBox.shrink();
 
-    final positions = getPositionsForPlayerCount(maxPlayers);
+    final positions = isMobile
+        ? getMobilePositionsForPlayerCount(maxPlayers)
+        : getPositionsForPlayerCount(maxPlayers);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -204,7 +328,7 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
 
     Widget avatarWidget;
     if (isCustom) {
-      // Option B: Luxury circular badge seated in the velvet chair backrest
+      // Luxury circular badge seated in the velvet chair backrest
       ImageProvider? imgProvider;
       if (photoURL.startsWith('data:image')) {
         try {
@@ -215,17 +339,24 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
         imgProvider = NetworkImage(photoURL);
       }
 
-      final badgeSize = (position.avatarHeight * 0.52).clamp(100.0, 150.0);
+      final badgeSize = (position.avatarHeight * 0.52).clamp(
+        isMobile ? 55.0 : 100.0,
+        isMobile ? 90.0 : 150.0,
+      );
 
       avatarWidget = Container(
         width: badgeSize,
         height: badgeSize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF0F1E36),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2A0845), Color(0xFF6441A5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           border: Border.all(
             color: isCurrentTurn ? const Color(0xFFF2CA50) : const Color(0xFFD4AF37),
-            width: isCurrentTurn ? 3.5 : 2.5,
+            width: isCurrentTurn ? 2.5 : 1.5,
           ),
           boxShadow: [
             BoxShadow(
@@ -322,6 +453,7 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
       isDealer: isDealer,
       remainingTurnSeconds: remainingTurnSeconds,
       onTap: onOpponentTap != null ? () => onOpponentTap!(player) : null,
+      isMobile: isMobile,
     );
 
     // Exact horizontal centering anchor
@@ -361,6 +493,7 @@ class MultiplayerOpponentPod extends StatefulWidget {
   final bool isDealer;
   final int remainingTurnSeconds;
   final VoidCallback? onTap;
+  final bool isMobile;
 
   const MultiplayerOpponentPod({
     super.key,
@@ -369,6 +502,7 @@ class MultiplayerOpponentPod extends StatefulWidget {
     required this.isDealer,
     required this.remainingTurnSeconds,
     this.onTap,
+    this.isMobile = false,
   });
 
   @override
@@ -401,6 +535,7 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
     final isEliminated = player.status == 'ELIMINATED';
     final isDeclared = player.status == 'DECLARED';
     final isOffline = !player.connected;
+    final isMobile = widget.isMobile;
 
     return AnimatedBuilder(
       animation: _pulseController,
@@ -411,7 +546,10 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
           onTap: widget.onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 7 : 12,
+              vertical: isMobile ? 3 : 5,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: widget.isCurrentTurn
@@ -432,13 +570,13 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.6),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
+                  blurRadius: isMobile ? 5 : 8,
+                  offset: const Offset(0, 2),
                 ),
                 if (widget.isCurrentTurn)
                   BoxShadow(
                     color: const Color(0xFFF2CA50).withValues(alpha: 0.35 + 0.25 * glowFactor),
-                    blurRadius: 12 + 6 * glowFactor,
+                    blurRadius: 10 + 4 * glowFactor,
                     spreadRadius: 1 + glowFactor,
                   ),
               ],
@@ -449,8 +587,8 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                 // 1. Dealer Badge 'D'
                 if (widget.isDealer) ...[
                   Container(
-                    width: 18,
-                    height: 18,
+                    width: isMobile ? 14 : 18,
+                    height: isMobile ? 14 : 18,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFFF2CA50), Color(0xFFD4AF37)],
@@ -463,24 +601,24 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                         ),
                       ],
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         'D',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: isMobile ? 8.5 : 10,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF241A00),
+                          color: const Color(0xFF241A00),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: isMobile ? 4 : 6),
                 ],
 
                 // 2. Opponent Initial / Avatar Circle
                 Container(
-                  width: 22,
-                  height: 22,
+                  width: isMobile ? 18 : 22,
+                  height: isMobile ? 18 : 22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
@@ -521,9 +659,9 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                             player.displayName.isNotEmpty
                                 ? player.displayName[0].toUpperCase()
                                 : 'P',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 11,
+                              fontSize: isMobile ? 9.5 : 11,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -532,18 +670,18 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: isMobile ? 4 : 6),
 
                 // 3. Opponent Display Name
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 110),
+                  constraints: BoxConstraints(maxWidth: isMobile ? 78 : 110),
                   child: Text(
-                    widget.isCurrentTurn ? '✨ ${player.displayName}' : player.displayName,
+                    widget.isCurrentTurn ? '👑 ${player.displayName}' : player.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.outfit(
                       color: widget.isCurrentTurn ? const Color(0xFFFDE68A) : Colors.white,
-                      fontSize: 13,
+                      fontSize: isMobile ? 10.5 : 13,
                       fontWeight: widget.isCurrentTurn ? FontWeight.w800 : FontWeight.w600,
                       letterSpacing: 0.3,
                     ),
@@ -551,89 +689,89 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
                 ),
 
                 if (player.isHost) ...[
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 3),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(3),
                     ),
-                    child: const Text(
+                    child: Text(
                       'HOST',
                       style: TextStyle(
-                        color: Color(0xFFFDE68A),
-                        fontSize: 8,
+                        color: const Color(0xFFFDE68A),
+                        fontSize: isMobile ? 7 : 8,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                 ],
 
-                const SizedBox(width: 8),
+                SizedBox(width: isMobile ? 5 : 8),
 
                 // 4. Status or Card Count Badge
                 if (isOffline)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade800,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       'OFFLINE',
-                      style: TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Colors.white60, fontSize: isMobile ? 8 : 9, fontWeight: FontWeight.bold),
                     ),
                   )
                 else if (isEliminated)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFB91C1C),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       'OUT',
-                      style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Colors.white, fontSize: isMobile ? 8 : 9, fontWeight: FontWeight.bold),
                     ),
                   )
                 else if (isDropped)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFB45309),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       'DROPPED',
-                      style: TextStyle(color: Color(0xFFFEF08A), fontSize: 9, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: const Color(0xFFFEF08A), fontSize: isMobile ? 8 : 9, fontWeight: FontWeight.bold),
                     ),
                   )
                 else if (isDeclared)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: const Color(0xFF047857),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       'DECLARED',
-                      style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 9, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: const Color(0xFFA7F3D0), fontSize: isMobile ? 8 : 9, fontWeight: FontWeight.bold),
                     ),
                   )
                 else
                   // Standard Card Count Badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 7, vertical: isMobile ? 1.5 : 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F172A).withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0x44D4AF37), width: 0.8),
                     ),
                     child: Text(
                       '${player.cardCount} 🂠',
-                      style: const TextStyle(
-                        color: Color(0xFFE2E8F0),
-                        fontSize: 10.5,
+                      style: TextStyle(
+                        color: const Color(0xFFE2E8F0),
+                        fontSize: isMobile ? 9 : 10.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -641,19 +779,19 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
 
                 // 5. Active Turn Countdown Timer Badge
                 if (widget.isCurrentTurn && !isDropped && !isEliminated) ...[
-                  const SizedBox(width: 6),
+                  SizedBox(width: isMobile ? 4 : 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 5 : 6, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFB45309),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: const Color(0xFFF59E0B)),
                     ),
                     child: Text(
-                      '⏱ ${widget.remainingTurnSeconds}s',
-                      style: const TextStyle(
-                        color: Color(0xFFFEF08A),
-                        fontSize: 10,
+                      '⏱️ ${widget.remainingTurnSeconds}s',
+                      style: TextStyle(
+                        color: const Color(0xFFFEF08A),
+                        fontSize: isMobile ? 8.5 : 10,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -667,4 +805,3 @@ class _MultiplayerOpponentPodState extends State<MultiplayerOpponentPod>
     );
   }
 }
-

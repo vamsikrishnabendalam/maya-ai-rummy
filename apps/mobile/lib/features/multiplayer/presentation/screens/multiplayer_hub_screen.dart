@@ -448,6 +448,42 @@ class _MultiplayerHubScreenState extends ConsumerState<MultiplayerHubScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => context.push('/multiplayer-2p-preview'),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2E2413), Color(0xFF181F26)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF2CA50), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF2CA50).withValues(alpha: 0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.table_restaurant_rounded, size: 14, color: Color(0xFFF2CA50)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Table Preview',
+                              style: TextStyle(
+                                color: Color(0xFFF2CA50),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

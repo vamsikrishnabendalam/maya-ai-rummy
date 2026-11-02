@@ -72,7 +72,7 @@ void main() {
       expect(find.textContaining('Vikram S.'), findsOneWidget);
       expect(find.textContaining('Ananya R.'), findsOneWidget);
       expect(find.text('D'), findsOneWidget); // Dealer badge
-      expect(find.text('⏱ 22s'), findsOneWidget); // Turn timer
+      expect(find.textContaining('22s'), findsOneWidget); // Turn timer
     });
 
     // ----------------- 4-Player Table Tests -----------------

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/responsive.dart';
 
 /// Full-screen background displaying the Royal Casino Hall artwork
-/// customized per multiplayer player count (2, 3, 4, 5, 6 players).
+/// customized per multiplayer player count (2, 3, 4, 5, 6 players),
+/// with responsive mobile landscape asset selection.
 class MultiplayerTableBackground extends StatelessWidget {
   final int maxPlayers;
   final Widget child;
@@ -13,25 +15,27 @@ class MultiplayerTableBackground extends StatelessWidget {
   });
 
   /// Maps player capacity (2, 3, 4, 5, 6) to its dedicated royal casino hall background asset.
-  static String assetForMaxPlayers(int maxPlayers) {
+  static String assetForMaxPlayers(int maxPlayers, {bool isMobileLandscape = false}) {
+    final prefix = isMobileLandscape ? 'multiplayer_mobile_bg' : 'multiplayer_bg';
     switch (maxPlayers) {
       case 2:
-        return 'assets/images/multiplayer_bg_2p.webp';
+        return 'assets/images/${prefix}_2p.webp';
       case 3:
-        return 'assets/images/multiplayer_bg_3p.webp';
+        return 'assets/images/${prefix}_3p.webp';
       case 4:
-        return 'assets/images/multiplayer_bg_4p.webp';
+        return 'assets/images/${prefix}_4p.webp';
       case 5:
-        return 'assets/images/multiplayer_bg_5p.webp';
+        return 'assets/images/${prefix}_5p.webp';
       case 6:
       default:
-        return 'assets/images/multiplayer_bg_6p.webp';
+        return 'assets/images/${prefix}_6p.webp';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final assetPath = assetForMaxPlayers(maxPlayers);
+    final isMobileLandscape = Responsive.isMobileLandscape(context);
+    final assetPath = assetForMaxPlayers(maxPlayers, isMobileLandscape: isMobileLandscape);
     final pngFallbackPath = assetPath.replaceAll('.webp', '.png');
 
     return Stack(
@@ -78,4 +82,3 @@ class MultiplayerTableBackground extends StatelessWidget {
     );
   }
 }
-

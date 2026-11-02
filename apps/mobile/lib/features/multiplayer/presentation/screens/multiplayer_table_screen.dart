@@ -153,31 +153,38 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
           ],
         ),
         content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF081220),
-                  borderRadius: BorderRadius.circular(8),
+          width: 520,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 290),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF081220),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Expanded(flex: 4, child: Text('PLAYER', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 2, child: Text('CARDS', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 2, child: Text('SCORE', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 3, child: Text('STATUS', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
+                    ],
+                  ),
                 ),
-                child: const Row(
-                  children: [
-                    Expanded(flex: 4, child: Text('PLAYER', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
-                    Expanded(flex: 2, child: Text('CARDS', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
-                    Expanded(flex: 2, child: Text('SCORE', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
-                    Expanded(flex: 3, child: Text('STATUS', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.bold))),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
-              // Player Rows
-              ...game.players.map((p) {
+                // Player Rows (Scrollable for up to 6 players)
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...game.players.map((p) {
                 final isMe = p.uid == currentUid;
                 final isCurrentTurn = p.uid == game.currentTurnPlayerId;
 
@@ -299,7 +306,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                   ),
                 );
               }).toList(),
-            ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -1403,6 +1416,39 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         ),
       ),
     );
+
+    final isMobileLandscape = Responsive.isMobileLandscape(context);
+    if (isMobileLandscape) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: MultiplayerTableBackground(
+          maxPlayers: activeCapacity,
+          child: _buildMobileLandscapeLayout(
+            context,
+            ref,
+            game: game,
+            tableState: tableState,
+            notifier: notifier,
+            user: user,
+            toastMessage: toastMessage,
+            isMyTurn: isMyTurn,
+            isDrawPhase: isDrawPhase,
+            isDiscardPhase: isDiscardPhase,
+            remainingTurnSeconds: remainingTurnSeconds,
+            wildJoker: wildJoker,
+            canDrop: canDrop,
+            dropPenalty: dropPenalty,
+            isFirstDrop: isFirstDrop,
+            canDiscard: canDiscard,
+            canDeclare: canDeclare,
+            myUid: myUid,
+            activeCapacity: activeCapacity,
+            opponents: opponents,
+            myPlayer: myPlayer,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF09141A),
@@ -3180,6 +3226,1528 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
             const SizedBox(height: 12),
           ],
         ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // MOBILE LANDSCAPE RESPONSIVE LAYOUT (Calibrated from Maya AI Studio Layout)
+  // Canonical Reference Canvas: 1024 x 491 with Proportional FittedBox Scaling
+  // ===========================================================================
+
+  Widget _buildMobileLandscapeLayout(
+    BuildContext context,
+    WidgetRef ref, {
+    required MultiplayerGameState game,
+    required MultiplayerGameTableState tableState,
+    required MultiplayerGameNotifier notifier,
+    required dynamic user,
+    required String toastMessage,
+    required bool isMyTurn,
+    required bool isDrawPhase,
+    required bool isDiscardPhase,
+    required int remainingTurnSeconds,
+    required Card? wildJoker,
+    required bool canDrop,
+    required int dropPenalty,
+    required bool isFirstDrop,
+    required bool canDiscard,
+    required bool canDeclare,
+    required String myUid,
+    required int activeCapacity,
+    required List<TablePlayer> opponents,
+    required TablePlayer myPlayer,
+  }) {
+    final uiState = ref.watch(gameUIProvider);
+    final String modeLabel;
+    if (game.gameMode.toUpperCase().contains('POINT')) {
+      modeLabel = 'POINTS';
+    } else if (game.gameMode.toUpperCase().contains('DEAL')) {
+      modeLabel = 'DEALS (${game.currentRound}/2)';
+    } else {
+      modeLabel = game.gameMode.toUpperCase();
+    }
+
+    final turnPlayer = game.players.firstWhere(
+      (p) => p.uid == game.currentTurnPlayerId,
+      orElse: () => myPlayer,
+    );
+
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1024.0 / 491.0,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 1024.0,
+            height: 491.0,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 1. LAYER 1: MULTIPLAYER OPPONENTS LAYER (Armchair seated opponents 2P to 6P)
+                Positioned.fill(
+                  child: MultiplayerOpponentsLayer(
+                    maxPlayers: activeCapacity,
+                    opponents: opponents,
+                    currentTurnPlayerId: game.currentTurnPlayerId,
+                    dealerPlayerId: game.dealerPlayerId,
+                    remainingTurnSeconds: remainingTurnSeconds,
+                    isMobile: true,
+                    onOpponentTap: myPlayer.isHost && game.status == 'IN_PROGRESS'
+                        ? (p) => _showKickPlayerFromGameDialog(context, p)
+                        : null,
+                  ),
+                ),
+
+                // 2. Center Table Cards (Inside Table Circle Felt - Tilted 46 deg perspective)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 243,
+                  child: Center(
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.0016)
+                        ..rotateX(-0.8028),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Closed Deck Stack with Perpendicular Tucked Wild Joker
+                          _buildMobilePerspectiveClosedDeck(
+                            context: context,
+                            count: game.closedDeckRemaining,
+                            wildJoker: game.openJoker,
+                            isClosedJoker: game.isClosedJoker,
+                            isJokerOpened: game.hasPlayerOpenedJoker(user.uid),
+                            hasLife: notifier.hasFirstLife,
+                            onOpenClosedJoker: () {
+                              if (notifier.hasFirstLife) {
+                                notifier.openClosedJoker();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                            canDraw: !game.isDeclaring && isMyTurn && isDrawPhase,
+                            onDraw: () => notifier.drawFromClosed(),
+                          ),
+                          const SizedBox(width: 22),
+                          // Open Discard Pile
+                          _buildMobilePerspectiveOpenPile(
+                            context: context,
+                            discardPile: game.openPile,
+                            wildJoker: wildJoker,
+                            canDraw: !game.isDeclaring && isMyTurn && isDrawPhase,
+                            onDraw: () => notifier.drawFromOpen(),
+                            canDiscard: isMyTurn && isDiscardPhase && !game.isDeclaring,
+                            onDiscardCard: (card) {
+                              if (game.isDeclaring) return;
+                              if (!isMyTurn || !isDiscardPhase) return;
+                              if (card == game.cardDrawnFromOpenThisTurn) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Cannot discard the card drawn from the open pile.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              notifier.discardCard(card);
+                            },
+                            onShowHistory: () {
+                              if (game.openPile.isNotEmpty) {
+                                DiscardHistoryModal.show(
+                                  context,
+                                  discardPile: game.openPile,
+                                  wildJoker: wildJoker,
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 22),
+                          // Finish / Declare Slot
+                          _buildMobilePerspectiveFinishSlot(
+                            context: context,
+                            isActivated: canDeclare || (!game.isDeclaring && isMyTurn && isDiscardPhase && uiState.isDragging),
+                            canAcceptDrop: isMyTurn && isDiscardPhase && !game.isDeclaring,
+                            canDeclare: canDeclare,
+                            onDeclare: (isMyTurn && isDiscardPhase && !game.isDeclaring)
+                                ? () => _handleMultiplayerDeclare()
+                                : null,
+                            onCardDeclared: (isMyTurn && isDiscardPhase && !game.isDeclaring)
+                                ? (card) => _handleMultiplayerDeclare(finishCard: card)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 3. Top-Left Brand Pod
+                Positioned(
+                  left: 7,
+                  top: 9,
+                  width: 156,
+                  height: 42,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xF210192A), Color(0xF7090F1A)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0x99D4AF37), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'MULTIPLAYER RUMMY',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFFF2CA50),
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0x33F2CA50),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0x88F2CA50), width: 1),
+                            ),
+                            child: Text(
+                              modeLabel,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFF2CA50),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0x22FFFFFF),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${activeCapacity}P',
+                              style: GoogleFonts.outfit(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 4. Left Status Pod (Turn countdown timer, 1st Life, 2nd Life, Deadwood)
+                Positioned(
+                  left: 6,
+                  top: 56,
+                  width: 142,
+                  height: 58,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xF20E1624), Color(0xF7080E18)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0x66D4AF37), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                isMyTurn ? 'YOUR TURN' : '${turnPlayer.displayName.toUpperCase()}\'S TURN',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isMyTurn ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x26F59E0B),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '⏱️ ${remainingTurnSeconds}s',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFFFBBF24),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    notifier.hasFirstLife ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 11,
+                                    color: notifier.hasFirstLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '1st Life',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: notifier.hasFirstLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    notifier.hasSecondLife ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 11,
+                                    color: notifier.hasSecondLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '2nd Life',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: notifier.hasSecondLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'DEADWOOD: ${tableState.currentScore} PTS',
+                              style: GoogleFonts.outfit(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: tableState.currentScore == 0 ? const Color(0xFF34D399) : const Color(0xFFFBBF24),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 5. Center Toast Banner
+                Positioned(
+                  left: 334,
+                  top: 12,
+                  child: Container(
+                    height: 30,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xF00E1828), Color(0xF016263E)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0x99F2CA50), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFFF2CA50), size: 13),
+                        const SizedBox(width: 6),
+                        Text(
+                          toastMessage,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFFFFBEB),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 6. Declaration Banner (when active)
+                if (game.isDeclaring)
+                  Positioned(
+                    top: 48,
+                    left: 200,
+                    right: 200,
+                    child: _buildDeclarationBanner(game, myUid),
+                  ),
+
+                // 7. Top Right: Declare Hand Button (With DragTarget Declare support)
+                Positioned(
+                  left: 792,
+                  top: 10,
+                  width: 138,
+                  height: 34,
+                  child: DragTarget<Object>(
+                    onWillAcceptWithDetails: (details) =>
+                        (!game.isDeclaring && isMyTurn && isDiscardPhase) &&
+                        (details.data is CardDragData || details.data is Card),
+                    onAcceptWithDetails: (details) {
+                      Card? card;
+                      if (details.data is CardDragData) {
+                        card = (details.data as CardDragData).card;
+                      } else if (details.data is Card) {
+                        card = details.data as Card;
+                      }
+                      _handleMultiplayerDeclare(finishCard: card);
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      final isHovering = candidateData.isNotEmpty;
+                      final active = canDeclare || isHovering;
+
+                      return InkWell(
+                        onTap: (canDeclare && !game.isDeclaring)
+                            ? () => _handleMultiplayerDeclare()
+                            : null,
+                        borderRadius: BorderRadius.circular(10),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 150),
+                          opacity: active ? 1.0 : 0.45,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF141B26), Color(0xFF0B1018)],
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isHovering ? const Color(0xFF34D399) : const Color(0xFFF2CA50),
+                                width: isHovering ? 2.2 : 1.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isHovering
+                                      ? const Color(0xFF34D399).withValues(alpha: 0.6)
+                                      : const Color(0xFFF2CA50).withValues(alpha: canDeclare ? 0.35 : 0.0),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2CA50), size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Declare Hand',
+                                      style: GoogleFonts.outfit(
+                                        color: const Color(0xFFF2CA50),
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // 8. Top Right: 3-Dash MENU Button
+                Positioned(
+                  left: 939,
+                  top: 10,
+                  width: 78,
+                  height: 34,
+                  child: InkWell(
+                    onTap: () => _showMobileMultiplayerMenu(context, ref, game, myPlayer),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2A1E0D), Color(0xFF151A22)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFF2CA50), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(width: 14, height: 1.8, color: const Color(0xFFF2CA50)),
+                              const SizedBox(height: 2.5),
+                              Container(width: 14, height: 1.8, color: const Color(0xFFF2CA50)),
+                              const SizedBox(height: 2.5),
+                              Container(width: 14, height: 1.8, color: const Color(0xFFF2CA50)),
+                            ],
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'MENU',
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFFF2CA50),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 9. Top-Right Discard Button (Directly below Declare & Menu with DragTarget support)
+                Positioned(
+                  left: 905,
+                  top: 52,
+                  width: 106,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Discard',
+                    icon: Icons.arrow_upward_rounded,
+                    gradientColors: [const Color(0xFF1B2230), const Color(0xFF111722)],
+                    borderColor: canDiscard ? const Color(0xFF60A5FA) : const Color(0xFF475569),
+                    textColor: canDiscard ? Colors.white : const Color(0xFF94A3B8),
+                    canAcceptDrop: canDiscard,
+                    onCardDropped: (card) {
+                      if (card == game.cardDrawnFromOpenThisTurn) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cannot discard the card drawn from the open pile.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                      notifier.discardCard(card);
+                    },
+                    onTap: canDiscard
+                        ? () {
+                            if (tableState.selectedCard != null) {
+                              final card = tableState.selectedCard!;
+                              if (card == game.cardDrawnFromOpenThisTurn) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Cannot discard the card drawn from the open pile.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              notifier.discardCard(card);
+                            }
+                          }
+                        : null,
+                  ),
+                ),
+
+                // 10. Left Action Buttons Stack (All 112px x 38px)
+                // Group Button
+                Positioned(
+                  left: 6,
+                  top: 124,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Group',
+                    icon: Icons.folder_rounded,
+                    gradientColors: [const Color(0xFF2F62C9), const Color(0xFF1E4498)],
+                    borderColor: const Color(0xFF60A5FA),
+                    textColor: Colors.white,
+                    onTap: () => notifier.groupSelectedCards(),
+                  ),
+                ),
+                // Drop
+                Positioned(
+                  left: 7,
+                  top: 171,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Drop ($dropPenalty)',
+                    icon: Icons.flag_rounded,
+                    gradientColors: canDrop
+                        ? [const Color(0xFFA82020), const Color(0xFF7E1515)]
+                        : [const Color(0xFF221616), const Color(0xFF181010)],
+                    borderColor: canDrop ? const Color(0xFFFCA5A5) : const Color(0xFF452222),
+                    textColor: canDrop ? Colors.white : const Color(0xFF7A4A4A),
+                    onTap: canDrop
+                        ? () => _showDropConfirmationDialog(context, game, dropPenalty, isFirstDrop)
+                        : null,
+                  ),
+                ),
+                // Sort Hand
+                Positioned(
+                  left: 6,
+                  top: 218,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Sort Hand',
+                    icon: Icons.swap_vert_rounded,
+                    gradientColors: [const Color(0xFF2D7D46), const Color(0xFF1E5C32)],
+                    borderColor: const Color(0xFF10B981),
+                    textColor: Colors.white,
+                    onTap: () => notifier.sortHandAscending(),
+                  ),
+                ),
+                // AI Group
+                Positioned(
+                  left: 6,
+                  top: 267,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'AI Group',
+                    icon: Icons.auto_awesome_rounded,
+                    gradientColors: [const Color(0xFF6A3EA1), const Color(0xFF502A82)],
+                    borderColor: const Color(0xFFA855F7),
+                    textColor: Colors.white,
+                    onTap: () => notifier.autoGroupHand(),
+                  ),
+                ),
+
+                // 11. Grouped Player Hand (Full 938px width rack, 14 cards fit without scrolling)
+                Positioned(
+                  left: 44,
+                  top: 335,
+                  width: 938,
+                  child: PlayerHand(
+                    cardGroups: tableState.cardGroups,
+                    wildJokerCard: wildJoker,
+                    selectedCard: tableState.selectedCard,
+                    selectedCards: tableState.selectedCards,
+                    isDiscardPhase: !game.isDeclaring && isMyTurn && isDiscardPhase,
+                    customCardWidth: 90.0,
+                    customCardHeight: 130.0,
+                    customCardOverlap: 44.0,
+                    customGroupSpacing: 16.0,
+                    onCardTap: (card) => notifier.selectCard(card),
+                    onCardMoved: (card, fromGroupId, toGroupId) {
+                      notifier.moveCardBetweenGroups(
+                        card,
+                        fromGroupId,
+                        toGroupId,
+                        tableState.cardGroups
+                            .firstWhere((g) => g.id == toGroupId, orElse: () => tableState.cardGroups.first)
+                            .cards
+                            .length,
+                      );
+                    },
+                    onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
+                      notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
+                    },
+                    onCardReordered: (groupId, oldIndex, newIndex) {
+                      notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
+                    },
+                    onCardMovedToNewGroup: (card, fromGroupId) {
+                      notifier.moveCardToNewGroup(card, fromGroupId);
+                    },
+                    onCardDragStarted: (card, groupId) {
+                      ref.read(gameUIProvider.notifier).startDrag(card, groupId);
+                    },
+                    onDragEnded: () {
+                      ref.read(gameUIProvider.notifier).endDrag();
+                    },
+                    onDiscard: (card) {
+                      if (game.isDeclaring) return;
+                      if (!isMyTurn || !isDiscardPhase) return;
+                      if (card == game.cardDrawnFromOpenThisTurn) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cannot discard the card drawn from the open pile.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                      notifier.discardCard(card);
+                    },
+                  ),
+                ),
+
+                // 12. Round Over Overlay (if round completed)
+                if (game.isRoundOver)
+                  Positioned.fill(
+                    child: _buildRoundOverOverlay(game, myUid, notifier),
+                  ),
+
+                // 13. Card Animation Layer (Deal & Discard flights)
+                const Positioned.fill(
+                  child: CardAnimationLayer(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobilePerspectiveClosedDeck({
+    required BuildContext context,
+    required int count,
+    required Card? wildJoker,
+    required bool isClosedJoker,
+    required bool isJokerOpened,
+    required bool hasLife,
+    required VoidCallback onOpenClosedJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+  }) {
+    const double cardW = 58.0;
+    const double cardH = 82.0;
+    final bool showJokerFace = !isClosedJoker || isJokerOpened;
+
+    return SizedBox(
+      width: cardW + 36.0,
+      height: cardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerRight,
+        children: [
+          // Perpendicular Wild Joker tucked horizontally underneath peeking to the left
+          Positioned(
+            left: 2,
+            top: (cardH - cardW) / 2,
+            child: Transform.rotate(
+              angle: -math.pi / 2,
+              child: Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      blurRadius: 6,
+                      offset: const Offset(2, 3),
+                    ),
+                  ],
+                ),
+                child: (showJokerFace && wildJoker != null)
+                    ? CardWidget(
+                        card: wildJoker,
+                        isWildJoker: true,
+                        width: cardW,
+                        height: cardH,
+                      )
+                    : GestureDetector(
+                        onTap: () {
+                          if (!showJokerFace) {
+                            if (hasLife) {
+                              onOpenClosedJoker();
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CardBackWidget(
+                              width: cardW,
+                              height: cardH,
+                              showPulse: hasLife,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(4.5),
+                              decoration: BoxDecoration(
+                                color: hasLife ? const Color(0xFFF59E0B) : Colors.black87,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: hasLife ? Colors.white : Colors.amber.shade700,
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Icon(
+                                hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                                size: 14,
+                                color: hasLife ? Colors.black : Colors.amber.shade200,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          // Face-down closed deck stack on top
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: canDraw ? onDraw : null,
+              child: Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: canDraw
+                          ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
+                          : Colors.black.withValues(alpha: 0.7),
+                      blurRadius: canDraw ? 10 : 6,
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CardBackWidget(
+                      width: cardW,
+                      height: cardH,
+                      onTap: canDraw ? onDraw : null,
+                    ),
+                    Positioned(
+                      bottom: -4,
+                      right: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xF20E141E),
+                          border: Border.all(color: const Color(0xFFF2CA50), width: 1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'CLOSED ($count)',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFF2CA50),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobilePerspectiveOpenPile({
+    required BuildContext context,
+    required List<Card> discardPile,
+    required Card? wildJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+    required bool canDiscard,
+    required void Function(Card)? onDiscardCard,
+    required VoidCallback onShowHistory,
+  }) {
+    const double cardW = 58.0;
+    const double cardH = 82.0;
+    final visibleDiscards = discardPile.length <= 5
+        ? discardPile
+        : discardPile.sublist(discardPile.length - 5);
+    final count = visibleDiscards.length;
+    final double stepX = 18.0;
+    final double totalWidth = count <= 1 ? cardW : (cardW + (count - 1) * stepX);
+
+    final pileWidget = SizedBox(
+      width: totalWidth,
+      height: cardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (count == 0)
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: const Center(
+                  child: Text(
+                    'EMPTY',
+                    style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+
+          for (int i = 0; i < count; i++) ...[
+            Positioned(
+              left: i * stepX,
+              top: 0,
+              child: GestureDetector(
+                onTap: (i == count - 1 && canDraw) ? onDraw : null,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (i == count - 1 && canDraw)
+                            ? const Color(0xFF10B981).withValues(alpha: 0.7)
+                            : Colors.black.withValues(alpha: 0.55),
+                        blurRadius: (i == count - 1 && canDraw) ? 10 : 4,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                  child: CardWidget(
+                    card: visibleDiscards[i],
+                    width: cardW,
+                    height: cardH,
+                    isWildJoker: wildJoker != null && visibleDiscards[i].rank == wildJoker.rank,
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          if (count > 0)
+            Positioned(
+              top: -8,
+              right: -8,
+              child: GestureDetector(
+                onTap: onShowHistory,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFBBF24), width: 1.0),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black, blurRadius: 4),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    size: 11,
+                    color: Color(0xFFFBBF24),
+                  ),
+                ),
+              ),
+            ),
+
+          Positioned(
+            bottom: -15,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                count > 1 ? 'OPEN PILE ($count)' : 'OPEN PILE',
+                style: GoogleFonts.outfit(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return DragTarget<Object>(
+      onWillAcceptWithDetails: (details) =>
+          canDiscard && (details.data is CardDragData || details.data is Card),
+      onAcceptWithDetails: (details) {
+        Card? card;
+        if (details.data is CardDragData) {
+          card = (details.data as CardDragData).card;
+        } else if (details.data is Card) {
+          card = details.data as Card;
+        }
+        if (card != null && onDiscardCard != null) {
+          onDiscardCard(card);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final bool isTargetHovered = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isTargetHovered
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.8),
+                      blurRadius: 14,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: pileWidget,
+        );
+      },
+    );
+  }
+
+  Widget _buildMobilePerspectiveFinishSlot({
+    required BuildContext context,
+    required bool isActivated,
+    required bool canAcceptDrop,
+    required bool canDeclare,
+    VoidCallback? onDeclare,
+    void Function(Card)? onCardDeclared,
+  }) {
+    const double cardW = 58.0;
+    const double cardH = 82.0;
+
+    return DragTarget<Object>(
+      onWillAcceptWithDetails: (details) =>
+          canAcceptDrop && (details.data is CardDragData || details.data is Card),
+      onAcceptWithDetails: (details) {
+        Card? card;
+        if (details.data is CardDragData) {
+          card = (details.data as CardDragData).card;
+        } else if (details.data is Card) {
+          card = details.data as Card;
+        }
+        if (card != null && onCardDeclared != null) {
+          onCardDeclared(card);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        final active = isActivated || isHovering || canDeclare;
+
+        return GestureDetector(
+          onTap: canDeclare ? onDeclare : null,
+          child: Container(
+            width: cardW,
+            height: cardH,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: active
+                    ? [const Color(0x33F59E0B), const Color(0x22FBBF24)]
+                    : [const Color(0x33120424), const Color(0x220A0214)],
+              ),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: active ? const Color(0xFFFBBF24) : const Color(0x55F59E0B),
+                width: active ? 2.0 : 1.2,
+              ),
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFFFBBF24).withValues(alpha: 0.5),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star_rounded,
+                        color: active ? const Color(0xFFFBBF24) : const Color(0x88F59E0B),
+                        size: 16,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'FINISH',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: active ? const Color(0xFFFBBF24) : const Color(0x88F59E0B),
+                        ),
+                      ),
+                      Text(
+                        '14th Card',
+                        style: GoogleFonts.outfit(
+                          fontSize: 7.5,
+                          fontWeight: FontWeight.w600,
+                          color: active ? Colors.white70 : Colors.white30,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  bottom: -15,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      'DECLARE',
+                      style: GoogleFonts.outfit(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: active ? const Color(0xFFFDE68A) : Colors.white54,
+                        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobilePillButton({
+    required String label,
+    required IconData icon,
+    required List<Color> gradientColors,
+    required Color borderColor,
+    required Color textColor,
+    required VoidCallback? onTap,
+    void Function(Card)? onCardDropped,
+    bool canAcceptDrop = false,
+  }) {
+    final enabled = onTap != null || canAcceptDrop;
+
+    Widget buttonBody(bool isHovering) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: gradientColors),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isHovering ? const Color(0xFFF2CA50) : borderColor,
+            width: isHovering ? 2.0 : 1.4,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isHovering
+                  ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
+                  : Colors.black.withValues(alpha: 0.5),
+              blurRadius: isHovering ? 10 : 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: isHovering ? const Color(0xFFF2CA50) : textColor, size: 14),
+              const SizedBox(width: 5),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.outfit(
+                      color: isHovering ? const Color(0xFFF2CA50) : textColor,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (canAcceptDrop && onCardDropped != null) {
+      return DragTarget<Object>(
+        onWillAcceptWithDetails: (details) =>
+            canAcceptDrop && (details.data is CardDragData || details.data is Card),
+        onAcceptWithDetails: (details) {
+          Card? card;
+          if (details.data is CardDragData) {
+            card = (details.data as CardDragData).card;
+          } else if (details.data is Card) {
+            card = details.data as Card;
+          }
+          if (card != null) {
+            onCardDropped(card);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+          return InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: (enabled || isHovering) ? 1.0 : 0.45,
+              child: buttonBody(isHovering),
+            ),
+          );
+        },
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: enabled ? 1.0 : 0.45,
+        child: buttonBody(false),
+      ),
+    );
+  }
+
+  void _showMobileMultiplayerMenu(
+    BuildContext context,
+    WidgetRef ref,
+    MultiplayerGameState game,
+    TablePlayer myPlayer,
+  ) {
+    final myUid = myPlayer.uid;
+    final isHost = myPlayer.isHost;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black38,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Stack(
+          children: [
+            Positioned(
+              top: 48,
+              right: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 215,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xF510192A), Color(0xF9090F1A)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF2CA50), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        blurRadius: 18,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.menu_rounded, color: Color(0xFFF2CA50), size: 15),
+                              const SizedBox(width: 6),
+                              Text(
+                                'ROYAL GAME MENU',
+                                style: GoogleFonts.cinzel(
+                                  color: const Color(0xFFF2CA50),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          InkWell(
+                            onTap: () => Navigator.of(ctx).pop(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: const Padding(
+                              padding: EdgeInsets.all(2),
+                              child: Icon(Icons.close_rounded, color: Colors.white60, size: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Divider(color: Color(0x33D4AF37), height: 1),
+                      const SizedBox(height: 6),
+                      _buildMobileMenuButton(
+                        icon: Icons.leaderboard_rounded,
+                        iconColor: const Color(0xFF60A5FA),
+                        title: 'Live Scoreboard',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _showScoreboardModal(context, game);
+                        },
+                      ),
+                      _buildMobileMenuButton(
+                        icon: Icons.settings_rounded,
+                        iconColor: const Color(0xFFFBBF24),
+                        title: 'Table Rules',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _showTableSettings(context, game);
+                        },
+                      ),
+                      _buildMobileMenuButton(
+                        icon: Icons.history_edu_rounded,
+                        iconColor: const Color(0xFFA78BFA),
+                        title: 'Action Logs',
+                        onTap: () async {
+                          Navigator.of(ctx).pop();
+                          final fileName = await GameLogExporter.downloadGameLogJson(game);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: const Color(0xFF1E3A2E),
+                                content: Text('Fair-play log downloaded: $fileName (copied to clipboard)'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      if (isHost && !game.isCompleted) ...[
+                        _buildMobileMenuButton(
+                          icon: Icons.manage_accounts_rounded,
+                          iconColor: const Color(0xFFF59E0B),
+                          title: 'Manage Players',
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            _showManagePlayersModal(context, game, myUid);
+                          },
+                        ),
+                        _buildMobileMenuButton(
+                          icon: Icons.cancel_rounded,
+                          iconColor: const Color(0xFFEF4444),
+                          title: 'End Table Session',
+                          isDestructive: true,
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            _showEndGameConfirmationDialog(context);
+                          },
+                        ),
+                      ],
+                      _buildMobileMenuButton(
+                        icon: Icons.exit_to_app_rounded,
+                        iconColor: const Color(0xFFF87171),
+                        title: 'Leave Table',
+                        isDestructive: true,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _handleExitGame(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileMenuButton({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        margin: const EdgeInsets.symmetric(vertical: 2.5),
+        decoration: BoxDecoration(
+          color: isDestructive ? const Color(0x22EF4444) : const Color(0x18FFFFFF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isDestructive ? const Color(0x55EF4444) : const Color(0x28D4AF37),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 16),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                color: isDestructive ? const Color(0xFFFCA5A5) : Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTableSettings(BuildContext context, MultiplayerGameState game) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1E36),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.settings_rounded, color: Color(0xFFF2CA50), size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'TABLE RULES (LOCKED)',
+              style: GoogleFonts.cinzel(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0x33F59E0B),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x88F59E0B)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_rounded, color: Color(0xFFFBBF24), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Multiplayer match in progress. Settings are locked to table host defaults.',
+                        style: GoogleFonts.outfit(color: const Color(0xFFFDE68A), fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildRuleRow('Game Mode', game.gameMode ?? 'Pool Rummy'),
+              _buildRuleRow('First Drop Penalty', '${game.firstDropPenalty} pts'),
+              _buildRuleRow('Middle Drop Penalty', '${game.middleDropPenalty} pts'),
+              _buildRuleRow('Full Count Cap', '80 pts'),
+              _buildRuleRow('Joker Mode', game.isClosedJoker ? 'Closed Joker (Life Required)' : 'Open Joker'),
+              _buildRuleRow('Turn Timer', '${game.turnTimerSeconds} seconds'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRuleRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(value, style: const TextStyle(color: Color(0xFFF2CA50), fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
