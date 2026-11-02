@@ -285,9 +285,19 @@ class GameTableScreen extends ConsumerWidget {
                                         tableState.gameSettings.jokerMode ==
                                                 'OPEN' ||
                                             tableState.hasHumanOpenedJoker,
-                                    hasLife: notifier.hasHumanLife,
-                                    onOpenClosedJoker: () =>
-                                        notifier.openClosedJoker(),
+                                    hasLife: notifier.hasHumanLife && !tableState.hasDrawnThisTurn && tableState.cardGroups.expand((g) => g.cards).length == 13,
+                                    onOpenClosedJoker: () {
+                                      if (tableState.hasDrawnThisTurn || tableState.cardGroups.expand((g) => g.cards).length > 13) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Please discard a card to complete your turn before viewing the Closed Joker.'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      notifier.openClosedJoker();
+                                    },
                                     canDraw: isHumanTurn && isDrawPhase,
                                     onDraw: () => notifier.drawFromClosedDeck(),
                                   ),
@@ -321,6 +331,8 @@ class GameTableScreen extends ConsumerWidget {
                                   // 3. Finish / Declare Slot
                                   _buildPerspectiveFinishSlot(
                                     context: context,
+                                    finishCard: tableState.finishCard ?? tableState.botDiscardCard,
+                                    wildJoker: notifier.effectiveHumanWildJoker,
                                     isActivated: canDeclare ||
                                         (isHumanTurn &&
                                             isDiscardPhase &&
@@ -661,8 +673,19 @@ class GameTableScreen extends ConsumerWidget {
                             wildJoker: wildJoker,
                             isClosedJoker: tableState.gameSettings.isClosedJoker,
                             isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
-                            hasLife: notifier.hasHumanLife,
-                            onOpenClosedJoker: () => notifier.openClosedJoker(),
+                            hasLife: notifier.hasHumanLife && !tableState.hasDrawnThisTurn && tableState.cardGroups.expand((g) => g.cards).length == 13,
+                            onOpenClosedJoker: () {
+                              if (tableState.hasDrawnThisTurn || tableState.cardGroups.expand((g) => g.cards).length > 13) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please discard a card to complete your turn before viewing the Closed Joker.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              notifier.openClosedJoker();
+                            },
                             canDraw: isHumanTurn && isDrawPhase,
                             onDraw: () => notifier.drawFromClosedDeck(),
                           ),
@@ -690,6 +713,8 @@ class GameTableScreen extends ConsumerWidget {
                           // Finish / Declare Slot
                           _buildMobilePerspectiveFinishSlot(
                             context: context,
+                            finishCard: tableState.finishCard ?? tableState.botDiscardCard,
+                            wildJoker: notifier.effectiveHumanWildJoker,
                             isActivated: canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging),
                             canAcceptDrop: (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
                                 tableState.isAwaitingHumanDeclarationShow,
@@ -1655,11 +1680,61 @@ class GameTableScreen extends ConsumerWidget {
     required bool isActivated,
     required bool canAcceptDrop,
     required bool canDeclare,
+    Card? finishCard,
+    Card? wildJoker,
     VoidCallback? onDeclare,
     void Function(Card)? onCardDeclared,
   }) {
     const double cardW = 58.0;
     const double cardH = 82.0;
+
+    if (finishCard != null) {
+      return Container(
+        width: cardW,
+        height: cardH,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.7),
+              blurRadius: 12,
+              spreadRadius: 1.5,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Stack(
+            children: [
+              CardWidget(
+                card: finishCard,
+                isWildJoker: wildJoker != null && JokerUtils.isWildJoker(finishCard, wildJoker),
+                width: cardW,
+                height: cardH,
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: Colors.black.withOpacity(0.75),
+                  padding: const EdgeInsets.symmetric(vertical: 1.5),
+                  child: Text(
+                    'FINISH',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFFBBF24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return DragTarget<Object>(
       onWillAcceptWithDetails: (details) =>
@@ -2547,9 +2622,59 @@ class GameTableScreen extends ConsumerWidget {
     required bool isActivated,
     required bool canAcceptDrop,
     required bool canDeclare,
+    Card? finishCard,
+    Card? wildJoker,
     VoidCallback? onDeclare,
     void Function(Card)? onCardDeclared,
   }) {
+    if (finishCard != null) {
+      return Container(
+        width: _tableCardW,
+        height: _tableCardH,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.75),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              CardWidget(
+                card: finishCard,
+                isWildJoker: wildJoker != null && JokerUtils.isWildJoker(finishCard, wildJoker),
+                width: _tableCardW,
+                height: _tableCardH,
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: Colors.black.withOpacity(0.75),
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    'FINISH',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFFBBF24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     Widget buildSlotContainer(bool isHovering) {
       final active = isActivated || isHovering || canDeclare;
       return GestureDetector(

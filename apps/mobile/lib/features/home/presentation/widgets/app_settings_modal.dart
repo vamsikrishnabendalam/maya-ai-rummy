@@ -304,7 +304,27 @@ class AppSettingsModal extends ConsumerWidget {
                                     ),
                                     onPressed: () async {
                                       Navigator.of(context).pop();
-                                      await ref.read(authProvider.notifier).signInWithGoogle();
+                                      try {
+                                        final u = await ref.read(authProvider.notifier).signInWithGoogle();
+                                        if (context.mounted && u != null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Signed in as ${u.displayName}!'),
+                                              backgroundColor: const Color(0xFF10B981),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Sign in notice: $e'),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 )

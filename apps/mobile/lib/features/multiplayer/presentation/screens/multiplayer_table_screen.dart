@@ -466,9 +466,18 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final bool isValid = result['isValid'] == true;
     final results = (result['finalResults'] as List<dynamic>?) ?? [];
 
-    IconData titleIcon = isValid ? Icons.emoji_events : Icons.warning_amber_rounded;
-    Color titleColor = isValid ? Colors.amber : Colors.redAccent;
-    String titleText = isValid ? 'GAME WON!' : 'WRONG SHOW';
+    final user = ref.read(authProvider);
+    final myUid = user?.uid ?? '';
+    final winnerResult = results.firstWhere(
+      (r) => (r is Map ? r['isWinner'] == true : r.isWinner == true),
+      orElse: () => null,
+    );
+    final bool isMeWinner = winnerResult != null &&
+        (winnerResult is Map ? winnerResult['uid'] == myUid : winnerResult.uid == myUid);
+
+    IconData titleIcon = isMeWinner ? Icons.emoji_events : Icons.sentiment_dissatisfied_rounded;
+    Color titleColor = isMeWinner ? Colors.amber : (isValid ? const Color(0xFFF59E0B) : Colors.redAccent);
+    String titleText = isMeWinner ? 'VICTORY!' : (isValid ? 'MATCH OVER' : 'WRONG SHOW');
 
     if (isAborted) {
       titleIcon = Icons.stop_circle_outlined;
@@ -1369,8 +1378,17 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                     wildJoker: game.openJoker,
                                     isClosedJoker: game.isClosedJoker,
                                     isJokerOpened: game.hasPlayerOpenedJoker(user.uid),
-                                    hasLife: notifier.hasFirstLife,
+                                    hasLife: notifier.hasFirstLife && !has14Cards && !tableState.hasDrawnThisTurn,
                                     onOpenClosedJoker: () {
+                                      if (has14Cards || tableState.hasDrawnThisTurn) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Please discard a card to complete your turn before viewing the Closed Joker.'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                        return;
+                                      }
                                       if (notifier.hasFirstLife) {
                                         notifier.openClosedJoker();
                                       } else {
@@ -1426,6 +1444,8 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                   // 3. Finish / Declare Slot
                                   _buildPerspectiveFinishSlot(
                                     context: context,
+                                    finishCard: game.finishCard ?? tableState.finishCard,
+                                    wildJoker: wildJoker,
                                     isActivated: (isMyTurn && isDiscardPhase && ref.watch(gameUIProvider).isDragging) ||
                                         (isMyTurn && isDiscardPhase && tableState.selectedCard != null),
                                     canAcceptDrop: isMyTurn && isDiscardPhase && !game.isDeclaring,
@@ -1993,9 +2013,59 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     required bool isActivated,
     required bool canAcceptDrop,
     required bool canDeclare,
+    Card? finishCard,
+    Card? wildJoker,
     VoidCallback? onDeclare,
     void Function(Card)? onCardDeclared,
   }) {
+    if (finishCard != null) {
+      return Container(
+        width: _tableCardW,
+        height: _tableCardH,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.75),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              CardWidget(
+                card: finishCard,
+                isWildJoker: wildJoker != null && JokerUtils.isWildJoker(finishCard, wildJoker),
+                width: _tableCardW,
+                height: _tableCardH,
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: Colors.black.withOpacity(0.75),
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    'FINISH',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFFBBF24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     Widget buildSlotContainer(bool isHovering) {
       final active = isActivated || isHovering || canDeclare;
       return GestureDetector(
@@ -3382,8 +3452,17 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                             wildJoker: game.openJoker,
                             isClosedJoker: game.isClosedJoker,
                             isJokerOpened: game.hasPlayerOpenedJoker(user.uid),
-                            hasLife: notifier.hasFirstLife,
+                            hasLife: notifier.hasFirstLife && !has14Cards && !tableState.hasDrawnThisTurn,
                             onOpenClosedJoker: () {
+                              if (has14Cards || tableState.hasDrawnThisTurn) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please discard a card to complete your turn before viewing the Closed Joker.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
                               if (notifier.hasFirstLife) {
                                 notifier.openClosedJoker();
                               } else {
@@ -3435,6 +3514,8 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                           // Finish / Declare Slot
                           _buildMobilePerspectiveFinishSlot(
                             context: context,
+                            finishCard: game.finishCard ?? tableState.finishCard,
+                            wildJoker: wildJoker,
                             isActivated: canDeclare || (!game.isDeclaring && isMyTurn && isDiscardPhase && uiState.isDragging),
                             canAcceptDrop: isMyTurn && isDiscardPhase && !game.isDeclaring,
                             canDeclare: canDeclare,
@@ -4413,11 +4494,61 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     required bool isActivated,
     required bool canAcceptDrop,
     required bool canDeclare,
+    Card? finishCard,
+    Card? wildJoker,
     VoidCallback? onDeclare,
     void Function(Card)? onCardDeclared,
   }) {
     const double cardW = 58.0;
     const double cardH = 82.0;
+
+    if (finishCard != null) {
+      return Container(
+        width: cardW,
+        height: cardH,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.7),
+              blurRadius: 12,
+              spreadRadius: 1.5,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Stack(
+            children: [
+              CardWidget(
+                card: finishCard,
+                isWildJoker: wildJoker != null && JokerUtils.isWildJoker(finishCard, wildJoker),
+                width: cardW,
+                height: cardH,
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: Colors.black.withOpacity(0.75),
+                  padding: const EdgeInsets.symmetric(vertical: 1.5),
+                  child: Text(
+                    'FINISH',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFFBBF24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return DragTarget<Object>(
       onWillAcceptWithDetails: (details) =>

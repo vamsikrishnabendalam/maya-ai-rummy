@@ -265,7 +265,27 @@ class ProfileModal extends ConsumerWidget {
                                     icon: const Icon(Icons.g_mobiledata_rounded, size: 20),
                                     label: const Text('Sign in with Google', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                     onPressed: () async {
-                                      await ref.read(authProvider.notifier).signInWithGoogle();
+                                      try {
+                                        final u = await ref.read(authProvider.notifier).signInWithGoogle();
+                                        if (context.mounted && u != null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Signed in as ${u.displayName}!'),
+                                              backgroundColor: const Color(0xFF10B981),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Sign in notice: $e'),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                   const SizedBox(width: 8),
@@ -294,7 +314,27 @@ class ProfileModal extends ConsumerWidget {
                               icon: const Icon(Icons.g_mobiledata_rounded, size: 22),
                               label: const Text('Sign in with Google'),
                               onPressed: () async {
-                                await ref.read(authProvider.notifier).signInWithGoogle();
+                                try {
+                                  final u = await ref.read(authProvider.notifier).signInWithGoogle();
+                                  if (context.mounted && u != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Signed in as ${u.displayName}!'),
+                                        backgroundColor: const Color(0xFF10B981),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Sign in notice: $e'),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                }
                               },
                             ),
                           ],

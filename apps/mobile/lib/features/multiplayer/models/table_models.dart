@@ -61,6 +61,13 @@ class TablePlayer {
   }
 
   factory TablePlayer.fromJson(Map<String, dynamic> json) {
+    Card? parsedFinishCard;
+    if (json['finishCard'] != null) {
+      final fc = json['finishCard'];
+      if (fc is int) parsedFinishCard = Card.fromInt(fc);
+      if (fc is Map<String, dynamic>) parsedFinishCard = Card.fromInt(fc['intVal'] ?? fc['val'] ?? 0);
+    }
+
     DateTime? parseDate(dynamic d) {
       if (d == null) return null;
       if (d is DateTime) return d;
@@ -325,6 +332,7 @@ class MultiplayerGameState {
   final String? declaringPlayerId;
   final String? declaringPlayerName;
   final DateTime? declarationDeadline;
+  final Card? finishCard;
   final List<String> submittedPlayerUids;
   final List<MultiplayerFinalResult> finalResults;
   final List<TablePlayer> players;
@@ -369,6 +377,7 @@ class MultiplayerGameState {
     this.declaringPlayerId,
     this.declaringPlayerName,
     this.declarationDeadline,
+    this.finishCard,
     this.submittedPlayerUids = const [],
     this.finalResults = const [],
     this.players = const [],
@@ -430,6 +439,8 @@ class MultiplayerGameState {
     String? declaringPlayerName,
     bool clearDeclarer = false,
     DateTime? declarationDeadline,
+    Card? finishCard,
+    bool clearFinishCard = false,
     List<String>? submittedPlayerUids,
     List<MultiplayerFinalResult>? finalResults,
     List<TablePlayer>? players,
@@ -475,6 +486,7 @@ class MultiplayerGameState {
       declaringPlayerId: clearDeclarer ? null : (declaringPlayerId ?? this.declaringPlayerId),
       declaringPlayerName: clearDeclarer ? null : (declaringPlayerName ?? this.declaringPlayerName),
       declarationDeadline: declarationDeadline ?? this.declarationDeadline,
+      finishCard: clearFinishCard ? null : (finishCard ?? this.finishCard),
       submittedPlayerUids: submittedPlayerUids ?? this.submittedPlayerUids,
       finalResults: finalResults ?? this.finalResults,
       players: players ?? this.players,
@@ -520,6 +532,13 @@ class MultiplayerGameState {
       if (c is Map<String, dynamic>) openPickThisTurn = Card.fromInt(c['intVal'] ?? c['val'] ?? 0);
     }
 
+    Card? parsedFinishCard;
+    if (json['finishCard'] != null) {
+      final fc = json['finishCard'];
+      if (fc is int) parsedFinishCard = Card.fromInt(fc);
+      if (fc is Map<String, dynamic>) parsedFinishCard = Card.fromInt(fc['intVal'] ?? fc['val'] ?? 0);
+    }
+
     DateTime? parseDate(dynamic d) {
       if (d == null) return null;
       if (d is DateTime) return d;
@@ -563,6 +582,7 @@ class MultiplayerGameState {
       declaringPlayerId: json['declaringPlayerId'],
       declaringPlayerName: json['declaringPlayerName'],
       declarationDeadline: parseDate(json['declarationDeadline']),
+      finishCard: parsedFinishCard,
       submittedPlayerUids: rawSubmitted,
       finalResults: rawResults.map((r) => MultiplayerFinalResult.fromJson(r as Map<String, dynamic>)).toList(),
       players: rawPlayers.map((p) => TablePlayer.fromJson(p as Map<String, dynamic>)).toList(),
@@ -609,6 +629,7 @@ class MultiplayerGameState {
     'declaringPlayerId': declaringPlayerId,
     'declaringPlayerName': declaringPlayerName,
     'declarationDeadline': declarationDeadline?.toIso8601String(),
+    'finishCard': finishCard?.toInt(),
     'submittedPlayerUids': submittedPlayerUids,
     'finalResults': finalResults.map((r) => r.toJson()).toList(),
     'players': players.map((p) => p.toJson()).toList(),

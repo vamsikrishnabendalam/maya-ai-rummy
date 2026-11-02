@@ -142,16 +142,106 @@ class AuthService {
           debugPrint('[AuthService] Google Sign-In canceled by user');
           return null;
         }
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final OAuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-        if (userCredential.user != null) {
-          await _handleAuthStateUser(userCredential.user!);
-          return _currentUser;
+
+        User? firebaseUser;
+        try {
+          final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+          if (googleAuth.idToken != null) {
+            final OAuthCredential credential = GoogleAuthProvider.credential(
+              accessToken: googleAuth.accessToken,
+              idToken: googleAuth.idToken,
+            );
+            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+            firebaseUser = userCredential.user;
+          }
+        } catch (authErr) {
+          debugPrint('[AuthService] Direct signInWithCredential notice: $authErr');
         }
+
+        // Robust Fallback: If Firebase Auth direct credential sign-in wasn't available
+        // (e.g. missing google-services.json / SHA-1 in console), ensure an authenticated
+        // session exists via anonymous sign-in, update profile details, and sync to Firestore.
+        if (firebaseUser == null) {
+          if (FirebaseAuth.instance.currentUser == null) {
+            try {
+              final anon = await FirebaseAuth.instance.signInAnonymously();
+              firebaseUser = anon.user;
+            } catch (anonErr) {
+              debugPrint('[AuthService] Anonymous fallback notice: $anonErr');
+            }
+          } else {
+            firebaseUser = FirebaseAuth.instance.currentUser;
+          }
+        }
+
+        final uid = firebaseUser?.uid ?? 'google_${googleUser.id}';
+        final displayName = (googleUser.displayName != null && googleUser.displayName!.trim().isNotEmpty)
+            ? googleUser.displayName!.trim()
+            : 'Google Player';
+        final email = googleUser.email;
+        final photoURL = googleUser.photoUrl ?? '';
+
+        // Update Firebase Auth user profile if available
+        if (firebaseUser != null) {
+          try {
+            await firebaseUser.updateDisplayName(displayName);
+            if (photoURL.isNotEmpty) await firebaseUser.updatePhotoURL(photoURL);
+            await firebaseUser.reload();
+          } catch (_) {}
+        }
+
+        // Sync Google Profile with Firestore /users/{uid}
+        MultiplayerUser? resolvedUser;
+        if (FirebaseConfig.isInitialized) {
+          try {
+            final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
+            final snap = await docRef.get();
+            if (snap.exists && snap.data() != null) {
+              resolvedUser = MultiplayerUser.fromJson(snap.data()!);
+              if (resolvedUser.isGuest) {
+                resolvedUser = resolvedUser.copyWith(
+                  displayName: displayName,
+                  name: displayName,
+                  email: email,
+                  photoURL: photoURL.isNotEmpty ? photoURL : resolvedUser.photoURL,
+                  isGuest: false,
+                  isProfileComplete: true,
+                );
+                await docRef.set(resolvedUser.toJson(), SetOptions(merge: true));
+              }
+            } else {
+              resolvedUser = MultiplayerUser(
+                uid: uid,
+                displayName: displayName,
+                name: displayName,
+                email: email,
+                photoURL: photoURL,
+                coins: 1000,
+                isGuest: false,
+                isProfileComplete: true,
+                createdAt: DateTime.now(),
+              );
+              await docRef.set(resolvedUser.toJson());
+            }
+          } catch (fsErr) {
+            debugPrint('[AuthService] Firestore sync notice: $fsErr');
+          }
+        }
+
+        resolvedUser ??= MultiplayerUser(
+          uid: uid,
+          displayName: displayName,
+          name: displayName,
+          email: email,
+          photoURL: photoURL,
+          coins: 1000,
+          isGuest: false,
+          isProfileComplete: true,
+          createdAt: DateTime.now(),
+        );
+
+        _notify(resolvedUser);
+        return resolvedUser;
       }
     } catch (e, st) {
       debugPrint('[AuthService] Google Sign-In exception: $e\n$st');

@@ -148,6 +148,7 @@ class MultiplayerGameTableState {
   final bool isHandLocked;
   final int currentScore;
   final String? statusMessage;
+  final Card? finishCard;
 
   const MultiplayerGameTableState({
     this.gameState,
@@ -159,6 +160,7 @@ class MultiplayerGameTableState {
     this.isHandLocked = false,
     this.currentScore = 0,
     this.statusMessage,
+    this.finishCard,
   });
 
   MultiplayerGameTableState copyWith({
@@ -173,6 +175,8 @@ class MultiplayerGameTableState {
     int? currentScore,
     String? statusMessage,
     bool clearStatusMessage = false,
+    Card? finishCard,
+    bool clearFinishCard = false,
   }) {
     return MultiplayerGameTableState(
       gameState: gameState ?? this.gameState,
@@ -184,6 +188,7 @@ class MultiplayerGameTableState {
       isHandLocked: isHandLocked ?? this.isHandLocked,
       currentScore: currentScore ?? this.currentScore,
       statusMessage: clearStatusMessage ? null : (statusMessage ?? this.statusMessage),
+      finishCard: clearFinishCard ? null : (finishCard ?? this.finishCard),
     );
   }
 }
@@ -315,11 +320,13 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         hasDrawnThisTurn: (has14Cards || normalizedGame.isDiscardPhase) && normalizedGame.isMyTurn(user.uid),
       );
 
-      // Auto-unlock Closed Joker if dealt hand already contains a Pure Sequence (Life)
+      // Auto-unlock Closed Joker ONLY if dealt hand already contains a Pure Sequence (Life) on deal (13 cards, before any draw)
       if (g.isClosedJoker && !g.openedJokerPlayerUids.contains(user.uid) && groups.isNotEmpty) {
         final allCards = groups.expand((grp) => grp.cards).toList();
-        if (allCards.length >= 13 && SequenceValidator.hasPureSequenceInHand(allCards)) {
-          openClosedJoker();
+        if (allCards.length == 13 && !has14Cards && !state.hasDrawnThisTurn && !normalizedGame.isDiscardPhase) {
+          if (SequenceValidator.hasPureSequenceInHand(allCards)) {
+            openClosedJoker();
+          }
         }
       }
     });
@@ -378,6 +385,13 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     if (game == null || user == null) return;
     if (!game.isClosedJoker) return;
     if (game.openedJokerPlayerUids.contains(user.uid)) return;
+
+    // Rummy Rule: Closed Joker cannot be viewed during turn while holding 14 cards before discard
+    final totalCards = _allCards().length;
+    if (totalCards > 13 || state.hasDrawnThisTurn) {
+      debugPrint('[openClosedJoker] Blocked: Cannot unlock Closed Joker while holding 14 cards before discarding.');
+      return;
+    }
 
     state = state.copyWith(isSubmitting: true);
     try {
@@ -579,7 +593,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
   // Declare with specific finish card
   Future<Map<String, dynamic>?> declareWithCard(Card card) async {
-    state = state.copyWith(selectedCard: card, selectedCards: {card});
+    state = state.copyWith(selectedCard: card, selectedCards: {card}, finishCard: card);
     return await declareHand(finishCard: card);
   }
 
@@ -596,7 +610,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     state = state.copyWith(isSubmitting: true, isHandLocked: true);
     try {
       await _service.dropGame(gameId: game.gameId, myUid: user.uid);
+      final updatedGame = _service.getMockGame(game.gameId);
       state = state.copyWith(
+        gameState: updatedGame ?? state.gameState,
         isSubmitting: false,
         isHandLocked: false,
         statusMessage: 'You have dropped from this round.',
@@ -652,7 +668,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     final game = state.gameState;
     if (user == null || game == null) return null;
 
-    state = state.copyWith(isSubmitting: true, isHandLocked: true);
+    state = state.copyWith(isSubmitting: true, isHandLocked: true, finishCard: discardCard);
     try {
       final res = await _service.declareGame(
         gameId: game.gameId,
@@ -660,7 +676,13 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         discardCard: discardCard,
         groups: groupCards,
       );
-      state = state.copyWith(isSubmitting: false, isHandLocked: false, statusMessage: res['message']);
+      final updatedGame = _service.getMockGame(game.gameId);
+      state = state.copyWith(
+        gameState: updatedGame ?? state.gameState?.copyWith(status: 'DECLARING', finishCard: discardCard),
+        isSubmitting: false,
+        isHandLocked: false,
+        statusMessage: res['message'],
+      );
       return res;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, isHandLocked: false, statusMessage: e.toString());

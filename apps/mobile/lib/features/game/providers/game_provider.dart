@@ -34,6 +34,7 @@ class GameTableState {
   final bool hasBotOpenedJoker;
   final int turnSecondsRemaining;
   final List<GameActionLogEntry> actionLogs;
+  final Card? finishCard;
 
   const GameTableState({
     required this.gameState,
@@ -56,6 +57,7 @@ class GameTableState {
     this.hasBotOpenedJoker = true,
     this.turnSecondsRemaining = 30,
     this.actionLogs = const [],
+    this.finishCard,
   });
 
   int get totalHumanScore => roundScores.fold(0, (sum, r) => sum + r.humanScore);
@@ -122,6 +124,8 @@ class GameTableState {
     bool? hasBotOpenedJoker,
     int? turnSecondsRemaining,
     List<GameActionLogEntry>? actionLogs,
+    Card? finishCard,
+    bool clearFinishCard = false,
   }) {
     return GameTableState(
       gameState: gameState ?? this.gameState,
@@ -145,6 +149,7 @@ class GameTableState {
       hasBotOpenedJoker: hasBotOpenedJoker ?? this.hasBotOpenedJoker,
       turnSecondsRemaining: turnSecondsRemaining ?? this.turnSecondsRemaining,
       actionLogs: actionLogs ?? this.actionLogs,
+      finishCard: clearFinishCard ? null : (finishCard ?? this.finishCard),
     );
   }
 }
@@ -249,10 +254,15 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   }
 
   bool get canHumanOpenJoker =>
-      state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker && hasHumanLife;
+      state.gameSettings.isClosedJoker &&
+      !state.hasHumanOpenedJoker &&
+      hasHumanLife &&
+      !state.hasDrawnThisTurn &&
+      state.cardGroups.expand((g) => g.cards).length == 13;
 
   void openClosedJoker() {
     if (!state.gameSettings.isClosedJoker || state.hasHumanOpenedJoker) return;
+    if (state.hasDrawnThisTurn || state.cardGroups.expand((g) => g.cards).length > 13) return;
     if (!hasHumanLife) return;
     state = state.copyWith(hasHumanOpenedJoker: true);
     if (state.gameState.wildJoker != null) {
@@ -1231,6 +1241,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       clearSelectedCard: true,
       currentScore: humanRoundScore,
       declarationResult: partitionResult,
+      finishCard: cardToDiscard,
       isHandLocked: false,
       roundScores: newRoundScores,
       isRoundOver: true,
