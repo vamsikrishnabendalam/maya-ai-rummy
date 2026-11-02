@@ -1869,7 +1869,7 @@ class GameTableScreen extends ConsumerWidget {
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                Clipboard.setData(const ClipboardData(text: 'https://github.com/vamsikrishnabendalam/maya-ai-rummy/releases/latest/download/maya_rummy.apk'));
+                Clipboard.setData(const ClipboardData(text: 'https://github.com/vamsikrishnabendalam/maya-ai-rummy/raw/master/releases/maya_ai_rummy.apk'));
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: const Color(0xFF10B981),
