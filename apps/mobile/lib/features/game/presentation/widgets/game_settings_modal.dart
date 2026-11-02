@@ -65,11 +65,21 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isLandscape = size.width > size.height;
+    final isCompactLandscape = isLandscape && size.height < 550;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompactLandscape ? 24 : 16,
+        vertical: isCompactLandscape ? 10 : 24,
+      ),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 580),
+        constraints: BoxConstraints(
+          maxWidth: isCompactLandscape ? 600 : 500,
+          maxHeight: isCompactLandscape ? 340 : 580,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFF141E18),
           borderRadius: BorderRadius.circular(20),
@@ -86,7 +96,10 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: isCompactLandscape ? 10 : 16,
+              ),
               decoration: const BoxDecoration(
                 border: Border(bottom: BorderSide(color: AppColors.glassBorder)),
               ),
@@ -95,14 +108,14 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                   Icon(
                     widget.isReadOnly ? Icons.lock_rounded : Icons.settings_outlined,
                     color: AppColors.accent,
-                    size: 22,
+                    size: 20,
                   ),
                   const SizedBox(width: 10),
                   Text(
                     widget.isReadOnly ? 'TABLE RULES (LOCKED)' : 'GAME SETTINGS',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 16,
+                      fontSize: isCompactLandscape ? 14 : 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
                     ),
@@ -121,12 +134,18 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
             // Settings Items
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: isCompactLandscape ? 10 : 20,
+                ),
                 children: [
                   if (widget.isReadOnly) ...[
                     Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      margin: EdgeInsets.only(bottom: isCompactLandscape ? 10 : 16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: isCompactLandscape ? 8 : 10,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFB45309).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
@@ -295,7 +314,10 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
 
             // Footer
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: isCompactLandscape ? 8 : 14,
+              ),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.glassBorder)),
               ),
@@ -313,7 +335,10 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF222B32),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompactLandscape ? 18 : 24,
+                              vertical: isCompactLandscape ? 8 : 12,
+                            ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -335,7 +360,10 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.accent,
                             foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompactLandscape ? 18 : 24,
+                              vertical: isCompactLandscape ? 8 : 12,
+                            ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Save & Apply', style: TextStyle(fontWeight: FontWeight.bold)),

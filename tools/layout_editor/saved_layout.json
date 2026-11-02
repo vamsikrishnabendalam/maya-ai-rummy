@@ -17,10 +17,10 @@
       "anchorV": "top"
     },
     "el_left_menu_joker": {
-      "left": 949,
-      "top": 8,
+      "left": 939,
+      "top": 10,
       "width": 86,
-      "height": 37,
+      "height": 32,
       "fontSize": 10,
       "visible": true,
       "text": "MENU",
@@ -35,14 +35,14 @@
       "height": 58,
       "fontSize": 9.5,
       "visible": true,
-      "text": "\u23f1\ufe0f 28s",
+      "text": "⏱️ 28s",
       "subText": "DEADWOOD: 0 PTS",
       "anchorH": "left",
       "anchorV": "top"
     },
     "el_btn_drop": {
-      "left": 14,
-      "top": 345,
+      "left": 7,
+      "top": 171,
       "width": 112,
       "height": 38,
       "fontSize": 13.5,
@@ -52,8 +52,8 @@
       "anchorV": "bottom"
     },
     "el_btn_sort": {
-      "left": 14,
-      "top": 391,
+      "left": 6,
+      "top": 218,
       "width": 112,
       "height": 38,
       "fontSize": 13.5,
@@ -63,8 +63,8 @@
       "anchorV": "bottom"
     },
     "el_btn_ai": {
-      "left": 14,
-      "top": 437,
+      "left": 6,
+      "top": 267,
       "width": 112,
       "height": 38,
       "fontSize": 13.5,
@@ -74,8 +74,8 @@
       "anchorV": "bottom"
     },
     "el_btn_group": {
-      "left": 14,
-      "top": 297,
+      "left": 6,
+      "top": 124,
       "width": 112,
       "height": 38,
       "fontSize": 13.5,
@@ -85,8 +85,8 @@
       "anchorV": "bottom"
     },
     "el_btn_discard": {
-      "left": 14,
-      "top": 252,
+      "left": 897,
+      "top": 52,
       "width": 112,
       "height": 38,
       "fontSize": 13.5,
@@ -96,8 +96,8 @@
       "anchorV": "bottom"
     },
     "el_btn_declare": {
-      "left": 808,
-      "top": 10,
+      "left": 792,
+      "top": 12,
       "width": 129,
       "height": 30,
       "fontSize": 13,
@@ -139,10 +139,10 @@
       "anchorV": "center"
     },
     "el_player_hand": {
-      "left": 214,
-      "top": 337,
-      "width": 736,
-      "height": null,
+      "left": 44,
+      "top": 335,
+      "width": 938,
+      "height": 154,
       "fontSize": null,
       "visible": true,
       "anchorH": "center",

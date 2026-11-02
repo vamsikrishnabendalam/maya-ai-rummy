@@ -67,7 +67,7 @@ class PlayerHand extends StatelessWidget {
         double overlap = customCardOverlap ?? (isCompact ? 24.0 : Responsive.cardOverlap(context));
         double spacing = customGroupSpacing ?? (isCompact ? 8.0 : Responsive.groupSpacing(context));
 
-        if (customCardWidth == null && groupCount > 0 && totalCards > 0) {
+        if (groupCount > 0 && totalCards > 0) {
           final horizontalPadding = isCompact ? 6.0 : 16.0;
           final availableForRack = availableWidth - (horizontalPadding * 2);
           final gapsCount = groupCount - 1;
@@ -86,11 +86,11 @@ class PlayerHand extends StatelessWidget {
               } else {
                 // Scale cw gently only if even minimum overlap overflows
                 final scale = (availableForCards / (neededForCw + nonFirstCards * 20.0)).clamp(0.72, 1.0);
-                cw = (cw * scale).clamp(56.0, Responsive.cardWidth(context));
+                cw = (cw * scale).clamp(50.0, customCardWidth ?? Responsive.cardWidth(context));
                 overlap = (20.0 * scale).clamp(18.0, 38.0);
               }
             } else {
-              cw = (availableForCards / groupCount).clamp(56.0, Responsive.cardWidth(context));
+              cw = (availableForCards / groupCount).clamp(50.0, customCardWidth ?? Responsive.cardWidth(context));
             }
           }
         }
@@ -108,19 +108,23 @@ class PlayerHand extends StatelessWidget {
             children: [
               // Discard drop zone (appears during discard phase when dragging)
               if (isDiscardPhase) _buildDiscardZone(context),
-              // Card groups centered and auto-fitted in one go
+              // Card groups centered and auto-fitted in one go without scrolling
               SingleChildScrollView(
                 clipBehavior: Clip.none,
                 scrollDirection: Axis.horizontal,
                 physics: const ClampingScrollPhysics(),
                 padding: EdgeInsets.symmetric(
-                  horizontal: isCompact ? 4.0 : Responsive.tablePadding(context),
+                  horizontal: isCompact ? 4.0 : (customCardWidth != null ? 4.0 : Responsive.tablePadding(context)),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: _buildGroupsWithDividers(
-                    cw, ch, overlap, spacing, isCompact, totalCards,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: _buildGroupsWithDividers(
+                      cw, ch, overlap, spacing, isCompact, totalCards,
+                    ),
                   ),
                 ),
               ),

@@ -983,12 +983,12 @@ class GameTableScreen extends ConsumerWidget {
                   ),
                 ),
 
-                // 6. Top Right: Declare Hand / Next Deal Button
+                // 6. Top Right: Declare Hand / Next Deal Button (With DragTarget Declare support)
                 Positioned(
-                  left: 808,
+                  left: 792,
                   top: 10,
-                  width: 129,
-                  height: 30,
+                  width: 138,
+                  height: 34,
                   child: isGameComplete
                       ? InkWell(
                           onTap: () {
@@ -1040,67 +1040,96 @@ class GameTableScreen extends ConsumerWidget {
                             ),
                           ),
                         )
-                      : InkWell(
-                          onTap: canDeclare
-                              ? () {
-                                  if (tableState.isAwaitingHumanDeclarationShow) {
-                                    _handleSubmitDeclarationShow(context, ref);
-                                  } else {
-                                    _handleDiscardAndDeclare(context, ref);
-                                  }
-                                }
-                              : null,
-                          borderRadius: BorderRadius.circular(10),
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 150),
-                            opacity: canDeclare ? 1.0 : 0.45,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF141B26), Color(0xFF0B1018)],
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFF2CA50), width: 1.8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFF2CA50).withValues(alpha: canDeclare ? 0.35 : 0.0),
-                                    blurRadius: 10,
+                      : DragTarget<Object>(
+                          onWillAcceptWithDetails: (details) =>
+                              ((isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
+                                  tableState.isAwaitingHumanDeclarationShow) &&
+                              (details.data is CardDragData || details.data is Card),
+                          onAcceptWithDetails: (details) {
+                            Card? card;
+                            if (details.data is CardDragData) {
+                              card = (details.data as CardDragData).card;
+                            } else if (details.data is Card) {
+                              card = details.data as Card;
+                            }
+                            if (tableState.isAwaitingHumanDeclarationShow) {
+                              _handleSubmitDeclarationShow(context, ref);
+                            } else {
+                              _handleDiscardAndDeclare(context, ref, finishCard: card);
+                            }
+                          },
+                          builder: (context, candidateData, rejectedData) {
+                            final isHovering = candidateData.isNotEmpty;
+                            final active = canDeclare || isHovering;
+
+                            return InkWell(
+                              onTap: canDeclare
+                                  ? () {
+                                      if (tableState.isAwaitingHumanDeclarationShow) {
+                                        _handleSubmitDeclarationShow(context, ref);
+                                      } else {
+                                        _handleDiscardAndDeclare(context, ref);
+                                      }
+                                    }
+                                  : null,
+                              borderRadius: BorderRadius.circular(10),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 150),
+                                opacity: active ? 1.0 : 0.45,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF141B26), Color(0xFF0B1018)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isHovering ? const Color(0xFF34D399) : const Color(0xFFF2CA50),
+                                      width: isHovering ? 2.2 : 1.8,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isHovering
+                                            ? const Color(0xFF34D399).withValues(alpha: 0.6)
+                                            : const Color(0xFFF2CA50).withValues(alpha: canDeclare ? 0.35 : 0.0),
+                                        blurRadius: 10,
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2CA50), size: 14),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        'Declare Hand',
-                                        style: GoogleFonts.outfit(
-                                          color: const Color(0xFFF2CA50),
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w900,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2CA50), size: 14),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            'Declare Hand',
+                                            style: GoogleFonts.outfit(
+                                              color: const Color(0xFFF2CA50),
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                 ),
 
-                // 7. Top Right: 3-Dash MENU Button (Without Joker on right)
+                // 7. Top Right: 3-Dash MENU Button
                 Positioned(
-                  left: 947,
-                  top: 8,
-                  width: 70,
-                  height: 37,
+                  left: 939,
+                  top: 10,
+                  width: 78,
+                  height: 34,
                   child: InkWell(
                     onTap: () => _showMobileGameMenu(context, ref),
                     borderRadius: BorderRadius.circular(8),
@@ -1147,11 +1176,10 @@ class GameTableScreen extends ConsumerWidget {
                   ),
                 ),
 
-                // 8. Left Thumb Action Buttons Stack (5 buttons from top to bottom)
-                // Discard
+                // 8. Top-Right Discard Button (Directly below Declare & Menu with DragTarget support)
                 Positioned(
-                  left: 14,
-                  top: 252,
+                  left: 897,
+                  top: 52,
                   width: 112,
                   height: 38,
                   child: _buildMobilePillButton(
@@ -1160,6 +1188,8 @@ class GameTableScreen extends ConsumerWidget {
                     gradientColors: [const Color(0xFF1B2230), const Color(0xFF111722)],
                     borderColor: canDiscard ? const Color(0xFF60A5FA) : const Color(0xFF475569),
                     textColor: canDiscard ? Colors.white : const Color(0xFF94A3B8),
+                    canAcceptDrop: canDiscard,
+                    onCardDropped: (card) => notifier.discardCard(card),
                     onTap: canDiscard
                         ? () {
                             if (tableState.selectedCard != null) {
@@ -1169,10 +1199,12 @@ class GameTableScreen extends ConsumerWidget {
                         : null,
                   ),
                 ),
-                // Group
+
+                // 9. Left Action Buttons Stack (All 112px x 38px)
+                // Group Button
                 Positioned(
-                  left: 14,
-                  top: 297,
+                  left: 6,
+                  top: 124,
                   width: 112,
                   height: 38,
                   child: _buildMobilePillButton(
@@ -1186,14 +1218,16 @@ class GameTableScreen extends ConsumerWidget {
                 ),
                 // Drop (40)
                 Positioned(
-                  left: 14,
-                  top: 345,
+                  left: 7,
+                  top: 171,
                   width: 112,
                   height: 38,
                   child: _buildMobilePillButton(
                     label: 'Drop ($dropPenalty)',
                     icon: Icons.flag_rounded,
-                    gradientColors: canDrop ? [const Color(0xFFA82020), const Color(0xFF7E1515)] : [const Color(0xFF221616), const Color(0xFF181010)],
+                    gradientColors: canDrop
+                        ? [const Color(0xFFA82020), const Color(0xFF7E1515)]
+                        : [const Color(0xFF221616), const Color(0xFF181010)],
                     borderColor: canDrop ? const Color(0xFFEF4444) : const Color(0x66EF4444),
                     textColor: canDrop ? Colors.white : const Color(0xFF94A3B8),
                     onTap: canDrop ? () => _handleDrop(context, ref) : null,
@@ -1201,8 +1235,8 @@ class GameTableScreen extends ConsumerWidget {
                 ),
                 // Sort Hand
                 Positioned(
-                  left: 14,
-                  top: 391,
+                  left: 6,
+                  top: 218,
                   width: 112,
                   height: 38,
                   child: _buildMobilePillButton(
@@ -1216,8 +1250,8 @@ class GameTableScreen extends ConsumerWidget {
                 ),
                 // AI Group
                 Positioned(
-                  left: 14,
-                  top: 437,
+                  left: 6,
+                  top: 267,
                   width: 112,
                   height: 38,
                   child: _buildMobilePillButton(
@@ -1230,19 +1264,19 @@ class GameTableScreen extends ConsumerWidget {
                   ),
                 ),
 
-                // 9. Grouped Player Hand (Exact measurements: 92px card width, 44px overlap, 16px group gap)
+                // 10. Grouped Player Hand (Full 938px width rack, 14 cards fit without scrolling)
                 Positioned(
-                  left: 214,
-                  top: 337,
-                  width: 790,
+                  left: 44,
+                  top: 335,
+                  width: 938,
                   child: PlayerHand(
                     cardGroups: cardGroups,
                     wildJokerCard: notifier.effectiveHumanWildJoker,
                     selectedCard: tableState.selectedCard,
                     selectedCards: tableState.selectedCards,
                     isDiscardPhase: isHumanTurn && isDiscardPhase,
-                    customCardWidth: 92.0,
-                    customCardHeight: 133.4,
+                    customCardWidth: 90.0,
+                    customCardHeight: 130.0,
                     customCardOverlap: 44.0,
                     customGroupSpacing: 16.0,
                     onCardTap: (card) => notifier.selectCard(card),
@@ -1483,11 +1517,18 @@ class GameTableScreen extends ConsumerWidget {
       ),
     );
 
-    return DragTarget<Card>(
-      onWillAcceptWithDetails: (details) => canDiscard,
+    return DragTarget<Object>(
+      onWillAcceptWithDetails: (details) =>
+          canDiscard && (details.data is CardDragData || details.data is Card),
       onAcceptWithDetails: (details) {
-        if (onDiscardCard != null) {
-          onDiscardCard(details.data);
+        Card? card;
+        if (details.data is CardDragData) {
+          card = (details.data as CardDragData).card;
+        } else if (details.data is Card) {
+          card = details.data as Card;
+        }
+        if (card != null && onDiscardCard != null) {
+          onDiscardCard(card);
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -1523,11 +1564,18 @@ class GameTableScreen extends ConsumerWidget {
     const double cardW = 58.0;
     const double cardH = 82.0;
 
-    return DragTarget<Card>(
-      onWillAcceptWithDetails: (details) => canAcceptDrop,
+    return DragTarget<Object>(
+      onWillAcceptWithDetails: (details) =>
+          canAcceptDrop && (details.data is CardDragData || details.data is Card),
       onAcceptWithDetails: (details) {
-        if (onCardDeclared != null) {
-          onCardDeclared(details.data);
+        Card? card;
+        if (details.data is CardDragData) {
+          card = (details.data as CardDragData).card;
+        } else if (details.data is Card) {
+          card = details.data as Card;
+        }
+        if (card != null && onCardDeclared != null) {
+          onCardDeclared(card);
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -1618,54 +1666,96 @@ class GameTableScreen extends ConsumerWidget {
     required Color borderColor,
     required Color textColor,
     required VoidCallback? onTap,
+    void Function(Card)? onCardDropped,
+    bool canAcceptDrop = false,
   }) {
-    final enabled = onTap != null;
+    final enabled = onTap != null || canAcceptDrop;
+
+    Widget buttonBody(bool isHovering) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: gradientColors),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isHovering ? const Color(0xFFF2CA50) : borderColor,
+            width: isHovering ? 2.0 : 1.4,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isHovering
+                  ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
+                  : Colors.black.withValues(alpha: 0.5),
+              blurRadius: isHovering ? 10 : 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: isHovering ? const Color(0xFFF2CA50) : textColor, size: 14),
+              const SizedBox(width: 5),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.outfit(
+                      color: isHovering ? const Color(0xFFF2CA50) : textColor,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (canAcceptDrop && onCardDropped != null) {
+      return DragTarget<Object>(
+        onWillAcceptWithDetails: (details) =>
+            canAcceptDrop && (details.data is CardDragData || details.data is Card),
+        onAcceptWithDetails: (details) {
+          Card? card;
+          if (details.data is CardDragData) {
+            card = (details.data as CardDragData).card;
+          } else if (details.data is Card) {
+            card = details.data as Card;
+          }
+          if (card != null) {
+            onCardDropped(card);
+          }
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+          return InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: (enabled || isHovering) ? 1.0 : 0.45,
+              child: buttonBody(isHovering),
+            ),
+          );
+        },
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 150),
         opacity: enabled ? 1.0 : 0.45,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: gradientColors),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: 1.4),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: textColor, size: 14),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      label,
-                      style: GoogleFonts.outfit(
-                        color: textColor,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
-                      ),
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: buttonBody(false),
       ),
     );
   }
@@ -1678,29 +1768,29 @@ class GameTableScreen extends ConsumerWidget {
       builder: (ctx) {
         return Center(
           child: Container(
-            width: 360,
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            width: 480,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [Color(0xF010192A), Color(0xF7090F1A)],
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFF2CA50), width: 1.8),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFF2CA50), width: 1.6),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.85),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
                 ),
                 BoxShadow(
                   color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
-                  blurRadius: 16,
+                  blurRadius: 14,
                 ),
               ],
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1709,13 +1799,13 @@ class GameTableScreen extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.menu_rounded, color: Color(0xFFF2CA50), size: 20),
+                        const Icon(Icons.menu_rounded, color: Color(0xFFF2CA50), size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'ROYAL GAME MENU',
                           style: GoogleFonts.cinzel(
                             color: const Color(0xFFF2CA50),
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.0,
                           ),
@@ -1727,71 +1817,147 @@ class GameTableScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(16),
                       child: const Padding(
                         padding: EdgeInsets.all(4),
-                        child: Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                        child: Icon(Icons.close_rounded, color: Colors.white70, size: 18),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                const Divider(color: Color(0x33D4AF37), height: 1),
                 const SizedBox(height: 8),
-                _buildMenuItem(
-                  icon: Icons.leaderboard_rounded,
-                  iconColor: const Color(0xFF60A5FA),
-                  title: 'Live Scorecard',
-                  subtitle: 'Round scores & elimination tracker',
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _openScoreCard(context, ref);
-                  },
+                const Divider(color: Color(0x33D4AF37), height: 1),
+                const SizedBox(height: 10),
+                // Compact 2x2 Grid optimized for mobile landscape
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCompactMenuItem(
+                        icon: Icons.leaderboard_rounded,
+                        iconColor: const Color(0xFF60A5FA),
+                        title: 'Live Scorecard',
+                        subtitle: 'Round tracker',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openScoreCard(context, ref);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactMenuItem(
+                        icon: Icons.settings_rounded,
+                        iconColor: const Color(0xFFFBBF24),
+                        title: 'Table Settings',
+                        subtitle: 'Audio & rules',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openSettings(context, ref);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                _buildMenuItem(
-                  icon: Icons.history_rounded,
-                  iconColor: const Color(0xFFA78BFA),
-                  title: 'Game Action Logs',
-                  subtitle: 'Audited turn & discard event history',
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _openGameLogs(context, ref);
-                  },
-                ),
-                _buildMenuItem(
-                  icon: Icons.settings_rounded,
-                  iconColor: const Color(0xFFFBBF24),
-                  title: 'Table Settings',
-                  subtitle: 'Audio, animations & card options',
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _openSettings(context, ref);
-                  },
-                ),
-                _buildMenuItem(
-                  icon: Icons.android_rounded,
-                  iconColor: const Color(0xFF34D399),
-                  title: 'Download Android App',
-                  subtitle: 'Direct native .apk installer for mobile',
-                  highlight: true,
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _showDownloadApkDialog(context);
-                  },
-                ),
-                _buildMenuItem(
-                  icon: Icons.exit_to_app_rounded,
-                  iconColor: const Color(0xFFF87171),
-                  title: 'Exit Game',
-                  subtitle: 'Leave current table session',
-                  isDestructive: true,
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _handleExitGame(context, ref);
-                  },
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCompactMenuItem(
+                        icon: Icons.history_rounded,
+                        iconColor: const Color(0xFFA78BFA),
+                        title: 'Action Logs',
+                        subtitle: 'Turn history',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openGameLogs(context, ref);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactMenuItem(
+                        icon: Icons.exit_to_app_rounded,
+                        iconColor: const Color(0xFFF87171),
+                        title: 'Exit Game',
+                        subtitle: 'Leave table',
+                        isDestructive: true,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _handleExitGame(context, ref);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCompactMenuItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDestructive ? const Color(0x22EF4444) : const Color(0x22FFFFFF),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDestructive ? const Color(0x66EF4444) : const Color(0x33D4AF37),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: iconColor, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      color: isDestructive ? const Color(0xFFFCA5A5) : Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.outfit(
+                      color: isDestructive ? const Color(0x99FCA5A5) : Colors.white60,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDestructive ? const Color(0x66FCA5A5) : Colors.white30,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
