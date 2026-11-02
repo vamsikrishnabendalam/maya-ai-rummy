@@ -1,840 +1,505 @@
-# Maya AI Rummy — Knowledge Base for AI Agents
+# MAYA AI RUMMY — COMPLETE CODEBASE KNOWLEDGE BASE & ARCHITECTURE GUIDE
 
-> **Purpose**: This document is a comprehensive codebase map designed to eliminate redundant
-> research by AI agents. Before reading any source file, check this document first.
-> Line numbers are accurate as of **2026-09-25**.
+> **Last Updated:** November 2026  
+> **Repository:** `maya-ai-rummy`  
+> **Purpose:** Authoritative reference manual for human engineers and AI coding assistants (Gemini, Claude, GPT). Documents every module, file, class, method, data flow, architecture diagram, and invariant across the entire project.
 
 ---
 
 ## Table of Contents
 
-1. [Project Overview](#1-project-overview)
-2. [Environment & Build Commands](#2-environment--build-commands)
-3. [Directory Structure](#3-directory-structure)
-4. [Architecture & Data Flow](#4-architecture--data-flow)
-5. [Routing & Navigation](#5-routing--navigation)
-6. [File-by-File Reference Map](#6-file-by-file-reference-map)
-7. [Game Engine Package](#7-game-engine-package)
-8. [AI Engine Package](#8-ai-engine-package)
-9. [Firebase Cloud Functions](#9-firebase-cloud-functions)
-10. [Data Models](#10-data-models)
-11. [State Management (Riverpod)](#11-state-management-riverpod)
-12. [Multiplayer Game Flow](#12-multiplayer-game-flow)
-13. [Single-Player (Maya Bot) Reference](#13-single-player-maya-bot-reference)
-14. [Known Bug Patterns & Gotchas](#14-known-bug-patterns--gotchas)
-15. [Test Suites](#15-test-suites)
-16. [Configuration Files](#16-configuration-files)
-17. [Firestore Data Schema](#17-firestore-data-schema)
+1. [Executive Summary & Tech Stack](#1-executive-summary--tech-stack)
+2. [High-Level System Architecture](#2-high-level-system-architecture)
+3. [Environment & Build Commands](#3-environment--build-commands)
+4. [Monorepo Directory Skeleton & File Map](#4-monorepo-directory-skeleton--file-map)
+5. [Core Package: `packages/game-engine`](#5-core-package-packagesgame-engine)
+6. [Core Package: `packages/ai-engine`](#6-core-package-packagesai-engine)
+7. [Client Architecture: `apps/mobile/lib`](#7-client-architecture-appsmobilelib)
+8. [Turn Lifecycle & Sequence Flow](#8-turn-lifecycle--sequence-flow)
+9. [Screen & Navigation Graph](#9-screen--navigation-graph)
+10. [Single-Player (Maya Bot) Reference](#10-single-player-maya-bot-reference)
+11. [Multiplayer Architecture & Realtime State Loop](#11-multiplayer-architecture--realtime-state-loop)
+12. [Firebase Cloud Functions & Server Rules](#12-firebase-cloud-functions--server-rules)
+13. [Firestore Data Schema & Collections](#13-firestore-data-schema--collections)
+14. [State Management (Riverpod Providers Map)](#14-state-management-riverpod-providers-map)
+15. [Complete Widget Catalog](#15-complete-widget-catalog)
+16. [All Enums Reference](#16-all-enums-reference)
+17. [Barrel Exports Reference](#17-barrel-exports-reference)
+18. [Responsive Breakpoints & Viewport Calibration](#18-responsive-breakpoints--viewport-calibration)
+19. [Known Bug Patterns & Architectural Invariants](#19-known-bug-patterns--architectural-invariants)
+20. [User Accounts, Auth & Admin Dashboard Guide](#20-user-accounts-auth--admin-dashboard-guide)
+21. [Developer & AI Quick-Lookup Index](#21-developer--ai-quick-lookup-index)
+22. [AI Prompting & Future Agent Guide](#22-ai-prompting--future-agent-guide)
 
 ---
 
-## 1. Project Overview
+## 1. Executive Summary & Tech Stack
 
-**Maya AI Rummy** is a Flutter web app for 13-card Indian Rummy with:
-- **Single-player** mode against "Maya" AI bot (offline, local state)
-- **Multiplayer** mode via Firebase (Firestore real-time sync, Cloud Functions)
-- **Game Engine** in pure Dart (card models, validation, scoring, hand partitioning)
-- **AI Engine** in pure Dart (bot strategy, probability, threat tracking)
+**Maya AI Rummy** is a high-performance, authentic Indian 13-Card Rummy platform featuring:
+1. **Single-Player Mode**: Play against **Maya**, an intelligent AI bot powered by lookahead simulations, threat tracking, and adaptive heuristics.
+2. **Multiplayer Mode (2 to 6 Players)**: Real-time room-code and public-lobby matchmaking with Firestore real-time synchronization, authoritative card dealing, turn timers, and spectator support.
+3. **Cross-Platform Client**: Built with Flutter (Android, iOS, Web, Desktop), featuring responsive 3D perspective casino tables, custom card artwork, and royal aesthetics.
+4. **Decoupled Architecture**: Pure Dart core game engine and AI engine, decoupled from Flutter UI and backend infrastructure.
 
-**Production URLs**: `https://mayarummy.cwards.com` and `https://maya-rummy-vk.web.app`
+### Technology Stack
+| Layer | Technologies |
+|---|---|
+| **Mobile / Web / Desktop UI** | Flutter 3.x, Dart 3.x, Flutter Riverpod 2.x, GoRouter 13.x |
+| **Fonts & Icons** | Google Fonts (Cinzel, Outfit, JetBrains Mono), Material Icons |
+| **Core Game Engine** | Pure Dart package (`packages/game-engine`) |
+| **Artificial Intelligence** | Pure Dart package (`packages/ai-engine`) |
+| **Backend & Realtime** | Firebase Cloud Firestore, Firebase Authentication, Cloud Functions (Node.js 20) |
+| **Visual Tooling** | Custom visual layout editor (`tools/layout_editor`) with Python HTTP bridge |
+| **Build & Distribution** | Gradle (Kotlin DSL), Android ABI splits (ARM64-v8a, x86_64), Web (CanvasKit) |
+
+**Production URLs**: `https://mayarummy.cwards.com` and `https://maya-rummy-vk.web.app`  
 **Firebase Project**: `maya-rummy-vk`
 
 ---
 
-## 2. Environment & Build Commands
+## 2. High-Level System Architecture
 
-| What | Command |
-|------|---------|
-| Flutter path | `C:\Users\Bhava\flutter\bin\flutter.bat` |
-| Dart SDK | `C:\Users\Bhava\flutter\bin\cache\dart-sdk\bin\dart.exe` |
-| Run game-engine tests | `cd packages/game-engine && dart test` |
-| Run AI engine tests | `cd packages/ai-engine && dart test` |
-| Flutter analyze | `cd apps/mobile && flutter analyze lib` |
-| Flutter build web | `cd apps/mobile && flutter build web --base-href /` |
-| Firebase deploy hosting | `$env:PATH = "C:\Program Files\nodejs;" + $env:PATH; cmd /c "npx firebase-tools deploy --only hosting --project maya-rummy-vk"` |
-| Firebase deploy functions | `$env:PATH = "C:\Program Files\nodejs;" + $env:PATH; cmd /c "npx firebase-tools deploy --only functions --project maya-rummy-vk"` |
-| Firebase deploy all | `$env:PATH = "C:\Program Files\nodejs;" + $env:PATH; cmd /c "npx firebase-tools deploy --project maya-rummy-vk"` |
-| Cloud Functions test | `cd functions && node test/rules.test.js` |
-| Local dev server | `cd apps/mobile && node serve.js` |
-| Workspace root | `c:\Users\Bhava\Documents\antigravity\friendly-lavoisier` |
+```mermaid
+flowchart TD
+    subgraph Client ["Flutter Cross-Platform Client (apps/mobile)"]
+        UI_Screens["Screens\n(Home, GameTableScreen, MultiplayerTableScreen, Admin)"]
+        Riverpod_Providers["Riverpod State Management\n(GameTableNotifier, MultiplayerGameNotifier, AuthNotifier)"]
+        UI_Widgets["Custom Widgets\n(PlayerHand, CenterTable, OpponentsLayer, Modals)"]
+    end
+
+    subgraph CorePackages ["Core Engine Packages (Pure Dart)"]
+        GameEngine["game-engine\n- StateMachine\n- DeclarationValidator\n- HandPartitioner\n- Scoring & Melds"]
+        AIEngine["ai-engine\n- BotStrategyEngine\n- OpponentThreatTracker\n- ActionSimulator\n- DiscardOptimizer"]
+    end
+
+    subgraph BackendServices ["Backend & Cloud Infrastructure"]
+        FirebaseAuth["Firebase Auth\n(Google Sign-In, Guest Sessions)"]
+        Firestore["Cloud Firestore\n- games (Public State)\n- privateHands (Secret Cards)\n- tables (Lobbies)\n- users & wallets"]
+        CloudFunctions["Cloud Functions (Node.js)\n- Matchmaking\n- Turn Deadlines\n- Server-side Verifications"]
+    end
+
+    UI_Screens --> Riverpod_Providers
+    Riverpod_Providers --> UI_Widgets
+    Riverpod_Providers --> GameEngine
+    Riverpod_Providers --> AIEngine
+    Riverpod_Providers --> FirebaseAuth
+    Riverpod_Providers --> Firestore
+    CloudFunctions --> Firestore
+```
 
 ---
 
-## 3. Directory Structure
+## 3. Environment & Build Commands
+
+| What | Command | Notes |
+|---|---|---|
+| **Run Client Tests** | `cd apps/mobile && flutter test` | Verifies all 45+ unit & widget tests |
+| **Run Game-Engine Tests** | `cd packages/game-engine && dart test` | Verifies pure-Dart sequence, set, partition logic |
+| **Run AI-Engine Tests** | `cd packages/ai-engine && dart test` | Verifies bot simulation, threat tracking, heuristics |
+| **Flutter Analyze** | `cd apps/mobile && flutter analyze lib` | Checks for lint warnings and type mismatches |
+| **Build Android Release APK** | `cd apps/mobile && flutter build apk --release --split-per-abi` | Outputs APKs to `build/app/outputs/flutter-apk/` |
+| **Copy / Publish APK** | `cp apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk releases/maya_ai_rummy.apk` | Root distribution artifact |
+| **Install APK on Emulator / Device** | `adb install -r releases/maya_ai_rummy.apk` | Re-installs release build |
+| **Launch App via ADB** | `adb shell am start -n com.maya.rummy.maya_ai_rummy_mobile/com.maya.rummy.maya_ai_rummy_mobile.MainActivity` | Opens app directly |
+| **Build Web Release** | `cd apps/mobile && flutter build web --base-href /` | Builds Web CanvasKit distribution |
+| **Deploy Firebase Hosting** | `$env:PATH = "C:\Program Files\nodejs;" + $env:PATH; cmd /c "npx firebase-tools deploy --only hosting --project maya-rummy-vk"` | Deploys web frontend |
+| **Deploy Cloud Functions** | `$env:PATH = "C:\Program Files\nodejs;" + $env:PATH; cmd /c "npx firebase-tools deploy --only functions --project maya-rummy-vk"` | Deploys server logic |
+| **Run Cloud Functions Tests** | `cd functions && node test/rules.test.js` | Runs JS server rules tests |
+
+---
+
+## 4. Monorepo Directory Skeleton & File Map
 
 ```
-friendly-lavoisier/
+maya-ai-rummy/
 ├── apps/
-│   └── mobile/                          # Flutter web app (59 files, 21 dirs)
+│   └── mobile/                                # Flutter application (Android, iOS, Web, Desktop)
 │       ├── lib/
-│       │   ├── main.dart                # App entry point (31 lines)
-│       │   ├── core/
-│       │   │   ├── config/firebase_config.dart
-│       │   │   ├── router/app_router.dart         # GoRouter (47 lines)
-│       │   │   ├── theme/
-│       │   │   │   ├── app_colors.dart             # Color constants (105 lines)
-│       │   │   │   ├── app_text_styles.dart
-│       │   │   │   └── app_theme.dart
-│       │   │   └── utils/responsive.dart
-│       │   └── features/
-│       │       ├── auth/                           # Authentication
-│       │       │   ├── models/multiplayer_user.dart
+│       │   ├── main.dart                      # Application root entry point
+│       │   ├── core/                          # Cross-cutting foundational modules
+│       │   │   ├── config/firebase_config.dart # Firebase initialization & configuration
+│       │   │   ├── router/app_router.dart     # GoRouter configuration & route definitions
+│       │   │   ├── theme/                     # App styling (AppColors, AppTheme, AppTextStyles)
+│       │   │   └── utils/responsive.dart      # Device breakpoints (mobile, tablet, desktop)
+│       │   └── features/                      # Domain features
+│       │       ├── admin/                     # Backoffice & LiveOps management
+│       │       │   ├── presentation/screens/  # AdminDashboardScreen
+│       │       │   └── services/admin_service.dart
+│       │       ├── auth/                      # Authentication (Google Sign-In & Guest)
+│       │       │   ├── models/                # MultiplayerUser, AvatarCatalog
 │       │       │   ├── providers/auth_provider.dart
-│       │       │   └── services/auth_service.dart  # Google + Guest sign-in (195 lines)
-│       │       ├── game/                           # Single-player (Maya Bot)
-│       │       │   ├── models/
-│       │       │   │   ├── card_group.dart
-│       │       │   │   ├── game_settings.dart
-│       │       │   │   └── round_score.dart
-│       │       │   ├── providers/
-│       │       │   │   ├── game_provider.dart       # ★ MAYA BOT REFERENCE (1,515 lines)
-│       │       │   │   └── game_ui_provider.dart
-│       │       │   ├── presentation/
-│       │       │   │   ├── screens/game_table_screen.dart  (628 lines)
-│       │       │   │   └── widgets/                        (16 widget files)
-│       │       │   │       ├── card_widget.dart      # Card rendering (377 lines)
-│       │       │   │       ├── center_table.dart     # Closed deck + open pile (243 lines)
-│       │       │   │       ├── player_hand.dart      # Drag-and-drop hand
-│       │       │   │       ├── opponent_panel.dart
-│       │       │   │       ├── action_bar.dart
-│       │       │   │       ├── score_card_modal.dart
-│       │       │   │       └── ... (10 more)
-│       │       │   └── services/spectator_sync_service.dart
-│       │       ├── multiplayer/                     # ★ MULTIPLAYER (main feature)
-│       │       │   ├── models/table_models.dart      # All data classes (485 lines)
-│       │       │   ├── providers/multiplayer_providers.dart  # State + Notifiers (915 lines)
-│       │       │   ├── services/multiplayer_service.dart     # Firestore CRUD (1,597 lines)
-│       │       │   ├── presentation/screens/
-│       │       │   │   ├── multiplayer_table_screen.dart     # Game table UI (1,431 lines)
-│       │       │   │   ├── multiplayer_lobby_screen.dart     # Lobby/waiting room (406 lines)
-│       │       │   │   ├── multiplayer_hub_screen.dart       # Create/Join hub
-│       │       │   │   └── join_redirect_screen.dart         # Invite link handler
-│       │       │   └── utils/
-│       │       │       ├── game_log_exporter.dart
-│       │       │       ├── file_saver_web.dart
-│       │       │       └── file_saver_stub.dart
-│       │       ├── home/                            # Home screen & settings
-│       │       │   ├── presentation/screens/home_screen.dart
-│       │       │   ├── presentation/widgets/ (11 files)
-│       │       │   ├── providers/home_provider.dart
-│       │       │   └── services/player_preferences_*.dart
-│       │       └── rules/                           # Rule book modal
-│       │           └── presentation/
-│       ├── web/index.html
-│       ├── pubspec.yaml
-│       └── serve.js                     # Local dev server
+│       │       │   └── services/auth_service.dart
+│       │       ├── game/                      # Single-Player Mode (vs Maya AI Bot)
+│       │       │   ├── models/                # CardGroup, GameSettings, RoundScore
+│       │       │   ├── presentation/screens/  # GameTableScreen
+│       │       │   ├── presentation/widgets/  # PlayerHand, CenterTable, ActionBar, Modals
+│       │       │   └── providers/             # GameProvider (Maya bot lifecycle), GameUIProvider
+│       │       ├── home/                      # Lobby, Hub, Profile, Rewards
+│       │       │   ├── presentation/screens/  # HomeScreen, FriendsHubScreen, ProfileModal
+│       │       │   ├── presentation/widgets/  # HeroSection, GameModesSelector, DailyChallengeCard
+│       │       │   └── services/player_preferences_service.dart
+│       │       ├── multiplayer/               # Realtime 2-6 Player Multiplayer
+│       │       │   ├── models/table_models.dart # TableLobby, TablePlayer, MultiplayerGameState
+│       │       │   ├── presentation/screens/  # MultiplayerTableScreen, MultiplayerLobbyScreen
+│       │       │   ├── presentation/widgets/  # MultiplayerOpponentsLayer, MultiplayerActionBar
+│       │       │   ├── providers/multiplayer_providers.dart # MultiplayerGameNotifier, LobbyNotifier
+│       │       │   ├── services/multiplayer_service.dart   # Firestore sync & cloud orchestration
+│       │       │   └── utils/game_log_exporter.dart
+│       │       ├── progression/               # Leveling, XP, and career badges
+│       │       ├── rewards/                   # Daily streaks, quest systems, coin grants
+│       │       └── rules/                     # Interactive tutorial and rulebook screens
 ├── packages/
-│   ├── game-engine/                     # Pure Dart game logic (17 files)
+│   ├── game-engine/                           # Pure Dart: Rummy rules, models, hand partitioning
 │   │   ├── lib/
-│   │   │   ├── game_engine.dart         # Barrel export
+│   │   │   ├── game_engine.dart               # Barrel export
 │   │   │   └── src/
-│   │   │       ├── models/              # Card, Deck, GameState, Player, etc.
-│   │   │       ├── rules/               # Validators, HandPartitioner, Scoring
-│   │   │       └── engine/              # GameEngine, StateMachine
-│   │   └── test/                        # 6 test files
-│   └── ai-engine/                       # AI bot strategy
-│       ├── lib/src/                     # Bot decision algorithms
-│       └── test/                        # 2 test files
-├── functions/                           # Firebase Cloud Functions
-│   ├── index.js                         # 9 exported functions (765 lines)
-│   ├── engine/rummyRules.js             # JS port of game rules (352 lines)
-│   ├── test/rules.test.js
-│   ├── package.json
-│   └── package-lock.json
-├── firebase.json                        # Firebase config
-├── firestore.rules                      # Security rules (66 lines)
-└── melos.yaml                           # Workspace orchestration
+│   │   │       ├── models/                    # Card, Deck, Player, GameState, GameAction
+│   │   │       ├── rules/                     # SequenceValidator, SetValidator, HandPartitioner
+│   │   │       └── engine/                    # GameEngine, StateMachine
+│   │   └── test/                              # 100+ comprehensive rules unit tests
+│   └── ai-engine/                             # Pure Dart: Maya Bot AI decision making
+│       ├── lib/
+│       │   ├── ai_engine.dart                 # Barrel export
+│       │   └── src/
+│       │       ├── strategy/                  # BotStrategyEngine (heuristic discard, draw)
+│       │       ├── analysis/                  # OpponentThreatTracker, HandAnalyzer
+│       │       └── simulation/                # ActionSimulator, DiscardOptimizer
+│       └── test/                              # AI strategy & simulation tests
+├── functions/                                 # Firebase Cloud Functions (Node.js 20)
+│   ├── index.js                               # Callable API endpoints (createTable, joinTable, etc.)
+│   ├── engine/rummyRules.js                   # JavaScript port of Dart validation engine
+│   └── test/rules.test.js                     # Server-side validation tests
+├── tools/
+│   └── layout_editor/                         # Visual Table Layout Editor & Python HTTP Bridge
+├── releases/                                  # Compiled distribution APKs
+├── KNOWLEDGE_BASE.md                          # Authoritative reference document
+└── README.md                                  # Project overview and quick start
 ```
 
 ---
 
-## 4. Architecture & Data Flow
+## 5. Core Package: `packages/game-engine`
 
-### State Management Pattern
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Flutter UI Layer                       │
-│  multiplayer_table_screen.dart ◄──── ref.watch(provider) │
-│  multiplayer_lobby_screen.dart                            │
-└──────────────────┬──────────────────────────────────────┘
-                   │ ref.read(provider.notifier).action()
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│              Riverpod Providers Layer                     │
-│  MultiplayerGameNotifier ──── MultiplayerGameTableState  │
-│  MultiplayerLobbyNotifier ── AsyncValue<TableLobby?>     │
-│  AuthNotifier ─────────────── MultiplayerUser?           │
-└──────────────────┬──────────────────────────────────────┘
-                   │ _service.method()
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Service Layer                            │
-│  MultiplayerService (singleton)                          │
-│  ├── Cloud Functions (httpsCallable)                     │
-│  ├── Firestore (direct reads/writes + transactions)      │
-│  └── Local mock fallback (_mockGames, _mockTables)       │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│               Firebase Backend                            │
-│  Firestore: /tables/{tableId}                            │
-│             /games/{gameId}                               │
-│             /games/{gameId}/privateHands/{uid}            │
-│  Cloud Functions: createTable, joinTable, startGame,     │
-│    drawFromClosed, drawFromOpen, discardCard,            │
-│    declareGame, updatePresence, leaveTable               │
-└─────────────────────────────────────────────────────────┘
-```
+**Path**: `packages/game-engine/lib/src/`  
+**Dependencies**: Pure Dart (zero Flutter, zero Firebase).
 
-### Dual Execution Path
-The `MultiplayerService` has a **dual path** for every operation:
-1. **Cloud Functions first** (via `_functions!.httpsCallable('functionName')`)
-2. **Direct Firestore fallback** if Cloud Function fails (via `_firestore!.runTransaction(...)`)
-3. **Local mock fallback** if Firebase not initialized (uses `_mockGames` / `_mockTables` maps)
-
-### Card Encoding
-- Cards use integer encoding: `deckIndex * 53 + suit.index * 13 + rank.index`
-- 106 cards total: 2 decks × 52 suited cards + 2 printed jokers
-- `Card.fromInt(val)` / `Card.toInt()` for serialization
-- `Card.cardId` = `"${rankShort}${suitShort}-D${deckIndex}-${toInt()}"`
-- Equality: based on `suit + rank + deckIndex + isPrintedJoker`
-
----
-
-## 5. Routing & Navigation
-
-**File**: `apps/mobile/lib/core/router/app_router.dart` (47 lines)
-
-| Route | Screen | Purpose |
-|-------|--------|---------|
-| `/` | `HomeScreen` | Main menu |
-| `/play-ai` | `GameTableScreen` | Single-player vs Maya Bot |
-| `/multiplayer` | `MultiplayerHubScreen` | Create/Join table |
-| `/lobby/:roomCode` | `MultiplayerLobbyScreen` | Waiting room with player slots |
-| `/join/:roomCode` | `JoinRedirectScreen` | ★ Invite link handler (auto-auth + join) |
-| `/table/:gameId` | `MultiplayerTableScreen` | Active game table |
-
-**Critical**: `usePathUrlStrategy()` from `flutter_web_plugins` is **NOT called** in `main.dart`.
-Flutter defaults to **hash URL strategy** (`/#/path`), so direct path URLs like
-`https://mayarummy.cwards.com/lobby/MAYA1234` resolve to `/` (home) instead of the lobby.
-
-**Invite links**: Generated in `multiplayer_lobby_screen.dart` L137-139 as `$origin/lobby/${roomCode}`,
-but should use `/join/${roomCode}` to hit the `JoinRedirectScreen`.
-
----
-
-## 6. File-by-File Reference Map
-
-### 6.1 `multiplayer_service.dart` (1,597 lines) — ★ Core Backend Service
-
-**File**: `apps/mobile/lib/features/multiplayer/services/multiplayer_service.dart`
-
-| Method | Lines | What it does |
-|--------|-------|-------------|
-| `createTable(...)` | 28–105 | Creates lobby with room code, Firestore doc |
-| `joinTable(...)` | 108–231 | Joins by room code, seats player |
-| `leaveTable(tableId, uid)` | 234–270 | Removes player, handles host migration |
-| `startGame(tableId)` | 273–460 | ★ Deals 13 cards, creates game doc + privateHands |
-| `drawFromClosed(...)` | 465–605 | Draws from closed deck, sets DISCARD_PHASE |
-| `drawFromOpen(...)` | 608–717 | Draws from open pile, tracks cardDrawnFromOpen |
-| `discardCard(...)` | 720–865 | Discards to open pile, advances turn |
-| `declareGame(...)` | 868–959 | Validates declaration, sets DECLARING status |
-| `submitFinalHand(...)` | 962–1037 | Other players submit hands after declaration |
-| `checkDeclarationTimeout(gameId)` | 1040–1057 | 30s deadline for final hand submissions |
-| `_finalizeGameResults(game)` | 1059–1097 | Calculates final scores and winner |
-| `recordPlayerHeartbeat(...)` | 1102–1144 | Updates heartbeat timestamp |
-| `markPlayerDisconnected(...)` | 1147–1182 | Marks player as disconnected |
-| `checkDisconnections(gameId)` | 1185–1373 | ★ Eliminates players disconnected >3min at 80pts |
-| `forceAdvanceTurnOnTimeout(gameId)` | 1376–1501 | ★ Auto-advances turn on timeout |
-| `watchTable(tableId)` | 1505–1519 | Returns Stream<TableLobby> |
-| `watchGame(gameId, myUid)` | 1521–1587 | Returns Stream<MultiplayerGameState> (combines game + privateHand) |
-
-### 6.2 `multiplayer_providers.dart` (915 lines) — ★ State Management
-
-**File**: `apps/mobile/lib/features/multiplayer/providers/multiplayer_providers.dart`
-
-**Providers defined**:
-- `multiplayerServiceProvider` — `Provider<MultiplayerService>` [L11]
-- `multiplayerLobbyProvider` — `StateNotifierProvider<MultiplayerLobbyNotifier, AsyncValue<TableLobby?>>` [L115]
-- `multiplayerGameProvider` — `StateNotifierProvider<MultiplayerGameNotifier, MultiplayerGameTableState>` [L912]
-
-**`MultiplayerGameTableState`** [L121–169]:
-- Fields: `gameState`, `cardGroups`, `selectedCard`, `selectedCards`, `hasDrawnThisTurn`, `isSubmitting`, `isHandLocked`, `currentScore`, `statusMessage`
-
-**`MultiplayerGameNotifier`** key methods [L171–910]:
-
-| Method | Lines | Purpose |
-|--------|-------|---------|
-| `watchGame(gameId)` | 180–227 | Sets up Firestore stream, syncs local groups |
-| `selectCard(card)` | 230–240 | Single-card exclusive selection (Maya Bot pattern) |
-| `toggleCardSelection(card)` | 243–257 | Multi-select for grouping |
-| `drawFromClosed()` | 264–296 | Draws card, creates DRAWN group, clears selection |
-| `drawFromOpen()` | 299–331 | Draws from open pile |
-| `discardSelectedCard()` | 334–374 | ★ Discards selectedCard (silently returns if null!) |
-| `declareHand()` | 377–426 | Validates and declares |
-| `submitFinalHand()` | 429–450 | Submits hand after opponent declares |
-| `autoSortHand()` | 543–569 | Sorts by rank then suit |
-| `autoGroupHand()` | 571–666 | ★ Uses HandPartitioner; only selects discard when allCards.length==14 |
-| `handleTurnTimeout()` | 668–688 | ★ Client-side timeout: draw → autoGroup → discard |
-| `forceAdvanceTurnOnTimeout()` | 710–714 | Delegates to service |
-| `groupSelectedCards(cards)` | 716–757 | Creates new group from selected cards |
-| `_syncGroupsWithHand(...)` | 759–809 | Syncs server hand with local card groups |
-| `_revalidateGroups(...)` | 834–855 | Re-validates group types using validators |
-| `_recalculateScore(...)` | 857–864 | Calculates deadwood score |
-
-### 6.3 `multiplayer_table_screen.dart` (1,431 lines) — Game Table UI
-
-**File**: `apps/mobile/lib/features/multiplayer/presentation/screens/multiplayer_table_screen.dart`
-
-| Section | Lines | What it renders |
-|---------|-------|----------------|
-| `initState` + Timer | 29–77 | ★ 1-second periodic timer: timeout handling, heartbeat, disconnection checks |
-| `didChangeAppLifecycleState` | 81–89 | App pause/resume → heartbeat/disconnect |
-| `_showScoreboardModal` | 98–317 | Player scores, export button (locked during play) |
-| `_showDeclarationDialog` | 319–376 | Confirmation dialog before declaring |
-| `_showResultDialog` | 378–484 | Declaration result with score |
-| `_buildDeclarationBanner` | 486–582 | "Player X has declared!" banner + submit button |
-| Main `build` | 585–1265 | Full game table layout |
-| Top Nav Bar | 664–795 | Back button, turn timer, scoreboard, table badge |
-| Center Table (Decks) | 835–955 | Closed deck, wild joker, open pile |
-| Opponents Orbit | 960–965 | Opponent avatars around table |
-| Action Buttons | 1078–1232 | SORT, AUTO GROUP, GROUP, DISCARD, DECLARE |
-| PlayerHand widget | 1241–1253 | Drag-and-drop card groups |
-| `_buildOpponentsOrbit` | 1268–1429 | Dynamic 1-5 opponent seating layout |
-
-**Timer logic (L38–77)** — Fires every 1 second:
-- If `isMyTurn && now > turnDeadline`: calls `handleTurnTimeout()` (no debounce!)
-- If `!isMyTurn && now > turnDeadline + 3s`: calls `forceAdvanceTurnOnTimeout()`
-- Every 5 ticks: `recordHeartbeat()`
-- Every 3 ticks: `checkDisconnections()`
-
-### 6.4 `multiplayer_lobby_screen.dart` (406 lines)
-
-**File**: `apps/mobile/lib/features/multiplayer/presentation/screens/multiplayer_lobby_screen.dart`
-
-| Section | Lines | Purpose |
-|---------|-------|---------|
-| `_ensureJoined()` | 32–50 | Auto-join + auto guest-auth on direct URL visit |
-| Room Code + Invite Link | 137–230 | Displays code, copy button, invite URL |
-| Player Slots | 237–332 | 2-6 player slots with avatars |
-| Host Start Button | 333–367 | "START GAME" (min 2 players) |
-| Leave Table | 388–404 | Leave button |
-
-**Invite link generated at L137-139**: `'$origin/lobby/${lobby.roomCode}'`
-
-### 6.5 `join_redirect_screen.dart`
-
-**File**: `apps/mobile/lib/features/multiplayer/presentation/screens/join_redirect_screen.dart`
-- **Purpose**: Handles `/join/:roomCode` invite links
-- Auto-authenticates as guest if not signed in [L38-40]
-- Joins table and redirects to `/table/{gameId}` if game active, or `/lobby/{roomCode}` [L43-53]
-
-### 6.6 `table_models.dart` (485 lines) — All Data Models
-
-**File**: `apps/mobile/lib/features/multiplayer/models/table_models.dart`
-
-| Class | Lines | Key Fields |
-|-------|-------|-----------|
-| `TablePlayer` | 3–98 | `uid`, `displayName`, `photoURL`, `seatIndex`, `isHost`, `connected`, `cardCount`, `score`, `status` (ACTIVE/DECLARED/WRONG_SHOW/DROPPED/ELIMINATED), `disconnectedAt`, `lastHeartbeat` |
-| `TableLobby` | 100–213 | `tableId`, `roomCode`, `tableName`, `hostUid`, `maxPlayers`, `playerCount`, `status` (WAITING/STARTING/PLAYING/COMPLETED/ABANDONED), `hasPassword`, `activeGameId`, `players`, `gameMode`, `turnTimerSeconds`, penalties |
-| `MultiplayerFinalResult` | 215–249 | `uid`, `displayName`, `score`, `isWinner` |
-| `MultiplayerGameState` | 251–484 | `gameId`, `tableId`, `status` (IN_PROGRESS/DECLARING/COMPLETED), `currentTurnPlayerId`, `turnNumber`, `phase` (DRAW_PHASE/DISCARD_PHASE), `turnDeadline`, `openJoker`, `openPile`, `closedDeck`, `declaringPlayerId`, `declarationDeadline`, `submittedPlayerUids`, `finalResults`, `players`, `myHand`, `actionLog` |
-
-**Getters on MultiplayerGameState** [L312-318]:
-- `isDrawPhase`, `isDiscardPhase`, `isDeclaring`, `isGameOver`, `isCompleted`, `isMyTurn(uid)`
-
----
-
-## 7. Game Engine Package
-
-**Path**: `packages/game-engine/lib/src/`
-
-### 7.1 Card Model (`models/card.dart`, 70 lines)
-
+### 5.1 Card Model (`models/card.dart`, 70 lines)
 ```dart
 enum Suit { hearts, diamonds, clubs, spades }
-enum Rank { ace, two, three, ... king }
+enum Rank { ace, two, three, four, five, six, seven, eight, nine, ten, jack, queen, king }
 
 class Card {
   final Suit? suit;          // null for printed jokers
   final Rank? rank;          // null for printed jokers
-  final int deckIndex;       // 0 or 1 (two decks)
-  final bool isPrintedJoker;
+  final int deckIndex;       // 0 or 1 (2 standard 53-card decks)
+  final bool isPrintedJoker; // true for printed jokers
 
-  int toInt()                // deckIndex * 53 + suit.index * 13 + rank.index
-  static Card fromInt(int)   // Reverse of toInt()
-  String get cardId          // e.g., "AH-D0-0"
+  int toInt()                // deckIndex * 53 + suit.index * 13 + rank.index (or 52 for joker)
+  static Card fromInt(int)   // Reverse integer mapping
+  String get cardId          // Deterministic string (e.g. "AH-D0-0", "PJ-D1-52")
 }
 ```
 
-### 7.2 Hand Partitioner (`rules/hand_partitioner.dart`, 526 lines) — ★ Core Algorithm
-
+### 5.2 Hand Partitioner (`rules/hand_partitioner.dart`, 526 lines) — ★ Core Hand Logic
 | Method | Lines | Purpose |
-|--------|-------|---------|
-| `evaluateGroups(groups, openJoker)` | 52–161 | Evaluates pre-formed groups, returns HandPartitionResult |
-| `findValidPartition(hand, openJoker)` | 165–214 | Finds first valid declaration (2 sequences + all melds) |
-| `findBestPartition(hand, openJoker)` | 220–372 | ★ Finds minimum-deadwood partition |
-| `_findCandidateSequences(...)` | 447–472 | Generates sequence candidates (length 5→3, descending) |
-| `_findCandidateSets(...)` | 474–491 | Generates set candidates (length 5→3, descending) |
+|---|---|---|
+| `evaluateGroups(groups, openJoker)` | 52–161 | Evaluates user-arranged groups; returns `HandPartitionResult`. |
+| `findValidPartition(hand, openJoker)` | 165–214 | Searches for any valid 13-card declaration meld. |
+| `findBestPartition(hand, openJoker)` | 220–372 | ★ Optimizes hand grouping to minimize deadwood penalty. |
+| `_findCandidateSequences(...)` | 447–472 | Generates sequence candidates (lengths 5→3, descending). |
+| `_findCandidateSets(...)` | 474–491 | Generates set candidates (lengths 5→3, descending). |
 
-**Key types**:
-- `enum HandGroupType { pureSequence, impureSequence, validSet, invalid }`
-- `class HandPartitionResult { groups, deadwoodScore, hasPureSequence, hasSecondSequence, isValidDeclaration }`
+### 5.3 Rule Validators
+- **`sequence_validator.dart`** (229 lines):
+  - Pure Sequence: $\ge 3$ consecutive cards of identical suit, no wild jokers used as substitutes (natural joker as itself allowed).
+  - Impure Sequence: $\ge 3$ cards of identical suit with wild jokers or printed jokers substituting missing ranks.
+  - No wrap-around allowed: `K-A-2` is invalid; `A-2-3` (Ace low) and `Q-K-A` (Ace high) are valid.
+- **`set_validator.dart`** (108 lines):
+  - 3 or 4 cards of identical rank across distinct suits.
+  - Impure Set: Wild jokers or printed jokers substituting missing suits. Duplicate suits from deck 0 and deck 1 permitted in impure sets.
+- **`declaration_validator.dart`** (55 lines):
+  - Rummy Requirement: $\ge 1$ Pure Sequence, $\ge 2$ total Sequences (1 pure + 1 pure/impure), and all remaining cards grouped into valid sequences or sets.
 
-### 7.3 Validators
-
-**`sequence_validator.dart`** (229 lines):
-- `SequenceValidator.validate(cards, openJoker)` → `SequenceValidationResult` (pure/impure/invalid)
-- Handles ace-low (A-2-3), ace-high (Q-K-A), wild joker substitution
-- No wrap-around (K-A-2 is invalid)
-
-**`set_validator.dart`** (108 lines):
-- `SetValidator.validate(cards, openJoker)` → `SetValidationResult` (validPure/validImpure/invalid)
-- 3-5 cards, same rank, different suits among natural cards
-- Allows duplicate suits from different decks in impure sets (per test expectations)
-
-**`declaration_validator.dart`** (55 lines):
-- `DeclarationValidator.validate(groups, wildJoker)` → `ValidationResult`
-- Requires: at least 1 pure sequence, at least 2 total sequences, all groups valid
-
-### 7.4 Scoring (`rules/scoring.dart`, 111 lines)
-
-- `Scoring.getCardValue(card, wildJoker)` — Face cards = 10, Ace = 10, others = face value, jokers = 0
-- `Scoring.calculateDeadwood(deadwood, wildJoker, maxPenalty: 80)` — Sum capped at maxPenalty
-- `Scoring.calculateHandDeadwood(groups:, wildJoker:, maxPenalty:)` — Evaluates grouped hand
-
-### 7.5 Other Files
-
-- `models/deck.dart` — `Deck.create()` returns 106-card List<Card>
-- `models/game_state.dart` — Single-player game state
-- `models/player.dart` — Single-player Player model with hand
-- `models/game_action.dart` — Action types (DrawFromClosedDeck, DiscardCard, etc.)
-- `models/game_config.dart` — Game configuration
-- `models/game_result.dart` — Round result
-- `engine/game_engine.dart` — `processAction(state, action)` → new GameState
-- `engine/state_machine.dart` — Phase transitions
-- `rules/joker_utils.dart` — `JokerUtils.isWildJoker(card, openJoker)`
-- `rules/probability_engine.dart` — Card probability calculations
+### 5.4 Scoring (`rules/scoring.dart`, 111 lines)
+- Face cards (`J`, `Q`, `K`, `A`): 10 points.
+- Number cards (`2`–`10`): Face value points.
+- Jokers (Printed or Wild): 0 points.
+- Cap: Maximum deadwood penalty is capped at **80 points** (or custom table max penalty).
+- Drop Penalties: First Drop = 20 pts, Middle Drop = 40 pts, Wrong Show = 80 pts.
 
 ---
 
-## 8. AI Engine Package
+## 6. Core Package: `packages/ai-engine`
 
-**Path**: `packages/ai-engine/lib/src/`
+**Path**: `packages/ai-engine/lib/src/`  
+**Dependencies**: Pure Dart, depends on `game-engine`.
 
-Contains Maya Bot's decision-making algorithms:
-- Draw decision (open vs closed)
-- Discard selection (minimize deadwood)
-- Declaration decision (when to declare)
-- Opponent threat tracking
-
----
-
-## 9. Firebase Cloud Functions
-
-**File**: `functions/index.js` (765 lines)
-
-| Function | Lines | Purpose |
-|----------|-------|---------|
-| `createTable` | 29–84 | Creates table doc with unique room code |
-| `joinTable` | 90–168 | Atomic room code lookup + seat assignment |
-| `leaveTable` | 174–221 | Player exit, host reassignment, ABANDONED status |
-| `startGame` | 232–360 | ★ Cryptographic shuffle, wild joker cut, 13-card deal to privateHands |
-| `drawFromClosed` | 365–437 | Atomic draw + auto-reshuffle when deck empty |
-| `drawFromOpen` | 442–507 | Atomic draw from discard pile top |
-| `discardCard` | 512–599 | Validates open-drawn card rule, rotates turn |
-| `declareGame` | 604–733 | Full rules validation, wrong show = 80pts |
-| `updatePresence` | 738–764 | Heartbeat updates |
-
-**Server-side rules engine**: `functions/engine/rummyRules.js` (352 lines) — 1:1 JavaScript port of Dart validators.
-
-**No Cloud Functions exist for**: turn timeout, force-advance, disconnection elimination, tournament management. All handled client-side.
+### 6.1 Architecture & Decision Engine
+- **`BotStrategyEngine`** (`strategy/bot_strategy_engine.dart`):
+  - Evaluates open pile top card vs closed deck draw expectation using Bayesian value estimation.
+  - Selects discard card by evaluating hand potential after removing each candidate card.
+  - Determines declaration readiness when deadwood reaches 0.
+- **`OpponentThreatTracker`** (`analysis/opponent_threat_tracker.dart`):
+  - Tracks cards picked by opponents from the open pile.
+  - Infers opponent suit/rank meld intentions and prevents discarding "safe" cards that benefit opponents.
+- **`ActionSimulator`** (`simulation/action_simulator.dart`):
+  - Simulates 1-2 turn lookahead scenarios to choose highest expected utility play.
 
 ---
 
-## 10. Data Models
+## 7. Client Architecture: `apps/mobile/lib`
 
-### Firestore Collections
-
-```
-/tables/{tableId}        → TableLobby JSON
-/games/{gameId}          → MultiplayerGameState JSON (public game state)
-/games/{gameId}/privateHands/{uid}  → { cards: [int, int, ...] }
-/users/{uid}             → User profile
-```
-
-### Key Status Enums
-
-**Table Status**: `WAITING` → `STARTING` → `PLAYING` → `COMPLETED` | `ABANDONED`
-
-**Game Status**: `IN_PROGRESS` → `DECLARING` → `COMPLETED`
-
-**Game Phase**: `DRAW_PHASE` → `DISCARD_PHASE` → `DRAW_PHASE` (rotates)
-
-**Player Status**: `ACTIVE` | `DECLARED` | `WRONG_SHOW` | `DROPPED` | `ELIMINATED`
+### 7.1 Cross-Cutting Core
+- **`app_router.dart`**: GoRouter routing definitions:
+  - `/`: Splash & Home screen
+  - `/solo`: Maya AI Single-Player table
+  - `/friends`: Multiplayer Lobby Hub
+  - `/lobby/:roomCode`: Waiting room for multiplayer match
+  - `/join/:roomCode`: Direct invite link redirect handler
+  - `/table/:gameId`: Live multiplayer 2-6 player table
+  - `/admin`: LiveOps backoffice dashboard
+- **`responsive.dart`**: Defines dynamic sizing and layout scaling:
+  - Target Mobile Landscape: **1024.0 x 491.0** viewport.
+  - Target Desktop: **1754.0 x 896.0** viewport.
+- **`app_colors.dart`**: Luxury casino theme constants (Gold `#D4AF37`, Emerald Felt `#0D3322`, Velvet Crimson `#800020`, Midnight Navy `#0A0F1D`).
 
 ---
 
-## 11. State Management (Riverpod)
+## 8. Turn Lifecycle & Sequence Flow
 
-### All Providers
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Player as Human Player
+    participant UI as MultiplayerTableScreen
+    participant Notifier as MultiplayerGameNotifier
+    participant Service as MultiplayerService
+    participant Firestore as Cloud Firestore
+    actor Opponent as Opponent Player
 
-| Provider | Type | File | Line | State Type |
-|----------|------|------|------|------------|
-| `multiplayerServiceProvider` | `Provider` | multiplayer_providers.dart | L11 | `MultiplayerService` |
-| `multiplayerLobbyProvider` | `StateNotifierProvider` | multiplayer_providers.dart | L115 | `AsyncValue<TableLobby?>` |
-| `multiplayerGameProvider` | `StateNotifierProvider` | multiplayer_providers.dart | L912 | `MultiplayerGameTableState` |
-| `authProvider` | `StateNotifierProvider` | auth_provider.dart | — | `MultiplayerUser?` |
-| `gameTableProvider` | `StateNotifierProvider` | game_provider.dart | L1512 | `GameTableState` |
-| `gameUIProvider` | `StateNotifierProvider` | game_ui_provider.dart | — | `GameUIState` |
-| `homeProvider` | `StateNotifierProvider` | home_provider.dart | — | `HomeState` |
+    Note over Player,Opponent: DRAW PHASE (13 Cards Held)
+    Player->>UI: Tap Closed Deck or Open Pile
+    UI->>Notifier: drawFromClosed() / drawFromOpen()
+    Notifier->>Service: drawFromClosed(gameId, uid)
+    Service->>Firestore: Atomic Draw Transaction
+    Firestore-->>Service: Updated Hand (14 Cards) + Phase: DISCARD_PHASE
+    Service-->>Notifier: Sync State
+    Notifier-->>UI: Render Drawn Card in Hand
 
----
-
-## 12. Multiplayer Game Flow
-
-### Turn Lifecycle
-```
-DRAW_PHASE ──→ Player draws from closed/open deck
-              (drawFromClosed/drawFromOpen in service)
-              Hand goes from 13 → 14 cards
-              Phase changes to DISCARD_PHASE
-                    │
-                    ▼
-DISCARD_PHASE ──→ Player selects and discards 1 card
-                 (discardCard in service)
-                 Hand goes from 14 → 13 cards
-                 currentTurnPlayerId advances to next player
-                 Phase resets to DRAW_PHASE
-```
-
-### Declaration Flow
-```
-1. Player has 14 cards (just drew)
-2. Selects 1 card to discard
-3. Clicks DECLARE → declareGame() called
-4. Service validates: discards card, checks 13 remaining cards
-5. If valid: status → DECLARING, declarationDeadline set (30s)
-6. Other players see banner, must submitFinalHand() within 30s
-7. After all submit (or timeout): scores tallied, status → COMPLETED
-```
-
-### Timeout Flow (Current — Buggy)
-```
-My Turn:
-  Timer fires every 1s
-  If now > turnDeadline:
-    handleTurnTimeout() called (NO DEBOUNCE!)
-    → If DRAW_PHASE: drawFromClosed() → autoGroupHand() → discardSelectedCard()
-    → If DISCARD_PHASE: autoGroupHand() → discardSelectedCard()
-    ⚠ BUG: autoGroupHand() only selects card when allCards.length==14
-    ⚠ BUG: discardSelectedCard() silently returns if selectedCard==null
-
-Opponent's Turn:
-  If now > turnDeadline + 3s:
-    forceAdvanceTurnOnTimeout() called
-    → If DRAW_PHASE: auto-draw to open pile, advance turn
-    → If DISCARD_PHASE: just advance turn (NO discard from hand!)
-```
-
-### Disconnection Flow
-```
-Every 5s: recordHeartbeat() → updates lastHeartbeat in Firestore
-Every 3s: checkDisconnections() →
-  If player disconnected > 180s: ELIMINATED at 80pts
-  If only 1 active player remains: auto-win, COMPLETED
+    Note over Player,Opponent: DISCARD / DECLARE PHASE (14 Cards Held)
+    alt Standard Discard
+        Player->>UI: Select Card & Tap Discard / Drag to Open Pile
+        UI->>Notifier: discardSelectedCard()
+        Notifier->>Service: discardCard(gameId, uid, card)
+        Service->>Firestore: Write Discard + Turn Advances to Next Seat
+        Firestore-->>Opponent: Next Player Turn Notification (DRAW_PHASE)
+    else Declare Show
+        Player->>UI: Drag 14th Card to Finish Slot / Tap Declare Hand
+        UI->>Notifier: declareHand()
+        Notifier->>Service: declareGame(gameId, uid, hand)
+        Service->>Firestore: Set Status: DECLARING + declarationDeadline (30s)
+        Firestore-->>Opponent: Show Declaration Review Banner
+        Opponent->>UI: Arrange Hand & Tap "Submit Final Hand"
+        UI->>Service: submitFinalHand(gameId, opponentUid, hand)
+        Service->>Firestore: Tally Final Scores -> Status: COMPLETED
+    end
 ```
 
 ---
 
-## 13. Single-Player (Maya Bot) Reference
+## 9. Screen & Navigation Graph
 
-**File**: `apps/mobile/lib/features/game/providers/game_provider.dart` (1,515 lines)
+```mermaid
+flowchart LR
+    Splash["SplashScreen
+(/)"] --> Home["HomeScreen
+(/home)"]
+    Home --> SoloGame["GameTableScreen
+(/solo Maya AI)"]
+    Home --> FriendsHub["FriendsHubScreen
+(/friends)"]
+    Home --> Admin["AdminDashboard
+(/admin)"]
 
-This is the **authoritative reference** for correct game behavior. Key patterns:
+    FriendsHub --> CreateDialog["Create Table Dialog
+(Select 2-6P, Mode, Timer)"]
+    FriendsHub --> JoinDialog["Join by Room Code Dialog"]
+    
+    CreateDialog --> Lobby["MultiplayerLobbyScreen
+(/lobby/:roomCode)"]
+    JoinDialog --> Lobby
+    ExternalInvite["Invite Link
+(/join/:roomCode)"] --> JoinRedirect["JoinRedirectScreen"]
+    JoinRedirect --> Lobby
 
-| What | Maya Bot Pattern | Lines |
-|------|-----------------|-------|
-| Card selection | Exclusive single-select: tap = toggle | 195–203 |
-| Can discard | `isDiscardPhase && isHumanTurn && selectedCard != null` | 145–152 |
-| Discard flow | Select card → validate → `processAction(DiscardCard)` | 559–626 |
-| Auto group | Works on any hand size, no `length==14` constraint | 1006–1012 |
-| AI turn | Draw → decide discard → discard (atomic, no race conditions) | 1020–1175 |
-| Tournament reset | `resetTournament()` resets scores and starts new game | 408–412 |
-| Tournament check | Shows dialog when player hits elimination score | 577–620 (screen) |
-
-**Center Table Widget** (`presentation/widgets/center_table.dart`, 243 lines):
-- Open pile shows **up to 3 fanned cards** with diagonal offset [L164–241]
-- Only top card is interactive (tappable for draw)
-- Pattern: `Stack` with `Positioned` children, `xOffset = index * 8.0`, `yOffset = index * 6.0`
-
----
-
-## 14. Known Bug Patterns & Gotchas
-
-### ⚠ 15+ Cards Accumulation Bug
-**Root cause chain**:
-1. `Timer.periodic(1s)` in `multiplayer_table_screen.dart` L60-61 calls `handleTurnTimeout()` every second with **no debounce/lock**
-2. `handleTurnTimeout()` calls `drawFromClosed()` which **clears selectedCard** via `clearSelectedCard: true`
-3. `autoGroupHand()` only sets `selectedCard` when `allCards.length == 14` (rigid check at L577)
-4. `discardSelectedCard()` silently returns at L335 when `selectedCard == null`
-5. Net result: card drawn but never discarded → 15, 16, 17+ cards
-6. `forceAdvanceTurnOnTimeout()` in DISCARD_PHASE does NOT discard from player's hand
-
-### ⚠ Invite Link Redirect to Home
-**Root cause**: Missing `usePathUrlStrategy()` in `main.dart`. Flutter defaults to hash URLs.
-Invite links use path format (`/lobby/CODE`) which resolves to `/` without path URL strategy.
-Also: invite links generated with `/lobby/` instead of `/join/` route.
-
-### ⚠ Race Condition on Turn Timeout
-When player's timer expires:
-- Player's client calls `handleTurnTimeout()` (draws card, tries to discard)
-- Opponent's client calls `forceAdvanceTurnOnTimeout()` 3s later (changes currentTurnPlayerId)
-- Player's `discardCard()` fails with "Not your turn" because turn already advanced
-
-### ⚠ copyWith selectedCards Bug (FIXED)
-`MultiplayerGameTableState.copyWith` previously didn't clear `selectedCards` when `clearSelectedCard: true`.
-Fixed: `selectedCards: clearSelectedCard ? const {} : (selectedCards ?? this.selectedCards)`
-
-### ⚠ 5-Card Sets with 3 Wild Jokers (FIXED)
-`HandPartitioner._findCandidateSets` only searched lengths 3-4, missing length 5.
-Fixed: Loop changed to `for (int len = 5; len >= 3; len--)`.
-
----
-
-## 15. Test Suites
-
-| # | Path | Framework | Tests | Focus |
-|---|------|-----------|-------|-------|
-| 1 | `packages/game-engine/test/models/card_test.dart` | Dart | — | Card encoding 0-105 |
-| 2 | `packages/game-engine/test/models/deck_test.dart` | Dart | — | 106-card deck |
-| 3 | `packages/game-engine/test/rules/sequence_validator_test.dart` | Dart | — | Sequences |
-| 4 | `packages/game-engine/test/rules/declaration_validator_test.dart` | Dart | — | Declarations |
-| 5 | `packages/game-engine/test/rules/hand_partitioner_test.dart` | Dart | — | Partitioning |
-| 6 | `packages/game-engine/test/engine/multiplayer_lifecycle_simulation_test.dart` | Dart | — | E2E lifecycle |
-| 7 | `packages/ai-engine/test/ai_player_test.dart` | Dart | — | AI decisions |
-| 8 | `packages/ai-engine/test/ai_regression_test.dart` | Dart | — | AI regression |
-| 9 | `functions/test/rules.test.js` | Node.js | — | Server rules parity |
-
-**Run all game-engine tests**: `cd packages/game-engine && dart test`
-**Last known result**: 41/41 passed
-
----
-
-## 16. Configuration Files
-
-### `apps/mobile/pubspec.yaml`
-- Flutter SDK: `>=3.0.0 <4.0.0`
-- Key dependencies: `flutter_riverpod: ^2.4.9`, `go_router: ^13.1.0`, `firebase_core: ^3.12.0`, `firebase_auth: ^5.5.1`, `cloud_firestore: ^5.6.5`, `cloud_functions: ^5.3.3`, `google_sign_in: ^6.2.2`
-- Local packages: `game_engine: path: ../../packages/game-engine`, `ai_engine: path: ../../packages/ai-engine`
-
-### `firebase.json`
-- Hosting: `public: apps/mobile/build/web`, rewrites `** → /index.html`
-- Firestore: rules at `firestore.rules`, indexes at `firestore.indexes.json`
-- Functions: source `functions/`, runtime `nodejs20`
-- Emulators: auth (9099), functions (5001), firestore (8085), hosting (5000), UI (4000)
-
-### `functions/package.json`
-- Node `>=18`, `main: index.js`
-- Dependencies: `firebase-admin: ^12.0.0`, `firebase-functions: ^5.0.0`
-
----
-
-## 17. Firestore Data Schema
-
-### `/tables/{tableId}`
-```json
-{
-  "tableId": "string",
-  "roomCode": "MAYA1234",
-  "tableName": "string",
-  "hostUid": "uid",
-  "maxPlayers": 6,
-  "playerCount": 2,
-  "status": "WAITING|STARTING|PLAYING|COMPLETED|ABANDONED",
-  "hasPassword": false,
-  "activeGameId": "gameId|null",
-  "gameMode": "Points Rummy|Pool 101|Pool 201|Best of 2 Deals",
-  "turnTimerSeconds": 30,
-  "firstDropPenalty": 20,
-  "middleDropPenalty": 40,
-  "maxPenalty": 80,
-  "players": [
-    {
-      "uid": "string",
-      "displayName": "string",
-      "photoURL": "string",
-      "seatIndex": 0,
-      "isHost": true,
-      "connected": true,
-      "cardCount": 13,
-      "score": 0,
-      "status": "ACTIVE",
-      "disconnectedAt": null,
-      "lastHeartbeat": "ISO8601"
-    }
-  ]
-}
+    Lobby --> MPTable["MultiplayerTableScreen
+(/table/:gameId)"]
+    MPTable --> ScoreModal["Scoreboard & Results Modal"]
+    ScoreModal --> Home
 ```
 
-### `/games/{gameId}`
-```json
-{
-  "gameId": "string",
-  "tableId": "string",
-  "roomCode": "MAYA1234",
-  "gameMode": "Points Rummy",
-  "status": "IN_PROGRESS|DECLARING|COMPLETED",
-  "playerCount": 2,
-  "currentTurnPlayerId": "uid",
-  "turnNumber": 1,
-  "phase": "DRAW_PHASE|DISCARD_PHASE",
-  "turnDeadline": "ISO8601",
-  "openJoker": 42,
-  "effectiveWildRank": "seven",
-  "openPile": [12, 34, 56],
-  "closedDeck": [1, 2, 3, ...],
-  "closedDeckRemaining": 58,
-  "dealerPlayerId": "uid",
-  "cardDrawnFromOpenThisTurn": null,
-  "winnerPlayerId": null,
-  "declaringPlayerId": null,
-  "declaringPlayerName": null,
-  "declarationDeadline": null,
-  "submittedPlayerUids": [],
-  "finalResults": [],
-  "players": [/* same as table players */],
-  "actionLog": [
-    { "seq": 1, "timestamp": "ISO8601", "type": "DRAW_CLOSED", "playerId": "uid", "description": "..." }
-  ],
-  "startedAt": "ISO8601",
-  "endedAt": null
-}
-```
+---
 
-### `/games/{gameId}/privateHands/{uid}`
-```json
-{
-  "cards": [12, 45, 78, ...]
-}
-```
-**Security rule**: Only the owning player (`uid`) can read their own private hand.
+## 10. Single-Player (Maya Bot) Reference
+
+**File**: `apps/mobile/lib/features/game/providers/game_provider.dart` (1,515 lines)  
+This file serves as the **authoritative behavioral reference** for card interactions, animations, and game state mechanics:
+- **Card Selection Pattern**: Exclusive single-select toggle (`selectCard(card)`).
+- **Discard Validation**: `isDiscardPhase && isHumanTurn && selectedCard != null`.
+- **Auto-Grouping**: Uses `HandPartitioner.findBestPartition(hand, wildJoker)`.
+- **Closed Joker Reveal**: Triggers gold particle burst animation when player attains Pure Sequence (1st Life).
+- **Fanned Open Pile**: Displays up to 5 cards with subtle offset stack ($x + 8	ext{px}, y + 6	ext{px}$).
 
 ---
 
-## Quick Lookup Index
+## 11. Multiplayer Architecture & Realtime State Loop
 
-| I need to... | Look in... |
-|-------------|-----------|
-| Fix card rendering | `apps/mobile/lib/features/game/presentation/widgets/card_widget.dart` |
-| Fix card grouping/partitioning | `packages/game-engine/lib/src/rules/hand_partitioner.dart` |
-| Fix set/sequence validation | `packages/game-engine/lib/src/rules/set_validator.dart` or `sequence_validator.dart` |
-| Fix declaration validation | `packages/game-engine/lib/src/rules/declaration_validator.dart` |
-| Fix scoring | `packages/game-engine/lib/src/rules/scoring.dart` |
-| Fix draw/discard/declare | `apps/mobile/lib/features/multiplayer/services/multiplayer_service.dart` |
-| Fix turn timer/timeout | `multiplayer_table_screen.dart` L38-77 + `multiplayer_providers.dart` L668-714 + `multiplayer_service.dart` L1376-1501 |
-| Fix multiplayer state bugs | `apps/mobile/lib/features/multiplayer/providers/multiplayer_providers.dart` |
-| Fix routing/navigation | `apps/mobile/lib/core/router/app_router.dart` |
-| Fix invite links | `app_router.dart` + `join_redirect_screen.dart` + `multiplayer_lobby_screen.dart` L137 |
-| Fix auth/login | `apps/mobile/lib/features/auth/services/auth_service.dart` |
-| Fix lobby/waiting room | `apps/mobile/lib/features/multiplayer/presentation/screens/multiplayer_lobby_screen.dart` |
-| Fix game table UI layout | `apps/mobile/lib/features/multiplayer/presentation/screens/multiplayer_table_screen.dart` |
-| Fix open pile display | `multiplayer_table_screen.dart` L910-953 (MP) or `center_table.dart` L164-241 (Bot ref) |
-| Fix opponent display | `multiplayer_table_screen.dart` L1268-1429 |
-| Fix colors/theme | `apps/mobile/lib/core/theme/app_colors.dart` |
-| Fix Cloud Functions | `functions/index.js` |
-| Fix server-side rules | `functions/engine/rummyRules.js` |
-| Fix Firestore security | `firestore.rules` |
-| See correct game behavior | `apps/mobile/lib/features/game/providers/game_provider.dart` (Maya Bot reference) |
-| Fix AI bot behavior | `packages/ai-engine/lib/src/` |
-| Add/run tests | `packages/game-engine/test/` or `functions/test/` |
-| Deploy to production | See [Environment & Build Commands](#2-environment--build-commands) |
-| Export game logs | `apps/mobile/lib/features/multiplayer/utils/game_log_exporter.dart` |
-| Fix home screen | `apps/mobile/lib/features/home/presentation/` |
-| Fix card animations | `apps/mobile/lib/features/game/presentation/widgets/card_animation_layer.dart` |
-| Fix responsive layout | `apps/mobile/lib/core/utils/responsive.dart` |
-| Fix Firebase config | `apps/mobile/lib/core/config/firebase_config.dart` |
-| Fix player preferences | `apps/mobile/lib/features/home/services/player_preferences_service.dart` |
+**Service**: `apps/mobile/lib/features/multiplayer/services/multiplayer_service.dart` (1,597 lines)  
+**Notifier**: `apps/mobile/lib/features/multiplayer/providers/multiplayer_providers.dart` (915 lines)
+
+### Realtime State Loop
+1. **Firestore Streams**:
+   - `watchGame(gameId, myUid)` combines public `/games/{gameId}` with private `/games/{gameId}/privateHands/{myUid}`.
+   - Updates `MultiplayerGameState` and invokes `_syncGroupsWithHand()`.
+2. **Deterministic Hand Synchronization**:
+   - Compares server cards with local card groups.
+   - If local groups are empty or mismatched, runs `HandPartitioner.findBestPartition()` to prevent cards from splitting into single-card deadwood groups.
+3. **Turn Timers**:
+   - Standard Timers: 15s, 30s, 45s, 60s countdowns.
+   - No-Limit Games (`turnTimerSeconds == 0`): Shows `⏱️ ∞` with inactive countdown.
+   - Client Heartbeats: Recorded every 5 seconds to detect dropped connections.
+   - Auto-Advance: If active player times out, client invokes `handleTurnTimeout()` to auto-draw and discard highest deadwood.
 
 ---
 
-## 18. Widget Catalog
+## 12. Firebase Cloud Functions & Server Rules
 
-### Game Widgets (`features/game/presentation/widgets/`)
+**File**: `functions/index.js` (765 lines)  
+**Server Rules Engine**: `functions/engine/rummyRules.js` (352 lines)
 
+| Callable Endpoint | Purpose |
+|---|---|
+| `createTable` | Creates table document with unique 8-character room code. |
+| `joinTable` | Atomically assigns player to open seat in lobby. |
+| `leaveTable` | Handles player exit, host reassignment, and abandonment. |
+| `startGame` | Cryptographically shuffles 2 decks (106 cards), cuts wild joker, deals 13 cards to privateHands. |
+| `drawFromClosed` | Draws top card from closed deck; triggers auto-reshuffle if deck exhausted. |
+| `drawFromOpen` | Draws top card from discard pile; marks `cardDrawnFromOpenThisTurn`. |
+| `discardCard` | Validates open-drawn card rule, checks turn ownership, advances seat index. |
+| `declareGame` | Full server-side validation of declaration hand; wrong show assigns 80 penalty pts. |
+| `updatePresence` | Heartbeat pulse tracking active player sockets. |
+
+---
+
+## 13. Firestore Data Schema & Collections
+
+```
+/tables/{tableId}
+  ├── tableId: string
+  ├── roomCode: string ("MAYA1234")
+  ├── hostUid: string
+  ├── maxPlayers: 2 | 3 | 4 | 5 | 6
+  ├── status: "WAITING" | "STARTING" | "PLAYING" | "COMPLETED" | "ABANDONED"
+  ├── gameMode: "Points Rummy" | "Pool 101" | "Pool 201" | "Best of 2 Deals"
+  ├── turnTimerSeconds: 0 | 15 | 30 | 45 | 60
+  └── players: [ TablePlayer array ]
+
+/games/{gameId}
+  ├── gameId: string
+  ├── tableId: string
+  ├── status: "IN_PROGRESS" | "DECLARING" | "COMPLETED"
+  ├── phase: "DRAW_PHASE" | "DISCARD_PHASE"
+  ├── currentTurnPlayerId: string (uid)
+  ├── turnDeadline: ISO8601 string | null
+  ├── openJoker: int (card ID)
+  ├── openPile: [ int, int, ... ]
+  ├── closedDeck: [ int, ... ]
+  ├── closedDeckRemaining: int
+  ├── declaringPlayerId: string | null
+  ├── declarationDeadline: ISO8601 string | null
+  ├── submittedPlayerUids: [ uid, ... ]
+  ├── finalResults: [ MultiplayerFinalResult array ]
+  └── actionLog: [ ActionLogEntry array ]
+
+/games/{gameId}/privateHands/{uid}
+  └── cards: [ int, int, ... ] (13 or 14 card integers)
+
+/users/{uid}
+  ├── uid: string
+  ├── displayName: string
+  ├── email: string
+  ├── photoURL: string
+  ├── coins: int (Virtual in-game balance)
+  ├── role: "USER" | "ADMIN"
+  └── stats: { gamesPlayed, wins, winRate }
+```
+
+---
+
+## 14. State Management (Riverpod Providers Map)
+
+| Provider | Type | File | State Type | Purpose |
+|---|---|---|---|---|
+| `multiplayerServiceProvider` | `Provider` | `multiplayer_providers.dart:11` | `MultiplayerService` | Singleton Firestore service interface |
+| `multiplayerLobbyProvider` | `StateNotifierProvider` | `multiplayer_providers.dart:115` | `AsyncValue<TableLobby?>` | Live lobby subscription & seat state |
+| `multiplayerGameProvider` | `StateNotifierProvider` | `multiplayer_providers.dart:912` | `MultiplayerGameTableState` | Active multiplayer gameplay state |
+| `authProvider` | `StateNotifierProvider` | `auth_provider.dart:15` | `MultiplayerUser?` | Current authenticated user profile |
+| `gameTableProvider` | `StateNotifierProvider` | `game_provider.dart:1512` | `GameTableState` | Single-player Maya AI state |
+| `gameUIProvider` | `StateNotifierProvider` | `game_ui_provider.dart:30` | `GameUIState` | Animation and HUD overlay states |
+| `homeProvider` | `StateNotifierProvider` | `home_provider.dart:20` | `HomeState` | Home lobby tabs and active modes |
+
+---
+
+## 15. Complete Widget Catalog
+
+### 15.1 Gameplay Widgets (`features/game/presentation/widgets/`)
 | Widget | File | Purpose |
-|--------|------|---------|
-| `ActionBar` | `action_bar.dart` | Bottom action controls: Sort, Auto-Group, Discard, Declare, Drop, Submit Show |
-| `CardAnimationLayer` | `card_animation_layer.dart` | Animated card flights: dealing cascade, draw, discard |
-| `CardBackWidget` | `card_back_widget.dart` | Face-down card with navy gradient and diamond pattern |
-| `CardGroupWidget` | `card_group_widget.dart` | Meld group with color-coded badge, fanned cards, DragTarget |
-| `CardWidget` | `card_widget.dart` | Face-up playing card with rank, suit, selection glow, Wild Joker badge (377 lines) |
-| `CenterTable` | `center_table.dart` | Central felt: closed deck, wild joker, open pile fanned display (243 lines) |
-| `DeclarationResultModal` | `declaration_result_modal.dart` | Valid/Invalid declaration diagnostics |
-| `GameSettingsModal` | `game_settings_modal.dart` | Penalty settings (Drop, Full Count, Elimination Score) |
-| `GameTableBackground` | `game_table_background.dart` | Full-screen navy gradient felt with spotlight |
-| `GroupSuggestionsModal` | `group_suggestions_modal.dart` | AI meld suggestions with probability % |
-| `OpponentPanel` | `opponent_panel.dart` | Maya Bot status bar with thinking indicator |
-| `PlayerHand` | `player_hand.dart` | Scrollable row of CardGroupWidgets + New Group drop target |
-| `ScoreBottomLeft` | `score_bottom_left.dart` | HUD: deadwood pts, tournament score, round badge |
-| `ScoreCardModal` | `score_card_modal.dart` | Tournament history scorecard with round-by-round table |
-| `ScorePanel` | `score_panel.dart` | Horizontal score strip: YOU / BOT / ROUND / TARGET |
-| `TurnIndicator` | `turn_indicator.dart` | Contextual guidance: "YOUR TURN - DRAW", "MAYA THINKING" |
+|---|---|---|
+| `CardWidget` | `card_widget.dart` | Face-up card with suit, rank, selection glow, and wild joker badge (377 lines). |
+| `CardBackWidget` | `card_back_widget.dart` | Face-down card with royal pattern back. |
+| `CardGroupWidget` | `card_group_widget.dart` | Meld group container with badge, fanning, and DragTarget support. |
+| `PlayerHand` | `player_hand.dart` | Horizontal scroll-free card group arrangement container. |
+| `CenterTable` | `center_table.dart` | Closed deck, tucked wild joker, and fanned open pile. |
+| `ActionBar` | `action_bar.dart` | Discard, Group, Sort, AI Group, and Declare buttons. |
+| `TurnIndicator` | `turn_indicator.dart` | Live status prompt banner ("Your Turn", "Draw 14th Card", etc.). |
+| `ScoreCardModal` | `score_card_modal.dart` | Tournament scorecard with player scores and round history. |
+| `DeclarationResultModal` | `declaration_result_modal.dart` | Diagnostics modal displaying declared hand breakdown. |
 
-### Home Widgets (`features/home/presentation/widgets/`)
-
+### 15.2 Multiplayer Widgets (`features/multiplayer/presentation/widgets/`)
 | Widget | File | Purpose |
-|--------|------|---------|
-| `DailyChallengeCard` | `daily_challenge_card.dart` | Daily mission card with progress bar |
-| `DifficultySelector` | `difficulty_selector.dart` | EASY/MEDIUM/HARD selector |
-| `GameModesSelector` | `game_modes_selector.dart` | 2x2 mode cards (Solo, Friends, Tournament, Pass & Play) |
-| `HeroSection` | `hero_section.dart` | Animated header with 5-card fan |
-| `HomeBottomNav` | `home_bottom_nav.dart` | Bottom nav: Home, Play, Rules, Rewards, Profile |
-| `HomeTopBar` | `home_top_bar.dart` | Header: logo, coins, daily reward, rules, sound |
-| `MayaAvatarWidget` | `maya_avatar_widget.dart` | Maya avatar orb with speech bubbles |
-| `PlayWithMayaCTA` | `play_with_maya_cta.dart` | "PLAY WITH MAYA AI" animated CTA button |
-| `PlayerProgressWidget` | `player_progress_widget.dart` | Level, XP bar, win rate |
-| `ProfileModal` | `profile_modal.dart` | Full player career stats modal |
-| `RewardsModal` | `rewards_modal.dart` | 7-day login streak + quest rewards |
+|---|---|---|
+| `MultiplayerOpponentsLayer` | `multiplayer_opponents_layer.dart` | Opponent armchair seating (2 to 6 players) with calibrated coordinates and turn timers. |
+| `MultiplayerActionBar` | `multiplayer_action_bar.dart` | Mobile/desktop responsive action buttons. |
+| `MultiplayerPlayerHand` | `multiplayer_player_hand.dart` | Drag-and-drop card group layout for multiplayer matches. |
+
+### 15.3 Home & Hub Widgets (`features/home/presentation/widgets/`)
+| Widget | File | Purpose |
+|---|---|---|
+| `HeroSection` | `hero_section.dart` | Royal header with animated 5-card royal flush fan. |
+| `GameModesSelector` | `game_modes_selector.dart` | Mode selection cards (Points Rummy, Pool 101, Pool 201, Best of 2 Deals). |
+| `PlayWithMayaCTA` | `play_with_maya_cta.dart` | Primary call-to-action button for Single-Player Maya mode. |
+| `DailyChallengeCard` | `daily_challenge_card.dart` | Daily missions and streak rewards tracker. |
+| `ProfileModal` | `profile_modal.dart` | Player statistics, avatar picker, and career win rates. |
 
 ---
 
-## 19. All Enums
+## 16. All Enums Reference
 
-### Game Engine (`packages/game-engine/`)
-
-| Enum | File | Values |
-|------|------|--------|
-| `Suit` | `models/card.dart:1` | `hearts, diamonds, clubs, spades` |
-| `Rank` | `models/card.dart:2` | `ace, two, three, ... king` |
-| `HandGroupType` | `rules/hand_partitioner.dart:6` | `pureSequence, impureSequence, validSet, invalid` |
-| `SequenceType` | `rules/sequence_validator.dart:4` | `pure, impure` |
-| `GamePhase` | `models/game_state.dart:5` | `WAITING, MATCHED, DEALING, PLAYER_TURN, DRAW_PHASE, DISCARD_PHASE, DECLARATION, VALIDATION, RESULT, SETTLEMENT, COMPLETE` |
-| `GameMode` | `models/game_config.dart:1` | `POINTS, POOL_101, POOL_201, DEALS` |
-| `PlayerStatus` | `models/player.dart:3` | `ACTIVE, DROPPED, DECLARED, DISCONNECTED` |
-| `DropType` | `models/game_action.dart:35` | `FIRST_DROP, MIDDLE_DROP` |
-
-### AI Engine (`packages/ai-engine/`)
-
-| Enum | File | Values |
-|------|------|--------|
-| `AILevel` | `config/ai_config.dart:1` | `beginner, intermediate, advanced, expert` |
-| `DrawChoice` | `simulation/action_simulator.dart:7` | `closedDeck, openPile` |
-| `DrawDecision` | `ai_player.dart:9` | `closedDeck, openPile` |
-| `ThreatLevel` | `analysis/opponent_threat_tracker.dart:3` | `low, medium, high, critical` |
-
-### Flutter App (`apps/mobile/`)
-
-| Enum | File | Values |
-|------|------|--------|
-| `CardGroupType` | `game/models/card_group.dart:4` | `pureSequence, impureSequence, set, deadwood` |
-| `GameActionType` | `game/providers/game_ui_provider.dart:5` | `none, dealing, drewFromClosed, drewFromOpen, discarded, sorted, grouped, declared, botDrew, botDiscarded` |
-| `AnimationPhase` | `game/providers/game_ui_provider.dart:19` | `idle, cardFlying, cardLanding, complete` |
+| Domain | Enum | File | Values |
+|---|---|---|---|
+| **Cards** | `Suit` | `game-engine/.../card.dart` | `hearts, diamonds, clubs, spades` |
+| **Cards** | `Rank` | `game-engine/.../card.dart` | `ace, two, three, ..., queen, king` |
+| **Melds** | `HandGroupType` | `game-engine/.../hand_partitioner.dart` | `pureSequence, impureSequence, validSet, invalid` |
+| **Melds** | `SequenceType` | `game-engine/.../sequence_validator.dart` | `pure, impure` |
+| **Game Phase** | `GamePhase` | `game-engine/.../game_state.dart` | `WAITING, DEALING, DRAW_PHASE, DISCARD_PHASE, DECLARATION, COMPLETE` |
+| **Table Status**| `TableStatus` | `multiplayer/.../table_models.dart` | `WAITING, STARTING, PLAYING, COMPLETED, ABANDONED` |
+| **Player Status**| `PlayerStatus` | `multiplayer/.../table_models.dart` | `ACTIVE, DECLARED, WRONG_SHOW, DROPPED, ELIMINATED` |
+| **AI Level** | `AILevel` | `ai-engine/.../ai_config.dart` | `beginner, intermediate, advanced, expert` |
+| **AI Threat** | `ThreatLevel` | `ai-engine/.../opponent_threat_tracker.dart` | `low, medium, high, critical` |
 
 ---
 
-## 20. Barrel Exports
+## 17. Barrel Exports Reference
 
 ### `packages/game-engine/lib/game_engine.dart`
 ```dart
@@ -849,7 +514,6 @@ export 'src/rules/declaration_validator.dart';
 export 'src/rules/sequence_validator.dart';
 export 'src/rules/set_validator.dart';
 export 'src/rules/hand_partitioner.dart';
-export 'src/rules/probability_engine.dart';
 export 'src/rules/scoring.dart';
 export 'src/rules/joker_utils.dart';
 export 'src/engine/game_engine.dart';
@@ -858,12 +522,6 @@ export 'src/engine/state_machine.dart';
 
 ### `packages/ai-engine/lib/ai_engine.dart`
 ```dart
-export 'src/observation.dart';
-export 'src/hand_evaluator.dart';
-export 'src/card_tracker.dart';
-export 'src/opponent_model.dart';
-export 'src/config/ai_config.dart';
-export 'src/ai_player.dart';
 export 'src/models/bot_knowledge_state.dart';
 export 'src/analysis/hand_analyzer.dart';
 export 'src/analysis/opponent_threat_tracker.dart';
@@ -873,55 +531,92 @@ export 'src/strategy/bot_strategy_engine.dart';
 
 ---
 
-## 21. Responsive Breakpoints
+## 18. Responsive Breakpoints & Viewport Calibration
 
-**File**: `apps/mobile/lib/core/utils/responsive.dart` (133 lines)
+| Breakpoint | Width Range | Virtual Canvas Target | Scaling Container |
+|---|---|---|---|
+| **Mobile Landscape** | $< 900\text{px}$ | **1024.0 x 491.0** | `AspectRatio(aspectRatio: 1024/491, child: FittedBox(fit: BoxFit.contain))` |
+| **Desktop / Tablet** | $\ge 900\text{px}$ | **1754.0 x 896.0** | `AspectRatio(aspectRatio: 1754/896, child: FittedBox(fit: BoxFit.contain))` |
 
-| Breakpoint | Width | Card Width | Card Height | Card Overlap |
-|-----------|-------|-----------|------------|-------------|
-| Mobile Portrait | <600px | 52px | 78px | 28px |
-| Mobile Landscape | 600-900px | 60px | 90px | 32px |
-| Tablet | 900-1200px | 68px | 102px | 36px |
-| Desktop | ≥1200px | 72px | 108px | 36px |
+### Seating Geometry on Mobile (1024x491)
+- Table Top Rim sits at $Y \approx 228\text{px} - 235\text{px}$.
+- To prevent avatars from overlapping onto the green felt table, opponent avatars in `multiplayer_opponents_layer.dart` must maintain:
+  $$\text{avatarTop} + \text{avatarHeight} \le 225\text{px}$$
+- **Calibrated Coordinates for 2P Mobile**:
+  - `avatarTop`: $82.0\text{px}$
+  - `avatarHeight`: $140.0\text{px}$
+  - `ShaderMask` gradient stops: `[0.0, 0.70, 0.95]` for natural armchair blending.
 
 ---
 
-## 22. User Accounts, Login Steps & Admin Dashboard Guide
+## 19. Known Bug Patterns & Architectural Invariants
+
+### 19.1 15-Card Draw Duplication Guard
+- **Symptom**: Rapid drawing from closed deck caused hand count to balloon to 15 cards.
+- **Invariant**: Before appending any drawn card, always verify:
+  `!currentCards.contains(drawn) && currentCards.length < 14`
+
+### 19.2 Initial Deal Hand Splitting Bug
+- **Symptom**: When cards dealt on multiplayer tables, cards split into 13 individual 1-card groups.
+- **Invariant**: In `_syncGroupsWithHand()`, if local groups are empty or mismatched, execute `HandPartitioner.findBestPartition(serverCards, wildJoker)` to automatically produce 3-4 structured melds.
+
+### 19.3 Multi-Card Selection for Grouping
+- **Symptom**: Tapping multiple cards failed to keep previous cards selected for manual grouping.
+- **Invariant**: In `selectCard()`, toggle membership within `selectedCards` Set:
+  `selectedCards.contains(card) ? selectedCards.remove(card) : selectedCards.add(card)`.
+
+### 19.4 Closed Joker Lifecycle
+- **Invariant**: When `jokerMode == 'CLOSED'`, `effectiveJokerForPlayer()` returns `null` until the player attains a Pure Sequence (1st Life). Once Life is formed, `openClosedJoker()` must be triggered, initiating the golden reveal particle animation.
+
+### 19.5 No-Limit Turn Timer
+- **Invariant**: When `turnTimerSeconds == 0`, `turnDeadline` is null. The timer HUD must display **`⏱️ ∞`** instead of an inactive 30s countdown.
+
+---
+
+## 20. User Accounts, Auth & Admin Dashboard Guide
 
 ### A. Account Types & Virtual Currency
 - **Virtual Coins**: Strict virtual in-game economy. No real-money gambling, deposits, or withdrawals.
 - **Account Registration**: Handled via Google Sign-In (`AuthService.signInWithGoogle()`).
-- **Initial Grant**: 5,000 Free Virtual Coins upon completing profile (`createAccountWithProfile`).
+- **Initial Grant**: 5,000 Free Virtual Coins upon profile creation (`createAccountWithProfile`).
 - **Guest Access**: 0 coins, restricted to free AI tables (`signInAsGuest`).
 
 ### B. Admin Dashboard Access (`/admin`)
 - **Route**: `https://mayarummy.cwards.com/#/admin`
 - **Role Detection**:
-  - `email.contains('vamsi')`, `email.contains('admin')`, or `email.contains('bhava')` -> Automatically sets `role = 'ADMIN'`.
-  - Admin functions enforce `role == 'ADMIN'` in `users/{uid}`.
-- **Admin Actions**:
-  - `fetchKPIs()`: Aggregates real-time active users, coin circulation, monetized table stats.
-  - `adminAdjustCoins()`: Credits or debits player coins with mandatory audit logging.
-  - `adminSetAccountStatus()`: Suspends or bans abusive players.
-  - `streamAuditLogs()`: Real-time stream of `adminAuditLogs` collection.
+  - Any email matching `vamsi`, `admin`, or `bhava` automatically assigned `role = 'ADMIN'`.
+- **LiveOps Capabilities**:
+  - `fetchKPIs()`: Aggregates real-time active tables, daily active users, and coin velocity.
+  - `adminAdjustCoins()`: Credits or debits player coin balances with mandatory audit logs.
+  - `adminSetAccountStatus()`: Suspends or restores player accounts.
 
 ---
 
-## 23. AI Prompting & Model Context Guide
+## 21. Developer & AI Quick-Lookup Index
 
-When instructing future AI assistants on this repository, use these prompt context templates:
-
-### Prompt 1: Modifying Game Rules & Declarations
-> "Modify `packages/game-engine/lib/src/rules/declaration_validator.dart` to support standard 13-card Indian Rummy sequence checks. Ensure pure sequences contain no wild or printed jokers, and impure sequences validate wild joker substitution. Run `cd packages/game-engine && dart test` to verify."
-
-### Prompt 2: Extending AI Bot Decision Logic
-> "Update `packages/ai-engine/lib/src/strategy/bot_strategy_engine.dart` and `hand_partitioner.dart` to calculate deadwood point penalties. Ensure `HandPartitioner.findBestPartition()` is pure and deterministic. Run `cd packages/ai-engine && dart test` to verify."
-
-### Prompt 3: Updating Admin Dashboard & LiveOps
-> "Modify `apps/mobile/lib/features/admin/presentation/screens/admin_dashboard_screen.dart` and `admin_service.dart` to fetch realtime player stats from Firestore collection `users`. Ensure role check validates `role == 'ADMIN'`."
+| I need to... | Inspect / Modify File |
+|---|---|
+| **Add / Edit Game Rules** (Melds, Sequences, Sets, Deadwood) | [`packages/game-engine/lib/src/rules/sequence_validator.dart`](file:///c:/Projects/maya-ai-rummy/packages/game-engine/lib/src/rules/sequence_validator.dart)<br>[`packages/game-engine/lib/src/rules/hand_partitioner.dart`](file:///c:/Projects/maya-ai-rummy/packages/game-engine/lib/src/rules/hand_partitioner.dart)<br>[`packages/game-engine/lib/src/rules/scoring.dart`](file:///c:/Projects/maya-ai-rummy/packages/game-engine/lib/src/rules/scoring.dart) |
+| **Maya Bot Intelligence** (Discard heuristic, bluff detection) | [`packages/ai-engine/lib/src/strategy/bot_strategy_engine.dart`](file:///c:/Projects/maya-ai-rummy/packages/ai-engine/lib/src/strategy/bot_strategy_engine.dart)<br>[`packages/ai-engine/lib/src/analysis/opponent_threat_tracker.dart`](file:///c:/Projects/maya-ai-rummy/packages/ai-engine/lib/src/analysis/opponent_threat_tracker.dart) |
+| **Maya Single-Player Game State** (Turn timers, hand actions) | [`apps/mobile/lib/features/game/providers/game_provider.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/game/providers/game_provider.dart) |
+| **Multiplayer State & Synchronization** (Drawing, grouping, hand sync) | [`apps/mobile/lib/features/multiplayer/providers/multiplayer_providers.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/multiplayer/providers/multiplayer_providers.dart)<br>[`apps/mobile/lib/features/multiplayer/services/multiplayer_service.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/multiplayer/services/multiplayer_service.dart) |
+| **Mobile & Desktop Table Layout** (Button positions, open pile) | [`apps/mobile/lib/features/multiplayer/presentation/screens/multiplayer_table_screen.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/multiplayer/presentation/screens/multiplayer_table_screen.dart)<br>[`apps/mobile/lib/features/game/presentation/screens/game_table_screen.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/game/presentation/screens/game_table_screen.dart) |
+| **Opponent Seating & Avatars** (Coordinates, seat offsets, avatar sizing) | [`apps/mobile/lib/features/multiplayer/presentation/widgets/multiplayer_opponents_layer.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/multiplayer/presentation/widgets/multiplayer_opponents_layer.dart) |
+| **Authentication & User Profiles** (Google Sign-In, Guest, Avatar catalog) | [`apps/mobile/lib/features/auth/services/auth_service.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/auth/services/auth_service.dart)<br>[`apps/mobile/lib/features/auth/models/avatar_catalog.dart`](file:///c:/Projects/maya-ai-rummy/apps/mobile/lib/features/auth/models/avatar_catalog.dart) |
+| **Backend Matchmaking & Server Functions** (Room code generation, Cloud functions) | [`functions/index.js`](file:///c:/Projects/maya-ai-rummy/functions/index.js) |
+| **Run All Tests** | `cd apps/mobile && flutter test` |
 
 ---
 
-*Last updated: 2026-10-04. Maintained for AI Agents and Developers.*
+## 22. AI Prompting & Future Agent Guide
 
+When instructing future AI coding assistants on this repository, provide clear module context using these templates:
 
+### Prompt Template 1: Game Rules & Hand Partitioning
+> "Inspect `packages/game-engine/lib/src/rules/hand_partitioner.dart` and `declaration_validator.dart`. Ensure pure sequence requirements adhere strictly to 13-card Indian Rummy standards (at least 1 pure sequence without jokers, at least 2 sequences total). Verify using `cd packages/game-engine && dart test`."
+
+### Prompt Template 2: Multiplayer State & Networking
+> "Inspect `apps/mobile/lib/features/multiplayer/providers/multiplayer_providers.dart` and `multiplayer_service.dart`. When modifying card movement or turn actions, verify against the invariants documented in Section 19 of `KNOWLEDGE_BASE.md`. Run `cd apps/mobile && flutter test`."
+
+---
+*Last updated: November 2026. Maintained for AI Agents and Human Developers.*
