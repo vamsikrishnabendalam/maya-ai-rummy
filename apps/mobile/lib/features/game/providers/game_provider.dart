@@ -63,6 +63,27 @@ class GameTableState {
   int get currentRoundNumber => roundScores.length + 1;
   bool get isHumanEliminated => totalHumanScore >= gameSettings.eliminationScore;
   bool get isAiEliminated => totalAiScore >= gameSettings.eliminationScore;
+
+  bool get isTournamentOver {
+    if (gameSettings.isPointsRummy) {
+      return roundScores.isNotEmpty;
+    }
+    if (gameSettings.isDealsRummy) {
+      return roundScores.length >= 2;
+    }
+    return isHumanEliminated || isAiEliminated;
+  }
+
+  bool get isHumanTournamentWinner {
+    if (gameSettings.isPointsRummy) {
+      return roundScores.isNotEmpty && totalHumanScore < totalAiScore;
+    }
+    if (gameSettings.isDealsRummy) {
+      return roundScores.length >= 2 && totalHumanScore < totalAiScore;
+    }
+    return isAiEliminated && !isHumanEliminated;
+  }
+
   bool get isHumanDealer => dealerId == 'human_player';
   bool get isAiDealer => dealerId == 'ai_bot_1';
   String get dealerName => isHumanDealer ? 'Human Player' : 'Maya Bot';
@@ -216,16 +237,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           : null;
 
   bool get hasHumanLife {
-    if (state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker) {
-      return false;
-    }
-    return SequenceValidator.hasPureSequenceInHand(humanPlayer.hand);
+    final allCards = state.cardGroups.expand((g) => g.cards).toList();
+    return state.cardGroups.any((g) => g.type == CardGroupType.pureSequence) ||
+        SequenceValidator.hasPureSequenceInHand(allCards.isNotEmpty ? allCards : humanPlayer.hand);
   }
 
   bool get hasHumanSecondLife {
-    if (state.gameSettings.isClosedJoker && !state.hasHumanOpenedJoker) {
-      return false;
-    }
     final pureCount = state.cardGroups.where((g) => g.type == CardGroupType.pureSequence).length;
     final impureCount = state.cardGroups.where((g) => g.type == CardGroupType.impureSequence).length;
     return pureCount >= 1 && (pureCount + impureCount) >= 2;
@@ -236,8 +253,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
   void openClosedJoker() {
     if (!state.gameSettings.isClosedJoker || state.hasHumanOpenedJoker) return;
-    if (isDiscardPhase) return; // Cannot open before discarding while holding 14 cards!
-    if (!SequenceValidator.hasPureSequenceInHand(humanPlayer.hand)) return;
+    if (!hasHumanLife) return;
     state = state.copyWith(hasHumanOpenedJoker: true);
     if (state.gameState.wildJoker != null) {
       _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(state.gameState.wildJoker!);
@@ -246,6 +262,26 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     final score = _recalculateScore(state.cardGroups);
     state = state.copyWith(currentScore: score);
     _ref.read(gameUIProvider.notifier).triggerAction(GameActionType.grouped);
+    _logAction(
+      player: 'Human',
+      action: 'Open Joker',
+      details: 'Unlocked Closed Joker: ${state.gameState.wildJoker}.',
+      card: state.gameState.wildJoker,
+    );
+  }
+
+  void setGameMode(String mode) {
+    int elim = state.gameSettings.eliminationScore;
+    if (mode == 'Pool 101') elim = 101;
+    else if (mode == 'Pool 201') elim = 201;
+    else if (mode == 'Pool 301') elim = 301;
+    else elim = 9999;
+
+    final newSettings = state.gameSettings.copyWith(
+      gameMode: mode,
+      eliminationScore: elim,
+    );
+    state = state.copyWith(gameSettings: newSettings);
   }
 
   void setJokerMode(String mode) {
@@ -585,7 +621,11 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     _opponentThreatTracker = OpponentThreatTracker();
     final config = GameConfig(
       gameId: 'game_${DateTime.now().millisecondsSinceEpoch}',
-      mode: GameMode.POOL_201,
+      mode: state.gameSettings.isPointsRummy
+          ? GameMode.POINTS
+          : (state.gameSettings.isDealsRummy
+              ? GameMode.DEALS
+              : (state.gameSettings.isPool101 ? GameMode.POOL_101 : GameMode.POOL_201)),
       maxPlayers: 2,
       deckCount: 1, // 2 players: 1 deck = 54 cards (52 suited + 2 jokers)
       firstDropPenalty: state.gameSettings.firstDropPenalty,
@@ -621,11 +661,8 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     ];
 
     final bool isOpen = state.gameSettings.jokerMode == 'OPEN';
-    final bool humanHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(humanHand);
-    final bool botHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(botHand);
-
-    final bool initialHumanOpened = isOpen || humanHasPureOnDeal;
-    final bool initialBotOpened = isOpen || botHasPureOnDeal;
+    final bool initialHumanOpened = isOpen;
+    final bool initialBotOpened = isOpen;
 
     final initialScore = Scoring.calculateHandDeadwood(
       groups: [humanHand],
@@ -661,13 +698,6 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       _startTurnCountdown(reset: true);
     }
 
-    if (!isOpen && humanHasPureOnDeal && newGameState.wildJoker != null) {
-      Future.delayed(const Duration(milliseconds: 700), () {
-        if (!mounted || state.isRoundOver) return;
-        _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(newGameState.wildJoker!);
-      });
-    }
-
     SpectatorSyncService.syncState(
       gameState: newGameState,
       humanGroups: initialGroups,
@@ -699,7 +729,11 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     _opponentThreatTracker = OpponentThreatTracker();
     final config = GameConfig(
       gameId: 'game_${DateTime.now().millisecondsSinceEpoch}',
-      mode: GameMode.POOL_201,
+      mode: state.gameSettings.isPointsRummy
+          ? GameMode.POINTS
+          : (state.gameSettings.isDealsRummy
+              ? GameMode.DEALS
+              : (state.gameSettings.isPool101 ? GameMode.POOL_101 : GameMode.POOL_201)),
       maxPlayers: 2,
       deckCount: 1, // 2 players: 1 deck = 54 cards (52 suited + 2 jokers)
       firstDropPenalty: state.gameSettings.firstDropPenalty,
@@ -745,11 +779,8 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     ];
 
     final bool isOpen = state.gameSettings.jokerMode == 'OPEN';
-    final bool humanHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(humanHand);
-    final bool botHasPureOnDeal = SequenceValidator.hasPureSequenceInHand(botHand);
-
-    final bool initialHumanOpened = isOpen || humanHasPureOnDeal;
-    final bool initialBotOpened = isOpen || botHasPureOnDeal;
+    final bool initialHumanOpened = isOpen;
+    final bool initialBotOpened = isOpen;
 
     final initialScore = Scoring.calculateHandDeadwood(
       groups: [humanHand],
@@ -786,13 +817,6 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
 
     if (firstPlayerIndex == 0) {
       _startTurnCountdown(reset: true);
-    }
-
-    if (!isOpen && humanHasPureOnDeal && newGameState.wildJoker != null) {
-      Future.delayed(const Duration(milliseconds: 700), () {
-        if (!mounted || state.isRoundOver) return;
-        _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(newGameState.wildJoker!);
-      });
     }
 
     SpectatorSyncService.syncState(

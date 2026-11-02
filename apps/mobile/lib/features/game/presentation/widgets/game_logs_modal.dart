@@ -80,11 +80,11 @@ class _GameLogsModalState extends State<GameLogsModal> {
         ),
         child: Column(
           children: [
-            // Header
+            // Header with title on left and Download JSON, Text, Copy + Close on right
             Container(
               padding: EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: isCompactLandscape ? 8 : 14,
+                horizontal: 16,
+                vertical: isCompactLandscape ? 6 : 10,
               ),
               decoration: const BoxDecoration(
                 border: Border(
@@ -98,7 +98,7 @@ class _GameLogsModalState extends State<GameLogsModal> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF2CA50).withValues(alpha: 0.15),
                       shape: BoxShape.circle,
@@ -106,38 +106,123 @@ class _GameLogsModalState extends State<GameLogsModal> {
                     child: const Icon(
                       Icons.history_edu_rounded,
                       color: Color(0xFFF2CA50),
-                      size: 20,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'GAME ACTION LOGS',
+                        style: GoogleFonts.cinzel(
+                          fontSize: isCompactLandscape ? 13 : 15,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFF2CA50),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      Text(
+                        '${filteredLogs.length} events logged across ${widget.totalRounds} round(s)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'GAME ACTION LOGS',
-                          style: GoogleFonts.cinzel(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFF2CA50),
-                            letterSpacing: 0.8,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // Download JSON
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              widget.onDownloadLogs(roundNumber: _selectedRound, asJson: true);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('📥 Downloading Game Logs (JSON)...'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.download_rounded, size: 13),
+                            label: const Text('Download JSON'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E3A8A),
+                              foregroundColor: const Color(0xFFDBEAFE),
+                              textStyle: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.w800),
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${filteredLogs.length} events logged across ${widget.totalRounds} round(s)',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            color: const Color(0xFF94A3B8),
+                          const SizedBox(width: 6),
+
+                          // Download Text
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              widget.onDownloadLogs(roundNumber: _selectedRound, asJson: false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('📄 Downloading Game Logs (Text)...'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.description_outlined, size: 13),
+                            label: const Text('Download Text'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF15803D),
+                              foregroundColor: const Color(0xFFDCFCE7),
+                              textStyle: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.w800),
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+
+                          // Copy to Clipboard
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              final text = widget.onGetLogsText(roundNumber: _selectedRound);
+                              Clipboard.setData(ClipboardData(text: text));
+                              setState(() => _copied = true);
+                              Future.delayed(const Duration(seconds: 2), () {
+                                if (mounted) setState(() => _copied = false);
+                              });
+                            },
+                            icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded, size: 13),
+                            label: Text(_copied ? 'Copied!' : 'Copy'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFF2CA50),
+                              side: const BorderSide(color: Color(0x66D4AF37)),
+                              textStyle: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.w700),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 6),
+
                   // Close button
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFFDAE4ED)),
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFFDAE4ED), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     tooltip: 'Close',
                   ),
                 ],
@@ -147,7 +232,7 @@ class _GameLogsModalState extends State<GameLogsModal> {
             // Dedicated Round filter bar (safely scrollable horizontally with any number of rounds)
             if (widget.totalRounds > 1)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: const BoxDecoration(
                   color: Color(0xFF0D1820),
                   border: Border(
@@ -186,99 +271,6 @@ class _GameLogsModalState extends State<GameLogsModal> {
                   ],
                 ),
               ),
-
-            // Top action buttons: Download JSON, Download Text, Copy
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: const Color(0xFF0B171F),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    Text(
-                      _selectedRound != null ? 'Filtered: Round $_selectedRound' : 'Showing all rounds',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFCBD5E1),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Download JSON
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            widget.onDownloadLogs(roundNumber: _selectedRound, asJson: true);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('📥 Downloading Game Logs (JSON)...'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.download_rounded, size: 14),
-                          label: const Text('Download JSON'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: const Color(0xFFDBEAFE),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Download Text
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            widget.onDownloadLogs(roundNumber: _selectedRound, asJson: false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('📄 Downloading Game Logs (Text)...'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.description_outlined, size: 14),
-                          label: const Text('Download Text'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF15803D),
-                            foregroundColor: const Color(0xFFDCFCE7),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w800),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Copy to Clipboard
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            final text = widget.onGetLogsText(roundNumber: _selectedRound);
-                            Clipboard.setData(ClipboardData(text: text));
-                            setState(() => _copied = true);
-                            Future.delayed(const Duration(seconds: 2), () {
-                              if (mounted) setState(() => _copied = false);
-                            });
-                          },
-                          icon: Icon(_copied ? Icons.check_rounded : Icons.copy_rounded, size: 14),
-                          label: Text(_copied ? 'Copied!' : 'Copy'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFF2CA50),
-                            side: const BorderSide(color: Color(0x66D4AF37)),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
             // Scrollable List of Logs
             Expanded(

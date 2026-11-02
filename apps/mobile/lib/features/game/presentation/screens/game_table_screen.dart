@@ -214,8 +214,7 @@ class GameTableScreen extends ConsumerWidget {
 
     final isMobileLandscape = Responsive.isMobileLandscape(context);
 
-    final isTournamentOver =
-        tableState.isHumanEliminated || tableState.isAiEliminated;
+    final isTournamentOver = tableState.isTournamentOver;
 
     final toastMessage = _computeToastMessage(
       isHumanTurn: isHumanTurn,
@@ -619,7 +618,14 @@ class GameTableScreen extends ConsumerWidget {
   }) {
     final uiState = ref.watch(gameUIProvider);
     final gameState = tableState.gameState;
-    final poolLabel = '${tableState.gameSettings.eliminationScore} POOL';
+    final String modeLabel;
+    if (tableState.gameSettings.isPointsRummy) {
+      modeLabel = 'POINTS';
+    } else if (tableState.gameSettings.isDealsRummy) {
+      modeLabel = 'DEALS (${tableState.roundScores.length + 1}/2)';
+    } else {
+      modeLabel = '${tableState.gameSettings.eliminationScore} POOL';
+    }
 
     return Center(
       child: AspectRatio(
@@ -760,7 +766,7 @@ class GameTableScreen extends ConsumerWidget {
                               border: Border.all(color: const Color(0x88F2CA50), width: 1),
                             ),
                             child: Text(
-                              poolLabel,
+                              modeLabel,
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
@@ -822,7 +828,9 @@ class GameTableScreen extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  '⏱️ ${tableState.turnSecondsRemaining}s',
+                                  tableState.gameSettings.turnTimerSeconds == 0
+                                      ? '⏱️ ∞'
+                                      : '⏱️ ${tableState.turnSecondsRemaining}s',
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w800,
@@ -1381,10 +1389,47 @@ class GameTableScreen extends ConsumerWidget {
                         width: cardW,
                         height: cardH,
                       )
-                    : CardBackWidget(
-                        width: cardW,
-                        height: cardH,
-                        onTap: (!showJokerFace && hasLife) ? onOpenClosedJoker : null,
+                    : GestureDetector(
+                        onTap: () {
+                          if (!showJokerFace) {
+                            if (hasLife) {
+                              onOpenClosedJoker();
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CardBackWidget(
+                              width: cardW,
+                              height: cardH,
+                              showPulse: hasLife,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(4.5),
+                              decoration: BoxDecoration(
+                                color: hasLife ? const Color(0xFFF59E0B) : Colors.black87,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: hasLife ? Colors.white : Colors.amber.shade700,
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Icon(
+                                hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                                size: 14,
+                                color: hasLife ? Colors.black : Colors.amber.shade200,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
               ),
             ),
@@ -2204,31 +2249,47 @@ class GameTableScreen extends ConsumerWidget {
                         width: jokerW,
                         height: jokerH,
                       )
-                    : Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CardBackWidget(
-                            width: jokerW,
-                            height: jokerH,
-                            showPulse: false,
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.black87,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.amber.shade700,
-                                width: 1.2,
+                    : GestureDetector(
+                        onTap: () {
+                          if (!showJokerFace) {
+                            if (hasLife) {
+                              onOpenClosedJoker();
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Form a Pure Sequence (Life) of 3+ cards to view the Joker.'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CardBackWidget(
+                              width: jokerW,
+                              height: jokerH,
+                              showPulse: hasLife,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: hasLife ? const Color(0xFFF59E0B) : Colors.black87,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: hasLife ? Colors.white : Colors.amber.shade700,
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Icon(
+                                hasLife ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                                size: 16,
+                                color: hasLife ? Colors.black : Colors.amber.shade200,
                               ),
                             ),
-                            child: Icon(
-                              Icons.lock_outline_rounded,
-                              size: 16,
-                              color: Colors.amber.shade200,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
               ),
             ),
@@ -2698,9 +2759,13 @@ class GameTableScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      isDesktop || size.width >= 800
-                          ? '${tableState.gameSettings.eliminationScore} POOL'
-                          : '${tableState.gameSettings.eliminationScore}P',
+                      tableState.gameSettings.isPointsRummy
+                          ? (isDesktop || size.width >= 800 ? 'POINTS RUMMY' : 'PTS')
+                          : (tableState.gameSettings.isDealsRummy
+                              ? 'DEALS (${tableState.roundScores.length + 1}/2)'
+                              : (isDesktop || size.width >= 800
+                                  ? '${tableState.gameSettings.eliminationScore} POOL'
+                                  : '${tableState.gameSettings.eliminationScore}P')),
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: isDesktop ? 10.0 : 8.5,
                         fontWeight: FontWeight.w700,
@@ -4101,8 +4166,7 @@ class GameTableScreen extends ConsumerWidget {
 
     final isRoundComplete = notifier.isGameComplete;
 
-    final isTournamentOver =
-        tableState.isHumanEliminated || tableState.isAiEliminated;
+    final isTournamentOver = tableState.isTournamentOver;
 
     showDialog(
       context: context,
@@ -4129,6 +4193,7 @@ class GameTableScreen extends ConsumerWidget {
                 }
               : null,
           onViewLogs: () => _openGameLogs(context, ref),
+          gameMode: tableState.gameSettings.gameMode,
         );
       },
     );
@@ -4155,8 +4220,7 @@ class GameTableScreen extends ConsumerWidget {
   void _openSettings(BuildContext context, WidgetRef ref) {
     final tableState = ref.read(gameTableProvider);
     final notifier = ref.read(gameTableProvider.notifier);
-    final isTournamentOver =
-        tableState.isHumanEliminated || tableState.isAiEliminated;
+    final isTournamentOver = tableState.isTournamentOver;
     // Settings cannot be edited after tournament starts
     final isTournamentActive = !isTournamentOver;
 
@@ -4182,8 +4246,7 @@ class GameTableScreen extends ConsumerWidget {
 
   Future<void> _handleExitGame(BuildContext context, WidgetRef ref) async {
     final tableState = ref.read(gameTableProvider);
-    final isTournamentOver =
-        tableState.isHumanEliminated || tableState.isAiEliminated;
+    final isTournamentOver = tableState.isTournamentOver;
 
     if (!isTournamentOver) {
       final shouldExit = await showDialog<bool>(
@@ -4707,9 +4770,22 @@ class GameTableScreen extends ConsumerWidget {
 
     final notifier = ref.read(gameTableProvider.notifier);
 
-    if (tableState.isHumanEliminated || tableState.isAiEliminated) {
-      final isHumanWinner =
-          tableState.isAiEliminated && !tableState.isHumanEliminated;
+    if (tableState.isTournamentOver) {
+      final isHumanWinner = tableState.isHumanTournamentWinner;
+      String contentMessage = '';
+      if (tableState.gameSettings.isPointsRummy) {
+        contentMessage = isHumanWinner
+            ? 'Congratulations! You won the Points Rummy match with ${tableState.totalHumanScore} points (Maya: ${tableState.totalAiScore} pts)!'
+            : 'Maya Bot won the Points Rummy match with ${tableState.totalAiScore} points (You: ${tableState.totalHumanScore} pts).';
+      } else if (tableState.gameSettings.isDealsRummy) {
+        contentMessage = isHumanWinner
+            ? 'Congratulations! You won the Best of 2 Deals match! Final: You: ${tableState.totalHumanScore} pts • Maya: ${tableState.totalAiScore} pts.'
+            : 'Maya Bot won the Best of 2 Deals match. Final: Maya: ${tableState.totalAiScore} pts • You: ${tableState.totalHumanScore} pts.';
+      } else {
+        contentMessage = isHumanWinner
+            ? 'Congratulations! Maya Bot reached ${tableState.totalAiScore} points and is eliminated! You won the tournament with ${tableState.totalHumanScore} points!'
+            : 'You reached ${tableState.totalHumanScore} points (limit ${tableState.gameSettings.eliminationScore}) and have been eliminated.';
+      }
 
       showDialog(
         context: context,
@@ -4720,16 +4796,14 @@ class GameTableScreen extends ConsumerWidget {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text(
-              isHumanWinner ? '🏆 VICTORY!' : '💀 ELIMINATED',
+              isHumanWinner ? '🏆 VICTORY!' : '💀 MATCH OVER',
               style: TextStyle(
                 color: isHumanWinner ? AppColors.success : AppColors.danger,
                 fontWeight: FontWeight.bold,
               ),
             ),
             content: Text(
-              isHumanWinner
-                  ? 'Congratulations! AI Bot reached ${tableState.totalAiScore} points and is eliminated! You won the tournament with ${tableState.totalHumanScore} points!'
-                  : 'You reached ${tableState.totalHumanScore} points (limit ${tableState.gameSettings.eliminationScore}) and have been eliminated.',
+              contentMessage,
               style: const TextStyle(color: AppColors.textPrimary),
             ),
             actions: [

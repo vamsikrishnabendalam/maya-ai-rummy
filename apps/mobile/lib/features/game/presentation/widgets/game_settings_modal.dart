@@ -22,6 +22,7 @@ class GameSettingsModal extends StatefulWidget {
 }
 
 class _GameSettingsModalState extends State<GameSettingsModal> {
+  late String _gameMode;
   late int _firstDrop;
   late int _middleDrop;
   late int _fullCount;
@@ -32,6 +33,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
   @override
   void initState() {
     super.initState();
+    _gameMode = widget.currentSettings.gameMode;
     _firstDrop = widget.currentSettings.firstDropPenalty;
     _middleDrop = widget.currentSettings.middleDropPenalty;
     _fullCount = widget.currentSettings.fullCountPenalty;
@@ -42,6 +44,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
 
   void _resetDefaults() {
     setState(() {
+      _gameMode = 'Pool 201';
       _firstDrop = 20;
       _middleDrop = 40;
       _fullCount = 80;
@@ -53,6 +56,7 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
 
   void _saveAndClose() {
     widget.onSave(GameSettings(
+      gameMode: _gameMode,
       firstDropPenalty: _firstDrop,
       middleDropPenalty: _middleDrop,
       fullCountPenalty: _fullCount,
@@ -169,6 +173,61 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                       ),
                     ),
                   ],
+                  // Game Mode Category Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.category_rounded, color: AppColors.accent, size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'Game Category / Mode',
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Select game format: Points (1 Deal), Best of 2 Deals, or Pool Tournament (101/201/301)',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['Points Rummy', 'Pool 101', 'Pool 201', 'Pool 301', 'Best of 2 Deals'].map((mode) {
+                          final isSelected = _gameMode == mode;
+                          return ChoiceChip(
+                            label: Text(
+                              mode,
+                              style: TextStyle(
+                                color: isSelected ? Colors.black : Colors.white,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: AppColors.accent,
+                            backgroundColor: const Color(0xFF081220),
+                            side: BorderSide(color: isSelected ? AppColors.accent : AppColors.glassBorder),
+                            onSelected: widget.isReadOnly
+                                ? null
+                                : (_) {
+                                    setState(() {
+                                      _gameMode = mode;
+                                      if (mode == 'Pool 101') _eliminationScore = 101;
+                                      else if (mode == 'Pool 201') _eliminationScore = 201;
+                                      else if (mode == 'Pool 301') _eliminationScore = 301;
+                                      else _eliminationScore = 9999;
+                                    });
+                                  },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: AppColors.glassBorder, height: 28),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -296,18 +355,20 @@ class _GameSettingsModalState extends State<GameSettingsModal> {
                     isReadOnly: widget.isReadOnly,
                     onChanged: (val) => setState(() => _fullCount = val),
                   ),
-                  const Divider(color: AppColors.glassBorder, height: 28),
-                  _buildSettingRow(
-                    title: 'Elimination Score',
-                    subtitle: 'Player is eliminated when score exceeds ${_eliminationScore - 1} pts',
-                    value: _eliminationScore,
-                    min: 51,
-                    max: 501,
-                    step: 10,
-                    quickOptions: const [101, 201, 301],
-                    isReadOnly: widget.isReadOnly,
-                    onChanged: (val) => setState(() => _eliminationScore = val),
-                  ),
+                  if (_gameMode.startsWith('Pool')) ...[
+                    const Divider(color: AppColors.glassBorder, height: 28),
+                    _buildSettingRow(
+                      title: 'Elimination Score',
+                      subtitle: 'Player is eliminated when score exceeds ${_eliminationScore - 1} pts',
+                      value: _eliminationScore,
+                      min: 51,
+                      max: 501,
+                      step: 10,
+                      quickOptions: const [101, 201, 301],
+                      isReadOnly: widget.isReadOnly,
+                      onChanged: (val) => setState(() => _eliminationScore = val),
+                    ),
+                  ],
                 ],
               ),
             ),

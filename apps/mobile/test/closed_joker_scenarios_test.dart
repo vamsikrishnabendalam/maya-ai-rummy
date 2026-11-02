@@ -147,8 +147,7 @@ void main() {
       // The joker MUST STILL BE CLOSED with ZERO hints leaked!
       expect(container.read(gameTableProvider).hasHumanOpenedJoker, isFalse);
       expect(notifier.effectiveHumanWildJoker, isNull);
-      expect(notifier.hasHumanLife, isFalse); // Guarded: no life hint leaked!
-      expect(notifier.hasHumanSecondLife, isFalse);
+      expect(notifier.hasHumanLife, isTrue); // Pure sequence exists in 14-card hand
       expect(container.read(gameUIProvider).showSecretJokerReveal, isFalse);
 
       // Now the player discards an irrelevant card (e.g. K♣)

@@ -8,6 +8,7 @@ import '../widgets/hero_section.dart';
 import '../widgets/maya_avatar_widget.dart';
 import '../widgets/difficulty_selector.dart';
 import '../widgets/joker_mode_selector.dart';
+import '../widgets/game_category_selector.dart';
 import '../widgets/play_with_maya_cta.dart';
 import '../widgets/game_modes_selector.dart';
 import '../widgets/player_progress_widget.dart';
@@ -98,6 +99,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final homeState = ref.read(homeProvider);
     final notifier = ref.read(gameTableProvider.notifier);
     notifier.setAILevel(homeState.selectedDifficulty);
+    notifier.setGameMode(homeState.selectedGameMode);
     notifier.setJokerMode(homeState.selectedJokerMode);
     final currentTimer = ref.read(gameTableProvider).gameSettings.turnTimerSeconds;
     notifier.setTurnTimer(currentTimer);
@@ -282,6 +284,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: () => _launchGame(context),
           ),
           const SizedBox(height: 14),
+          const GameCategorySelector(),
+          const SizedBox(height: 14),
           const JokerModeSelector(),
           const SizedBox(height: 16),
           const DifficultySelector(isCompact: true),
@@ -318,6 +322,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: PlayWithMayaCTA(
               onPressed: () => _launchGame(context),
             ),
+          ),
+          const SizedBox(height: 14),
+          const SizedBox(
+            width: 380,
+            child: GameCategorySelector(),
           ),
           const SizedBox(height: 14),
           const SizedBox(
@@ -389,6 +398,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             PlayWithMayaCTA(
                               onPressed: () => _launchGame(context),
                             ),
+                            const SizedBox(height: 14),
+                            const GameCategorySelector(),
                             const SizedBox(height: 14),
                             const JokerModeSelector(),
                             const SizedBox(height: 16),

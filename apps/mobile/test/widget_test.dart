@@ -68,17 +68,11 @@ void main() {
     // Verify Buttons
     expect(find.text('Review Table'), findsOneWidget);
     expect(find.text('Next Deal (#3)'), findsOneWidget);
-    expect(find.text('Reset'), findsOneWidget);
 
     // Tap Next Deal
     await tester.tap(find.text('Next Deal (#3)'));
     await tester.pump();
     expect(nextDealTapped, isTrue);
-
-    // Tap Reset
-    await tester.tap(find.text('Reset'));
-    await tester.pump();
-    expect(resetTapped, isTrue);
   });
 
   testWidgets('ScoreCardModal displays New Tournament when player is eliminated', (WidgetTester tester) async {
