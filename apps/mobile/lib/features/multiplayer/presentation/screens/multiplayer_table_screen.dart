@@ -3403,6 +3403,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
       orElse: () => myPlayer,
     );
 
+    final totalCardsInHand = tableState.cardGroups.fold<int>(0, (sum, g) => sum + g.cards.length);
+    final has14Cards = totalCardsInHand >= 14 || game.myHand.length >= 14 || tableState.hasDrawnThisTurn;
+
     return Center(
       child: AspectRatio(
         aspectRatio: 1024.0 / 491.0,
