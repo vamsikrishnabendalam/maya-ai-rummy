@@ -309,6 +309,14 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         currentScore: score,
         hasDrawnThisTurn: g.isDiscardPhase && g.isMyTurn(user.uid),
       );
+
+      // Auto-unlock Closed Joker if dealt hand already contains a Pure Sequence (Life)
+      if (g.isClosedJoker && !g.openedJokerPlayerUids.contains(user.uid) && groups.isNotEmpty) {
+        final allCards = groups.expand((grp) => grp.cards).toList();
+        if (allCards.length >= 13 && SequenceValidator.hasPureSequenceInHand(allCards)) {
+          openClosedJoker();
+        }
+      }
     });
   }
 
@@ -376,6 +384,11 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         currentScore: score,
         isSubmitting: false,
       );
+
+      // Trigger royal reveal animation (matches Maya AI single player)
+      if (updatedGame.openJoker != null) {
+        _ref.read(gameUIProvider.notifier).triggerSecretJokerReveal(updatedGame.openJoker!);
+      }
     } catch (e) {
       state = state.copyWith(isSubmitting: false, statusMessage: e.toString());
     }
@@ -496,6 +509,14 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         myUid: user.uid,
         card: cardToDiscard,
       );
+
+      // Auto-unlock Closed Joker if pure sequence (Life) is formed after discarding
+      if (game.isClosedJoker && !game.openedJokerPlayerUids.contains(user.uid)) {
+        final remainingHand = updated.expand((g) => g.cards).toList();
+        if (SequenceValidator.hasPureSequenceInHand(remainingHand)) {
+          await openClosedJoker();
+        }
+      }
     } catch (e) {
       state = state.copyWith(
         cardGroups: previousGroups,
@@ -617,7 +638,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         myUid: user.uid,
         groups: groupCards,
       );
+      final updatedSubmitted = [...game.submittedPlayerUids, user.uid];
       state = state.copyWith(
+        gameState: game.copyWith(submittedPlayerUids: updatedSubmitted),
         isSubmitting: false,
         isHandLocked: true,
         statusMessage: 'Final hand submitted! Waiting for other players...',

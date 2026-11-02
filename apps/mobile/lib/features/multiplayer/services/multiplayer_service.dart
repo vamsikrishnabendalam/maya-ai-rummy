@@ -3201,6 +3201,11 @@ class MultiplayerService {
     });
   }
 
+  @visibleForTesting
+  void setMockGame(MultiplayerGameState game) {
+    _mockGames[game.gameId] = game;
+  }
+
   StreamController<TableLobby> _getOrCreateTableController(String tableId) {
     return _tableControllers.putIfAbsent(tableId, () => StreamController<TableLobby>.broadcast());
   }

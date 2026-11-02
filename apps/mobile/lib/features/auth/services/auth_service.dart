@@ -1,3 +1,4 @@
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -133,14 +134,28 @@ class AuthService {
           return _currentUser;
         }
       } else {
-        final userCredential = await FirebaseAuth.instance.signInAnonymously();
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email', 'profile'],
+        );
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          debugPrint('[AuthService] Google Sign-In canceled by user');
+          return null;
+        }
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
         if (userCredential.user != null) {
           await _handleAuthStateUser(userCredential.user!);
           return _currentUser;
         }
       }
-    } catch (e) {
-      debugPrint('[AuthService] Google Sign-In exception: $e');
+    } catch (e, st) {
+      debugPrint('[AuthService] Google Sign-In exception: $e\n$st');
+      rethrow;
     }
     return null;
   }

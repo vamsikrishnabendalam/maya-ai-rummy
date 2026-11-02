@@ -16,6 +16,7 @@ import '../../../game/presentation/widgets/player_hand.dart';
 import '../../../game/presentation/widgets/card_animation_layer.dart';
 import '../../../game/presentation/widgets/royal_life_checklist_bar.dart';
 import '../../../game/providers/game_ui_provider.dart';
+import '../../../game/presentation/widgets/secret_joker_reveal_overlay.dart';
 import '../../models/table_models.dart';
 import '../../providers/multiplayer_providers.dart';
 import '../../utils/game_log_exporter.dart';
@@ -955,6 +956,55 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 ],
               ),
             ),
+          if (!isDeclarer && !isDroppedOrElim) ...[
+            const SizedBox(width: 10),
+            InkWell(
+              onTap: hasSubmitted ? null : () => ref.read(multiplayerGameProvider.notifier).submitFinalHand(),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: hasSubmitted
+                      ? null
+                      : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
+                  color: hasSubmitted ? const Color(0xFF1E293B) : null,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: hasSubmitted ? Colors.white24 : const Color(0xFFA7F3D0),
+                    width: 1.5,
+                  ),
+                  boxShadow: hasSubmitted
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                            blurRadius: 8,
+                          ),
+                        ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      hasSubmitted ? Icons.check_circle_rounded : Icons.send_rounded,
+                      size: 14,
+                      color: hasSubmitted ? Colors.white54 : Colors.white,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      hasSubmitted ? 'HAND SUBMITTED' : 'SUBMIT FINAL HAND',
+                      style: GoogleFonts.outfit(
+                        color: hasSubmitted ? Colors.white54 : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1606,6 +1656,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
             const Positioned.fill(
               child: CardAnimationLayer(),
             ),
+
+            // 9. Secret Joker Reveal Animation Layer (Gold Particles & Card Flip)
+            if (ref.watch(gameUIProvider).showSecretJokerReveal && ref.watch(gameUIProvider).secretJokerCard != null)
+              Positioned.fill(
+                child: SecretJokerRevealOverlay(
+                  wildJoker: ref.watch(gameUIProvider).secretJokerCard!,
+                  onDismiss: () => ref.read(gameUIProvider.notifier).dismissSecretJokerReveal(),
+                ),
+              ),
           ],
         ),
       ),
@@ -3634,80 +3693,151 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     child: _buildDeclarationBanner(game, myUid),
                   ),
 
-                // 7. Top Right: Declare Hand Button (With DragTarget Declare support)
+                // 7. Top Right: Declare Hand / Submit Final Hand Button
                 Positioned(
                   left: 792,
                   top: 10,
                   width: 138,
                   height: 34,
-                  child: DragTarget<Object>(
-                    onWillAcceptWithDetails: (details) =>
-                        (!game.isDeclaring && isMyTurn && isDiscardPhase) &&
-                        (details.data is CardDragData || details.data is Card),
-                    onAcceptWithDetails: (details) {
-                      Card? card;
-                      if (details.data is CardDragData) {
-                        card = (details.data as CardDragData).card;
-                      } else if (details.data is Card) {
-                        card = details.data as Card;
-                      }
-                      _handleMultiplayerDeclare(finishCard: card);
-                    },
-                    builder: (context, candidateData, rejectedData) {
-                      final isHovering = candidateData.isNotEmpty;
-                      final active = canDeclare || isHovering;
-
-                      return InkWell(
-                        onTap: (canDeclare && !game.isDeclaring)
-                            ? () => _handleMultiplayerDeclare()
-                            : null,
-                        borderRadius: BorderRadius.circular(10),
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 150),
-                          opacity: active ? 1.0 : 0.45,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Builder(
+                    builder: (ctx) {
+                      if (game.isDeclaring) {
+                        if (game.declaringPlayerId == myUid) {
+                          return Container(
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF141B26), Color(0xFF0B1018)],
+                              color: AppColors.accent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.accent, width: 1.5),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '0 PTS (Declared)',
+                                style: GoogleFonts.outfit(
+                                  color: AppColors.accent,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
+                            ),
+                          );
+                        }
+                        final hasSubmitted = game.submittedPlayerUids.contains(myUid);
+                        return InkWell(
+                          onTap: hasSubmitted ? null : () => notifier.submitFinalHand(),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: hasSubmitted
+                                  ? null
+                                  : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
+                              color: hasSubmitted ? const Color(0xFF1E293B) : null,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isHovering ? const Color(0xFF34D399) : const Color(0xFFF2CA50),
-                                width: isHovering ? 2.2 : 1.8,
+                                color: hasSubmitted ? Colors.white24 : const Color(0xFFA7F3D0),
+                                width: 1.5,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isHovering
-                                      ? const Color(0xFF34D399).withValues(alpha: 0.6)
-                                      : const Color(0xFFF2CA50).withValues(alpha: canDeclare ? 0.35 : 0.0),
-                                  blurRadius: 10,
-                                ),
-                              ],
+                              boxShadow: hasSubmitted
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                                        blurRadius: 8,
+                                      ),
+                                    ],
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2CA50), size: 14),
+                                Icon(
+                                  hasSubmitted ? Icons.check_circle_rounded : Icons.send_rounded,
+                                  size: 13,
+                                  color: hasSubmitted ? Colors.white54 : Colors.white,
+                                ),
                                 const SizedBox(width: 4),
-                                Flexible(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      'Declare Hand',
-                                      style: GoogleFonts.outfit(
-                                        color: const Color(0xFFF2CA50),
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
+                                Text(
+                                  hasSubmitted ? 'Submitted' : 'SUBMIT HAND',
+                                  style: GoogleFonts.outfit(
+                                    color: hasSubmitted ? Colors.white54 : Colors.white,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w900,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
+                        );
+                      }
+
+                      return DragTarget<Object>(
+                        onWillAcceptWithDetails: (details) =>
+                            (!game.isDeclaring && isMyTurn && isDiscardPhase) &&
+                            (details.data is CardDragData || details.data is Card),
+                        onAcceptWithDetails: (details) {
+                          Card? card;
+                          if (details.data is CardDragData) {
+                            card = (details.data as CardDragData).card;
+                          } else if (details.data is Card) {
+                            card = details.data as Card;
+                          }
+                          _handleMultiplayerDeclare(finishCard: card);
+                        },
+                        builder: (context, candidateData, rejectedData) {
+                          final isHovering = candidateData.isNotEmpty;
+                          final active = canDeclare || isHovering;
+
+                          return InkWell(
+                            onTap: (canDeclare && !game.isDeclaring)
+                                ? () => _handleMultiplayerDeclare()
+                                : null,
+                            borderRadius: BorderRadius.circular(10),
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 150),
+                              opacity: active ? 1.0 : 0.45,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF141B26), Color(0xFF0B1018)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isHovering ? const Color(0xFF34D399) : const Color(0xFFF2CA50),
+                                    width: isHovering ? 2.2 : 1.8,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: isHovering
+                                          ? const Color(0xFF34D399).withValues(alpha: 0.6)
+                                          : const Color(0xFFF2CA50).withValues(alpha: canDeclare ? 0.35 : 0.0),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2CA50), size: 14),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          'Declare Hand',
+                                          style: GoogleFonts.outfit(
+                                            color: const Color(0xFFF2CA50),
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -3945,6 +4075,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 const Positioned.fill(
                   child: CardAnimationLayer(),
                 ),
+
+                // 14. Secret Joker Reveal Animation Layer (Gold Particles & Card Flip)
+                if (uiState.showSecretJokerReveal && uiState.secretJokerCard != null)
+                  Positioned.fill(
+                    child: SecretJokerRevealOverlay(
+                      wildJoker: uiState.secretJokerCard!,
+                      onDismiss: () => ref.read(gameUIProvider.notifier).dismissSecretJokerReveal(),
+                    ),
+                  ),
               ],
             ),
           ),
