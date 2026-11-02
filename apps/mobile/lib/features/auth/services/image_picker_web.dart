@@ -28,3 +28,4 @@ Future<String?> pickImageAsDataUrl() async {
 
   return completer.future;
 }
+

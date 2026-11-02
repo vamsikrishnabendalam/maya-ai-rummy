@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Maya AI Rummy - Visual Mobile Layout Editor 2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    background: #070A10;
+    color: #E2E8F0;
+    font-family: 'Outfit', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Top Studio Toolbar */
+  header {
+    height: 52px;
+    background: #0C121D;
+    border-bottom: 1.5px solid #202D42;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+  }
+  .app-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #F2CA50;
+    letter-spacing: 0.5px;
+  }
+  .app-badge {
+    background: rgba(242, 202, 80, 0.15);
+    border: 1px solid #F2CA50;
+    color: #F2CA50;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #151F2E;
+    border: 1px solid #2C3E58;
+    color: #E2E8F0;
+    padding: 6px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tool-btn:hover {
+    background: #1E2D44;
+    border-color: #60A5FA;
+    color: #FFF;
+  }
+  .tool-btn.primary {
+    background: linear-gradient(135deg, #10B981, #059669);
+    border-color: #34D399;
+    color: #FFF;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  }
+  .tool-btn.gold {
+    background: linear-gradient(135deg, #D4AF37, #B38F24);
+    border-color: #F2CA50;
+    color: #0C121D;
+    font-weight: 900;
+    box-shadow: 0 2px 8px rgba(242, 202, 80, 0.3);
+  }
+
+  .preset-select {
+    background: #151F2E;
+    border: 1px solid #2C3E58;
+    color: #F2CA50;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* Main Studio Layout */
+  .studio-workspace {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Left Elements Tree Panel */
+  .left-tree-panel {
+    width: 230px;
+    background: #090E17;
+    border-right: 1px solid #1A2638;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    border-bottom: 1px solid #162132;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .element-tree-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  .tree-item {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #CBD5E1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    transition: all 0.15s ease;
+  }
+  .tree-item:hover {
+    background: #141E2F;
+    color: #FFF;
+  }
+  .tree-item.active {
+    background: rgba(242, 202, 80, 0.15);
+    border: 1px solid #F2CA50;
+    color: #F2CA50;
+    font-weight: 800;
+  }
+  .tree-item-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #64748B;
+    flex-shrink: 0;
+  }
+  .tree-item.active .item-dot {
+    background: #F2CA50;
+    box-shadow: 0 0 6px #F2CA50;
+  }
+  .eye-toggle {
+    font-size: 13px;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .eye-toggle:hover { opacity: 1; }
+  .eye-toggle.hidden-item { opacity: 0.25; filter: grayscale(1); }
+
+  /* Center Canvas Stage */
+  .canvas-stage {
+    flex: 1;
+    background: #04060A;
+    background-image: radial-gradient(circle at 50% 50%, #0D1624 0%, #04060A 100%);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 30px;
+  }
+
+  .device-frame {
+    position: relative;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), 0 0 0 2px #2A3C56;
+    border-radius: 10px;
+    overflow: hidden;
+    transform-origin: center center;
+    transition: width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+  }
+
+  /* Table circle guide */
+  .table-oval-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -10%);
+    width: 480px;
+    height: 150px;
+    border: 1.5px dashed rgba(242, 202, 80, 0.45);
+    border-radius: 50%;
+    pointer-events: none;
+    display: none;
+  }
+  .show-guides .table-oval-guide { display: block; }
+  .table-oval-label {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(12, 18, 29, 0.9);
+    border: 1px solid #F2CA50;
+    color: #F2CA50;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  /* Grid lines */
+  .grid-lines-guide {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.5;
+    display: none;
+  }
+  .show-guides .grid-lines-guide { display: block; }
+
+  /* Draggable & Editable Element Base */
+  .drag-element {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    outline: 1.5px dashed transparent;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: outline 0.1s;
+  }
+  .drag-element:hover {
+    outline: 1.5px dashed rgba(96, 165, 250, 0.7);
+  }
+  .drag-element.selected {
+    outline: 2px solid #F2CA50 !important;
+    box-shadow: 0 0 14px rgba(242, 202, 80, 0.45);
+    z-index: 1000 !important;
+  }
+  .drag-element.dragging {
+    cursor: grabbing;
+    opacity: 0.92;
+    z-index: 1001 !important;
+  }
+  .drag-element.hidden-element {
+    display: none !important;
+  }
+
+  /* Coordinate & Dimension Badge during drag/select */
+  .coord-pill {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    background: #0C121D;
+    border: 1px solid #F2CA50;
+    color: #F2CA50;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+    display: none;
+    white-space: nowrap;
+    z-index: 2000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  }
+  .drag-element.selected .coord-pill,
+  .drag-element.dragging .coord-pill {
+    display: block;
+  }
+
+  /* Resize Handles on Selected Element */
+  .resize-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #F2CA50;
+    border: 1px solid #000;
+    border-radius: 2px;
+    display: none;
+    z-index: 1002;
+  }
+  .drag-element.selected .resize-handle { display: block; }
+  .handle-tl { top: -4px; left: -4px; cursor: nwse-resize; }
+  .handle-tr { top: -4px; right: -4px; cursor: nesw-resize; }
+  .handle-bl { bottom: -4px; left: -4px; cursor: nesw-resize; }
+  .handle-br { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+  /* Right Property Inspector Panel */
+  .right-inspector-panel {
+    width: 290px;
+    background: #090E17;
+    border-left: 1px solid #1A2638;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .inspector-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .inspector-group {
+    background: #0E1624;
+    border: 1px solid #1A2638;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .group-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #F2CA50;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94A3B8;
+  }
+  .field-val-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 800;
+    color: #F2CA50;
+  }
+  .field-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .field-slider {
+    flex: 1;
+    accent-color: #F2CA50;
+    cursor: pointer;
+  }
+  .field-number {
+    width: 62px;
+    background: #151F2E;
+    border: 1px solid #28374E;
+    color: #FFF;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    text-align: right;
+    outline: none;
+  }
+  .field-number:focus { border-color: #F2CA50; }
+
+  .text-edit-input {
+    width: 100%;
+    background: #151F2E;
+    border: 1px solid #28374E;
+    color: #FFF;
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 6px;
+    outline: none;
+  }
+  .text-edit-input:focus { border-color: #F2CA50; }
+
+  /* Anchor Buttons Grid */
+  .anchor-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  .anchor-btn {
+    background: #151F2E;
+    border: 1px solid #223249;
+    color: #CBD5E1;
+    padding: 5px 4px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .anchor-btn:hover { background: #1F2E44; color: #FFF; border-color: #60A5FA; }
+  .anchor-btn.active {
+    background: rgba(242, 202, 80, 0.2);
+    border-color: #F2CA50;
+    color: #F2CA50;
+    font-weight: 800;
+  }
+
+  /* Quick Align Grid */
+  .align-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  .align-btn {
+    background: #151F2E;
+    border: 1px solid #223249;
+    color: #CBD5E1;
+    padding: 6px 4px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .align-btn:hover { background: #1F2E44; color: #FFF; border-color: #60A5FA; }
+
+  /* Element Styling on Canvas */
+  .brand-pod {
+    background: linear-gradient(135deg, rgba(16, 25, 42, 0.95), rgba(9, 15, 26, 0.97));
+    border: 1.5px solid rgba(212, 175, 55, 0.6);
+    border-radius: 12px;
+    padding: 6px 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.75);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .brand-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .brand-title { font-weight: 900; color: #F2CA50; letter-spacing: 0.8px; }
+  .pool-badge { background: rgba(242, 202, 80, 0.2); border: 1px solid rgba(242, 202, 80, 0.55); border-radius: 6px; padding: 1px 5px; font-size: 9px; font-weight: 800; color: #F2CA50; font-family: 'JetBrains Mono', monospace; }
+
+  .menu-joker-pod {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .menu-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #2A1E0D 0%, #151A22 100%);
+    border: 1.5px solid #F2CA50;
+    border-radius: 8px;
+    padding: 5px 6px;
+    box-shadow: 0 2px 8px rgba(242, 202, 80, 0.25);
+    height: 100%;
+  }
+  .hamburger-icon { display: flex; flex-direction: column; gap: 2.5px; }
+  .hamburger-icon span { display: block; width: 13px; height: 1.8px; background: #F2CA50; border-radius: 2px; }
+  .menu-label { font-size: 10px; font-weight: 900; color: #F2CA50; letter-spacing: 0.5px; }
+  .joker-pill-pod { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(242, 202, 80, 0.45); border-radius: 8px; padding: 4px 6px; font-size: 10px; font-weight: 800; color: #FFF; white-space: nowrap; height: 100%; display: flex; align-items: center; }
+
+  .status-pod {
+    background: linear-gradient(135deg, rgba(14, 22, 36, 0.95), rgba(8, 14, 24, 0.97));
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 12px;
+    padding: 6px 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+  }
+  .timer-row { display: flex; align-items: center; justify-content: space-between; padding-bottom: 3px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+  .turn-pill { font-size: 9.5px; font-weight: 800; color: #34D399; letter-spacing: 0.5px; }
+  .timer-seconds { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 800; color: #FBBF24; background: rgba(245, 158, 11, 0.15); padding: 1px 5px; border-radius: 4px; }
+  .lifes-row { display: flex; align-items: center; justify-content: space-between; font-size: 9.5px; font-weight: 700; }
+  .life-badge { color: #10B981; display: flex; align-items: center; gap: 3px; }
+  .deadwood-score { font-size: 9.5px; font-weight: 800; color: #34D399; text-align: right; }
+
+  .btn-pill {
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 800;
+    color: #FFF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .btn-drop { background: linear-gradient(135deg, #A82020 0%, #7E1515 100%); border-color: #EF4444; }
+  .btn-sort { background: linear-gradient(135deg, #2D7D46 0%, #1E5C32 100%); border-color: #10B981; }
+  .btn-ai   { background: linear-gradient(135deg, #6A3EA1 0%, #502A82 100%); border-color: #A855F7; }
+
+  .btn-group-action   { background: linear-gradient(135deg, #2F62C9 0%, #1E4498 100%); border: 1px solid #60A5FA; }
+  .btn-discard-action { background: linear-gradient(135deg, #1B2230 0%, #111722 100%); border: 1.5px solid #475569; color: #E2E8F0; }
+  .btn-declare-action { background: linear-gradient(135deg, #141B26 0%, #0B1018 100%); border: 1.8px solid #F2CA50; color: #F2CA50; font-weight: 900; }
+
+  .toast-banner {
+    background: linear-gradient(90deg, rgba(14, 24, 40, 0.94), rgba(22, 38, 62, 0.94));
+    border: 1.5px solid rgba(242, 202, 80, 0.6);
+    border-radius: 20px;
+    padding: 5px 16px;
+    font-weight: 700;
+    color: #FFFBEB;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .maya-host-badge {
+    background: linear-gradient(135deg, rgba(30, 16, 48, 0.88), rgba(16, 8, 28, 0.88));
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    border-radius: 16px;
+    padding: 3px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+    white-space: nowrap;
+  }
+  .dealer-coin { width: 15px; height: 15px; background: linear-gradient(135deg, #F2CA50, #D4AF37); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #1A1200; flex-shrink: 0; }
+  .maya-host-name { color: #FFF; font-weight: 700; }
+
+  /* Table cards */
+  .table-cards-surface {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--table-card-gap, 28px);
+    perspective: 500px;
+  }
+  .table-card-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    transform: rotateX(var(--table-tilt, 46deg));
+    transform-style: preserve-3d;
+  }
+  .closed-deck-pod {
+    position: relative;
+    width: calc(var(--table-card-w, 58px) * 1.6);
+    height: calc(var(--table-card-h, 82px) * 1.05);
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.85));
+  }
+  .tucked-wild-joker {
+    position: absolute;
+    left: 2px;
+    top: 14px;
+    width: var(--table-card-w, 58px);
+    height: var(--table-card-h, 82px);
+    border-radius: 5px;
+    transform: rotate(-90deg);
+    border: 1px solid rgba(255,255,255,0.4);
+  }
+  .deck-card-top {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: var(--table-card-w, 58px);
+    height: var(--table-card-h, 82px);
+    border-radius: 5px;
+    border: 1.5px solid rgba(212, 175, 55, 0.7);
+    box-shadow: 2px 4px 10px rgba(0,0,0,0.8);
+  }
+  .deck-count-pill {
+    position: absolute;
+    bottom: -4px;
+    right: 2px;
+    background: rgba(14, 20, 30, 0.95);
+    border: 1px solid #F2CA50;
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: 8px;
+    font-weight: 800;
+    color: #F2CA50;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .open-pile-card {
+    width: var(--table-card-w, 58px);
+    height: var(--table-card-h, 82px);
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.5);
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.85));
+  }
+  .declare-finish-slot {
+    width: var(--table-card-w, 58px);
+    height: var(--table-card-h, 82px);
+    border-radius: 5px;
+    border: 2px dashed rgba(242, 202, 80, 0.85);
+    background: radial-gradient(circle, rgba(242, 202, 80, 0.2), rgba(16, 24, 38, 0.75));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    color: #F2CA50;
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.75));
+  }
+  .table-card-label {
+    font-size: 9px;
+    font-weight: 800;
+    color: #FFFBEB;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.95);
+  }
+
+  /* Player hand */
+  .grouped-hand-container {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--group-gap, 16px);
+  }
+  .hand-group {
+    display: flex;
+    position: relative;
+    padding-bottom: 20px;
+  }
+  .card-in-hand {
+    width: var(--card-w, 92px);
+    height: var(--card-h, 134px);
+    border-radius: 7px;
+    margin-right: var(--card-overlap, -48px);
+    box-shadow: -3px 4px 14px rgba(0,0,0,0.8);
+    position: relative;
+    pointer-events: none;
+  }
+  .card-in-hand:last-child { margin-right: 0; }
+  .card-in-hand.elevated {
+    transform: translateY(-12px);
+    box-shadow: 0 10px 22px rgba(242, 202, 80, 0.45), 0 4px 12px rgba(0,0,0,0.9);
+    border: 2px solid #F2CA50;
+  }
+  .group-badge {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 9.5px;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    pointer-events: none;
+  }
+  .badge-pure   { background: rgba(6, 78, 59, 0.95); border: 1px solid #10B981; color: #34D399; }
+  .badge-second { background: rgba(30, 58, 138, 0.95); border: 1px solid #3B82F6; color: #93C5FD; }
+  .badge-set    { background: rgba(120, 53, 15, 0.95); border: 1px solid #F59E0B; color: #FCD34D; }
+
+  /* Toast & Modals */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #10B981;
+    color: #FFF;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 9999;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    width: 680px;
+    max-height: 85vh;
+    background: #0C121D;
+    border: 1.5px solid #F2CA50;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+  }
+  .modal-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid #202D42;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 900;
+    color: #F2CA50;
+  }
+  .modal-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+  }
+  .code-block {
+    background: #05070B;
+    border: 1px solid #1A2638;
+    border-radius: 8px;
+    padding: 12px;
+    color: #E2E8F0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+    user-select: text;
+  }
+  .modal-footer {
+    padding: 12px 18px;
+    border-top: 1px solid #202D42;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="app-title-group">
+    <span class="app-title">MAYA AI RUMMY</span>
+    <span class="app-badge">LAYOUT STUDIO 2.0</span>
+  </div>
+
+  <div class="toolbar-controls">
+    <label style="font-size: 11px; font-weight: 700; color: #94A3B8;">Device:</label>
+    <select id="presetSelect" class="preset-select">
+      <option value="1024x491" selected>Current Screenshot (1024 × 491)</option>
+      <option value="932x430">iPhone 15/16 Pro Max (932 × 430)</option>
+      <option value="896x414">iPhone XR / 11 (896 × 414)</option>
+      <option value="844x390">iPhone 13 / 14 (844 × 390)</option>
+      <option value="915x412">Galaxy S23/S24 Ultra (915 × 412)</option>
+      <option value="800x360">Compact Android (800 × 360)</option>
+      <option value="custom">Custom Size...</option>
+    </select>
+
+    <button id="btnToggleGuides" class="tool-btn"><span>📐</span> Guides</button>
+    <button id="btnResetAll" class="tool-btn"><span>↺</span> Reset</button>
+    <button id="btnExportCode" class="tool-btn primary"><span>📋</span> Export Code</button>
+    <button id="btnSaveLayout" class="tool-btn gold"><span>💾</span> Save to Server</button>
+  </div>
+</header>
+
+<div class="studio-workspace">
+  <!-- Left Tree Panel -->
+  <aside class="left-tree-panel">
+    <div class="panel-header">
+      <span>Screen Elements</span>
+      <span style="font-size: 9px; color: #64748B;">VISIBILITY</span>
+    </div>
+    <div id="elementTreeList" class="element-tree-list"></div>
+  </aside>
+
+  <!-- Center Canvas Stage -->
+  <main class="canvas-stage">
+    <div id="deviceFrame" class="device-frame" style="width: 1024px; height: 491px; background-image: url('/background/Maya%20AI%20Rummy%20Mobile%20Background.png');">
+      <div class="grid-lines-guide"></div>
+      <div class="table-oval-guide">
+        <span class="table-oval-label">TABLE FELT CIRCLE</span>
+      </div>
+
+      <!-- 1. Left HUD: Brand Pod -->
+      <div id="el_left_brand" class="drag-element brand-pod" data-name="Brand Pod" data-anchor-h="left" data-anchor-v="top">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <div class="brand-title-row">
+          <span class="brand-title content-text">MAYA AI RUMMY</span>
+          <span class="pool-badge sub-text">201 POOL</span>
+        </div>
+      </div>
+
+      <!-- 2. Left HUD: Menu & Joker Row -->
+      <div id="el_left_menu_joker" class="drag-element menu-joker-pod" data-name="Menu & Joker Row" data-anchor-h="left" data-anchor-v="top">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <div class="menu-btn">
+          <div class="hamburger-icon"><span></span><span></span><span></span></div>
+          <span class="menu-label content-text">MENU</span>
+        </div>
+        <div class="joker-pill-pod">
+          <span class="sub-text">🃏 8♣ JOKER</span>
+        </div>
+      </div>
+
+      <!-- 3. Left HUD: Status Pod -->
+      <div id="el_left_status" class="drag-element status-pod" data-name="Status & Lives Pod" data-anchor-h="left" data-anchor-v="top">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <div class="timer-row">
+          <span class="turn-pill">YOUR TURN</span>
+          <span class="timer-seconds content-text">⏱️ 28s</span>
+        </div>
+        <div class="lifes-row">
+          <div class="life-badge"><span>✓</span> 1st Life</div>
+          <div class="life-badge"><span>✓</span> 2nd Life</div>
+        </div>
+        <div class="deadwood-score sub-text">DEADWOOD: 0 PTS</div>
+      </div>
+
+      <!-- 4. Left Action Buttons -->
+      <div id="el_btn_drop" class="drag-element btn-pill btn-drop" data-name="Drop Button" data-anchor-h="left" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span class="btn-icon">🏳️</span>
+        <span class="btn-label content-text">Drop (40)</span>
+      </div>
+
+      <div id="el_btn_sort" class="drag-element btn-pill btn-sort" data-name="Sort Hand Button" data-anchor-h="left" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span class="btn-icon">⇅</span>
+        <span class="btn-label content-text">Sort Hand</span>
+      </div>
+
+      <div id="el_btn_ai" class="drag-element btn-pill btn-ai" data-name="AI Group Button" data-anchor-h="left" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span class="btn-icon">✨</span>
+        <span class="btn-label content-text">AI Group</span>
+      </div>
+
+      <!-- 5. Right Action Buttons -->
+      <div id="el_btn_group" class="drag-element btn-pill btn-group-action" data-name="Group Button" data-anchor-h="right" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span class="btn-icon">🗂️</span>
+        <span class="btn-label content-text">Group</span>
+      </div>
+
+      <div id="el_btn_discard" class="drag-element btn-pill btn-discard-action" data-name="Discard Button" data-anchor-h="right" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span class="btn-icon">⬆</span>
+        <span class="btn-label content-text">Discard</span>
+      </div>
+
+      <div id="el_btn_declare" class="drag-element btn-pill btn-declare-action" data-name="Declare Button" data-anchor-h="right" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span class="btn-icon">🏆</span>
+        <span class="btn-label content-text">Declare Hand</span>
+      </div>
+
+      <!-- 6. Toast Instruction Banner -->
+      <div id="el_toast_banner" class="drag-element toast-banner" data-name="Toast Instruction Banner" data-anchor-h="center" data-anchor-v="top">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <span>✨</span>
+        <span class="content-text">Drew 14th card! Select 1 card to Discard or Declare.</span>
+      </div>
+
+      <!-- 7. Maya Host Dealer Badge -->
+      <div id="el_maya_host" class="drag-element maya-host-badge" data-name="Maya AI Host Badge" data-anchor-h="center" data-anchor-v="top">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <div class="dealer-coin">D</div>
+        <span class="maya-host-name content-text">Maya (AI Host)</span>
+      </div>
+
+      <!-- 8. Center Table Cards -->
+      <div id="el_table_cards" class="drag-element table-cards-surface" data-name="Table Cards Cluster" data-anchor-h="center" data-anchor-v="center">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <div class="table-card-item">
+          <div class="closed-deck-pod">
+            <img class="tucked-wild-joker" src="/apps/mobile/assets/cards/clubs_eight.png" />
+            <img class="deck-card-top" src="/apps/mobile/assets/cards/card_back.png" />
+            <div class="deck-count-pill">CLOSED (84)</div>
+          </div>
+          <span class="table-card-label">CLOSED DECK</span>
+        </div>
+
+        <div class="table-card-item">
+          <img class="open-pile-card" src="/apps/mobile/assets/cards/spades_jack.png" />
+          <span class="table-card-label">OPEN PILE</span>
+        </div>
+
+        <div class="table-card-item">
+          <div class="declare-finish-slot">
+            <span style="font-size: 16px;">⭐</span>
+            <span style="font-size: 9px; font-weight: 900;">FINISH</span>
+            <span style="font-size: 7.5px; opacity: 0.8;">14th Card</span>
+          </div>
+          <span class="table-card-label">DECLARE</span>
+        </div>
+      </div>
+
+      <!-- 9. Grouped Player Hand Tray -->
+      <div id="el_player_hand" class="drag-element grouped-hand-container" data-name="Grouped Player Hand" data-anchor-h="center" data-anchor-v="bottom">
+        <div class="coord-pill"></div>
+        <div class="resize-handle handle-tl"></div><div class="resize-handle handle-tr"></div>
+        <div class="resize-handle handle-bl"></div><div class="resize-handle handle-br"></div>
+        <div class="hand-group">
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/spades_four.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/spades_five.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/spades_six.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/spades_seven.png" />
+          <div class="group-badge badge-pure">✓ Pure Seq</div>
+        </div>
+        <div class="hand-group">
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/hearts_nine.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/hearts_ten.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/hearts_jack.png" />
+          <div class="group-badge badge-second">✓ 2nd Life</div>
+        </div>
+        <div class="hand-group">
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/clubs_queen.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/diamonds_queen.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/spades_queen.png" />
+          <div class="group-badge badge-set">Set (3)</div>
+        </div>
+        <div class="hand-group">
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/hearts_king.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/diamonds_king.png" />
+          <img class="card-in-hand" src="/apps/mobile/assets/cards/clubs_king.png" />
+          <img class="card-in-hand elevated" src="/apps/mobile/assets/cards/spades_ace.png" />
+          <div class="group-badge badge-set">Set (4)</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Right Property Inspector Panel -->
+  <aside class="right-inspector-panel">
+    <div class="panel-header">
+      <span>Property Inspector</span>
+      <span id="selectedPill" style="font-size: 10px; color: #F2CA50;">No Selection</span>
+    </div>
+
+    <div class="inspector-body">
+      <!-- Visibility & Remove Action -->
+      <div class="inspector-group" id="groupVisibility" style="display: none;">
+        <div class="group-title">
+          <span>Element Control</span>
+          <button id="btnRemoveElement" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; cursor: pointer;">🗑️ Hide Element</button>
+        </div>
+      </div>
+
+      <!-- Text Editing -->
+      <div class="inspector-group" id="groupTextEdit" style="display: none;">
+        <div class="group-title">
+          <span>Edit Label / Text</span>
+        </div>
+        <div class="field-row">
+          <input type="text" id="inputTextContent" class="text-edit-input" placeholder="Enter text here...">
+        </div>
+        <div class="field-row" id="rowSubText" style="display: none;">
+          <span style="font-size: 10px; color: #94A3B8;">Sub-Text / Secondary Label:</span>
+          <input type="text" id="inputSubTextContent" class="text-edit-input" placeholder="Enter sub-text...">
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Font Size</span>
+            <span id="valFontSize" class="field-val-badge">13px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderFontSize" class="field-slider" min="9" max="24" value="13">
+            <input type="number" id="numFontSize" class="field-number" value="13">
+          </div>
+        </div>
+      </div>
+
+      <!-- Position Coordinates -->
+      <div class="inspector-group">
+        <div class="group-title">
+          <span>Position (X & Y)</span>
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Left (X)</span>
+            <span id="valLeft" class="field-val-badge">0px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderLeft" class="field-slider" min="-100" max="1100" value="0">
+            <input type="number" id="numLeft" class="field-number" value="0">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-header">
+            <span>Top (Y)</span>
+            <span id="valTop" class="field-val-badge">0px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderTop" class="field-slider" min="-50" max="600" value="0">
+            <input type="number" id="numTop" class="field-number" value="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Block Dimensions (Width & Height) -->
+      <div class="inspector-group" id="groupDimensions">
+        <div class="group-title">
+          <span>Size (Width & Height)</span>
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Width</span>
+            <span id="valWidth" class="field-val-badge">Auto</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderWidth" class="field-slider" min="50" max="500" value="112">
+            <input type="number" id="numWidth" class="field-number" value="112">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-header">
+            <span>Height</span>
+            <span id="valHeight" class="field-val-badge">Auto</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderHeight" class="field-slider" min="24" max="250" value="38">
+            <input type="number" id="numHeight" class="field-number" value="38">
+          </div>
+        </div>
+      </div>
+
+      <!-- Responsive Anchor Settings -->
+      <div class="inspector-group">
+        <div class="group-title">
+          <span>Responsive Device Anchor</span>
+        </div>
+        <span style="font-size: 10px; color: #94A3B8;">Pins element relative to screen edges on different mobile sizes:</span>
+        <div class="field-row">
+          <span style="font-size: 10px; font-weight: 700;">Horizontal Anchor:</span>
+          <div class="anchor-grid">
+            <button class="anchor-btn" data-anchor-axis="h" data-val="left">⬅️ Left</button>
+            <button class="anchor-btn" data-anchor-axis="h" data-val="center">↔️ Center</button>
+            <button class="anchor-btn" data-anchor-axis="h" data-val="right">➡️ Right</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <span style="font-size: 10px; font-weight: 700;">Vertical Anchor:</span>
+          <div class="anchor-grid">
+            <button class="anchor-btn" data-anchor-axis="v" data-val="top">⬆️ Top</button>
+            <button class="anchor-btn" data-anchor-axis="v" data-val="center">↕️ Center</button>
+            <button class="anchor-btn" data-anchor-axis="v" data-val="bottom">⬇️ Bottom</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Alignment -->
+      <div class="inspector-group">
+        <div class="group-title"><span>Quick Align</span></div>
+        <div class="align-grid">
+          <button id="btnAlignLeft" class="align-btn">⬅️ Left</button>
+          <button id="btnAlignCenterH" class="align-btn">↔️ Center H</button>
+          <button id="btnAlignRight" class="align-btn">➡️ Right</button>
+          <button id="btnAlignTop" class="align-btn">⬆️ Top</button>
+          <button id="btnAlignCenterV" class="align-btn">↕️ Center V</button>
+          <button id="btnAlignBottom" class="align-btn">⬇️ Bottom</button>
+        </div>
+      </div>
+
+      <!-- Table Cards 3D Specific Controls -->
+      <div class="inspector-group" id="groupTableCards" style="display: none;">
+        <div class="group-title"><span>Table Cards 3D Properties</span></div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>3D Perspective Tilt</span>
+            <span id="valTableTilt" class="field-val-badge">46°</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderTableTilt" class="field-slider" min="0" max="75" value="46">
+            <input type="number" id="numTableTilt" class="field-number" value="46">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Card Width</span>
+            <span id="valTableCardW" class="field-val-badge">58px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderTableCardW" class="field-slider" min="36" max="90" value="58">
+            <input type="number" id="numTableCardW" class="field-number" value="58">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Card Spacing Gap</span>
+            <span id="valTableCardGap" class="field-val-badge">28px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderTableCardGap" class="field-slider" min="10" max="60" value="28">
+            <input type="number" id="numTableCardGap" class="field-number" value="28">
+          </div>
+        </div>
+      </div>
+
+      <!-- Hand Tray Specific Controls -->
+      <div class="inspector-group" id="groupHandTray" style="display: none;">
+        <div class="group-title"><span>In-Hand Cards Properties</span></div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Card Width</span>
+            <span id="valCardW" class="field-val-badge">92px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderCardW" class="field-slider" min="60" max="130" value="92">
+            <input type="number" id="numCardW" class="field-number" value="92">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Card Overlap</span>
+            <span id="valCardOverlap" class="field-val-badge">-48px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderCardOverlap" class="field-slider" min="-70" max="-20" value="-48">
+            <input type="number" id="numCardOverlap" class="field-number" value="-48">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-header">
+            <span>Group Gap</span>
+            <span id="valGroupGap" class="field-val-badge">16px</span>
+          </div>
+          <div class="field-inputs">
+            <input type="range" id="sliderGroupGap" class="field-slider" min="6" max="40" value="16">
+            <input type="number" id="numGroupGap" class="field-number" value="16">
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<!-- Toast -->
+<div id="toast">Changes Saved!</div>
+
+<!-- Export Modal -->
+<div id="exportModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>EXPORT RESPONSIVE FLUTTER SPECS</span>
+      <span id="btnCloseModal" style="cursor: pointer; font-size: 18px;">✕</span>
+    </div>
+    <div class="modal-body">
+      <div id="exportedCode" class="code-block"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="btnCopyCode" class="tool-btn primary">📋 Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Calibrated Default Specs based on user requirements
+  const DEFAULT_LAYOUT = {
+    canvas: { width: 1024, height: 491 },
+    elements: {
+      el_left_brand:      { left: 12,  top: 10,  width: 156, height: 42,  fontSize: 11, visible: true, text: 'MAYA AI RUMMY', subText: '201 POOL', anchorH: 'left', anchorV: 'top' },
+      el_left_menu_joker:  { left: 12,  top: 58,  width: 156, height: 32,  fontSize: 10, visible: true, text: 'MENU', subText: '🃏 8♣ JOKER', anchorH: 'left', anchorV: 'top' },
+      el_left_status:      { left: 12,  top: 96,  width: 156, height: 58,  fontSize: 9.5, visible: true, text: '⏱️ 28s', subText: 'DEADWOOD: 0 PTS', anchorH: 'left', anchorV: 'top' },
+      el_btn_drop:        { left: 14,  top: 345, width: 112, height: 38,  fontSize: 13.5, visible: true, text: 'Drop (40)', anchorH: 'left', anchorV: 'bottom' },
+      el_btn_sort:        { left: 14,  top: 391, width: 112, height: 38,  fontSize: 13.5, visible: true, text: 'Sort Hand', anchorH: 'left', anchorV: 'bottom' },
+      el_btn_ai:          { left: 14,  top: 437, width: 112, height: 38,  fontSize: 13.5, visible: true, text: 'AI Group', anchorH: 'left', anchorV: 'bottom' },
+      el_btn_group:       { left: 814, top: 382, width: 90,  height: 38,  fontSize: 13.5, visible: true, text: 'Group', anchorH: 'right', anchorV: 'bottom' },
+      el_btn_discard:     { left: 914, top: 382, width: 90,  height: 38,  fontSize: 13.5, visible: true, text: 'Discard', anchorH: 'right', anchorV: 'bottom' },
+      el_btn_declare:     { left: 850, top: 430, width: 154, height: 42,  fontSize: 14.5, visible: true, text: 'Declare Hand', anchorH: 'right', anchorV: 'bottom' },
+      el_toast_banner:    { left: 332, top: 12,  width: null, height: 30, fontSize: 11.5, visible: true, text: 'Drew 14th card! Select 1 card to Discard or Declare.', anchorH: 'center', anchorV: 'top' },
+      el_maya_host:       { left: 450, top: 48,  width: null, height: 26, fontSize: 11,   visible: true, text: 'Maya (AI Host)', anchorH: 'center', anchorV: 'top' },
+      el_table_cards:     { left: 372, top: 240, width: null, height: null, fontSize: null, visible: true, anchorH: 'center', anchorV: 'center' },
+      el_player_hand:     { left: 142, top: 334, width: null, height: null, fontSize: null, visible: true, anchorH: 'center', anchorV: 'bottom' }
+    },
+    customProps: {
+      tableTilt: 46,
+      tableCardW: 58,
+      tableCardGap: 28,
+      cardW: 92,
+      cardOverlap: -48,
+      groupGap: 16
+    }
+  };
+
+  let currentLayout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  let selectedElementId = null;
+  let isDragging = false;
+  let isResizing = false;
+  let resizeDir = '';
+  let dragStartX = 0, dragStartY = 0;
+  let elementStartX = 0, elementStartY = 0;
+  let elementStartW = 0, elementStartH = 0;
+
+  const deviceFrame = document.getElementById('deviceFrame');
+  const elementTreeList = document.getElementById('elementTreeList');
+
+  // Initialize Elements
+  function initElements() {
+    elementTreeList.innerHTML = '';
+    const dragElements = document.querySelectorAll('.drag-element');
+
+    dragElements.forEach(el => {
+      const id = el.id;
+      const name = el.getAttribute('data-name');
+      const cfg = currentLayout.elements[id] || {};
+
+      // Apply initial styling
+      applyElementStyle(el, cfg);
+
+      // Add to tree list
+      const item = document.createElement('div');
+      item.className = 'tree-item' + (!cfg.visible ? ' hidden-tree-item' : '');
+      item.id = 'tree_' + id;
+      item.innerHTML = `
+        <div class="tree-item-name">
+          <span class="item-dot"></span>
+          <span>${name}</span>
+        </div>
+        <span class="eye-toggle ${!cfg.visible ? 'hidden-item' : ''}" title="Toggle Visibility">👁️</span>
+      `;
+
+      item.querySelector('.tree-item-name').onclick = () => selectElement(id);
+      item.querySelector('.eye-toggle').onclick = (e) => {
+        e.stopPropagation();
+        toggleElementVisibility(id);
+      };
+
+      elementTreeList.appendChild(item);
+
+      // Mouse drag handlers
+      el.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('resize-handle')) {
+          startResize(e, id, e.target);
+        } else {
+          startDrag(e, id);
+        }
+      });
+    });
+
+    applyCustomProps();
+  }
+
+  function applyElementStyle(el, cfg) {
+    if (cfg.left !== undefined) el.style.left = cfg.left + 'px';
+    if (cfg.top !== undefined) el.style.top = cfg.top + 'px';
+
+    if (cfg.width) el.style.width = cfg.width + 'px';
+    else el.style.width = '';
+
+    if (cfg.height) el.style.height = cfg.height + 'px';
+    else el.style.height = '';
+
+    if (cfg.fontSize) el.style.fontSize = cfg.fontSize + 'px';
+
+    if (cfg.visible !== undefined) {
+      if (cfg.visible) el.classList.remove('hidden-element');
+      else el.classList.add('hidden-element');
+    }
+
+    // Apply text content
+    if (cfg.text !== undefined) {
+      const textNode = el.querySelector('.content-text');
+      if (textNode) textNode.textContent = cfg.text;
+    }
+    if (cfg.subText !== undefined) {
+      const subNode = el.querySelector('.sub-text');
+      if (subNode) subNode.textContent = cfg.subText;
+    }
+
+    updateCoordPill(el, cfg.left, cfg.top, el.offsetWidth, el.offsetHeight);
+  }
+
+  function applyCustomProps() {
+    document.documentElement.style.setProperty('--table-tilt', currentLayout.customProps.tableTilt + 'deg');
+    document.documentElement.style.setProperty('--table-card-w', currentLayout.customProps.tableCardW + 'px');
+    document.documentElement.style.setProperty('--table-card-h', (currentLayout.customProps.tableCardW * 1.41) + 'px');
+    document.documentElement.style.setProperty('--table-card-gap', currentLayout.customProps.tableCardGap + 'px');
+
+    document.documentElement.style.setProperty('--card-w', currentLayout.customProps.cardW + 'px');
+    document.documentElement.style.setProperty('--card-h', (currentLayout.customProps.cardW * 1.45) + 'px');
+    document.documentElement.style.setProperty('--card-overlap', currentLayout.customProps.cardOverlap + 'px');
+    document.documentElement.style.setProperty('--group-gap', currentLayout.customProps.groupGap + 'px');
+  }
+
+  function updateCoordPill(el, left, top, w, h) {
+    const pill = el.querySelector('.coord-pill');
+    if (pill) {
+      pill.textContent = `X: ${Math.round(left)}, Y: ${Math.round(top)} (${Math.round(w)}×${Math.round(h)})`;
+    }
+  }
+
+  // Selection
+  function selectElement(id) {
+    selectedElementId = id;
+    document.querySelectorAll('.drag-element').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('.tree-item').forEach(it => it.classList.remove('active'));
+
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('selected');
+
+    const treeItem = document.getElementById('tree_' + id);
+    if (treeItem) treeItem.classList.add('active');
+
+    const name = el.getAttribute('data-name');
+    document.getElementById('selectedPill').textContent = name;
+
+    const cfg = currentLayout.elements[id] || {};
+    populateInspector(id, cfg, el);
+  }
+
+  function populateInspector(id, cfg, el) {
+    // Show visibility group
+    document.getElementById('groupVisibility').style.display = 'flex';
+    document.getElementById('btnRemoveElement').textContent = cfg.visible ? '👁️ Hide Element' : '👁️ Show Element';
+
+    // Position
+    const curLeft = cfg.left !== undefined ? cfg.left : el.offsetLeft;
+    const curTop = cfg.top !== undefined ? cfg.top : el.offsetTop;
+    document.getElementById('valLeft').textContent = Math.round(curLeft) + 'px';
+    document.getElementById('sliderLeft').value = curLeft;
+    document.getElementById('numLeft').value = Math.round(curLeft);
+
+    document.getElementById('valTop').textContent = Math.round(curTop) + 'px';
+    document.getElementById('sliderTop').value = curTop;
+    document.getElementById('numTop').value = Math.round(curTop);
+
+    // Dimensions
+    const curW = cfg.width || el.offsetWidth;
+    const curH = cfg.height || el.offsetHeight;
+    document.getElementById('valWidth').textContent = Math.round(curW) + 'px';
+    document.getElementById('sliderWidth').value = curW;
+    document.getElementById('numWidth').value = Math.round(curW);
+
+    document.getElementById('valHeight').textContent = Math.round(curH) + 'px';
+    document.getElementById('sliderHeight').value = curH;
+    document.getElementById('numHeight').value = Math.round(curH);
+
+    // Text Edit Group
+    const hasText = el.querySelector('.content-text') !== null;
+    const hasSubText = el.querySelector('.sub-text') !== null;
+    if (hasText) {
+      document.getElementById('groupTextEdit').style.display = 'flex';
+      document.getElementById('inputTextContent').value = cfg.text || el.querySelector('.content-text').textContent;
+      if (hasSubText) {
+        document.getElementById('rowSubText').style.display = 'flex';
+        document.getElementById('inputSubTextContent').value = cfg.subText || el.querySelector('.sub-text').textContent;
+      } else {
+        document.getElementById('rowSubText').style.display = 'none';
+      }
+
+      const curFontSize = cfg.fontSize || 13;
+      document.getElementById('valFontSize').textContent = curFontSize + 'px';
+      document.getElementById('sliderFontSize').value = curFontSize;
+      document.getElementById('numFontSize').value = curFontSize;
+    } else {
+      document.getElementById('groupTextEdit').style.display = 'none';
+    }
+
+    // Anchor Highlights
+    document.querySelectorAll('.anchor-btn').forEach(btn => {
+      const axis = btn.getAttribute('data-anchor-axis');
+      const val = btn.getAttribute('data-val');
+      if (axis === 'h') {
+        btn.classList.toggle('active', (cfg.anchorH || 'left') === val);
+      } else {
+        btn.classList.toggle('active', (cfg.anchorV || 'top') === val);
+      }
+    });
+
+    // Special Panels
+    document.getElementById('groupTableCards').style.display = (id === 'el_table_cards') ? 'flex' : 'none';
+    document.getElementById('groupHandTray').style.display = (id === 'el_player_hand') ? 'flex' : 'none';
+  }
+
+  // Toggle Visibility
+  function toggleElementVisibility(id) {
+    const el = document.getElementById(id);
+    const treeItem = document.getElementById('tree_' + id);
+    const cfg = currentLayout.elements[id];
+    cfg.visible = !cfg.visible;
+
+    if (cfg.visible) {
+      el.classList.remove('hidden-element');
+      treeItem.querySelector('.eye-toggle').classList.remove('hidden-item');
+    } else {
+      el.classList.add('hidden-element');
+      treeItem.querySelector('.eye-toggle').classList.add('hidden-item');
+    }
+
+    if (selectedElementId === id) {
+      document.getElementById('btnRemoveElement').textContent = cfg.visible ? '👁️ Hide Element' : '👁️ Show Element';
+    }
+  }
+
+  document.getElementById('btnRemoveElement').onclick = () => {
+    if (selectedElementId) toggleElementVisibility(selectedElementId);
+  };
+
+  // Dragging logic
+  function startDrag(e, id) {
+    if (isResizing) return;
+    e.preventDefault();
+    selectElement(id);
+
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+
+    const el = document.getElementById(id);
+    el.classList.add('dragging');
+    elementStartX = parseFloat(el.style.left) || el.offsetLeft;
+    elementStartY = parseFloat(el.style.top) || el.offsetTop;
+
+    window.addEventListener('mousemove', onDragMove);
+    window.addEventListener('mouseup', onDragEnd);
+  }
+
+  function onDragMove(e) {
+    if (!isDragging || !selectedElementId) return;
+
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+
+    let newX = Math.round(elementStartX + dx);
+    let newY = Math.round(elementStartY + dy);
+
+    const el = document.getElementById(selectedElementId);
+    el.style.left = newX + 'px';
+    el.style.top = newY + 'px';
+
+    currentLayout.elements[selectedElementId].left = newX;
+    currentLayout.elements[selectedElementId].top = newY;
+
+    document.getElementById('valLeft').textContent = newX + 'px';
+    document.getElementById('sliderLeft').value = newX;
+    document.getElementById('numLeft').value = newX;
+
+    document.getElementById('valTop').textContent = newY + 'px';
+    document.getElementById('sliderTop').value = newY;
+    document.getElementById('numTop').value = newY;
+
+    updateCoordPill(el, newX, newY, el.offsetWidth, el.offsetHeight);
+  }
+
+  function onDragEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    const el = document.getElementById(selectedElementId);
+    if (el) el.classList.remove('dragging');
+
+    window.removeEventListener('mousemove', onDragMove);
+    window.removeEventListener('mouseup', onDragEnd);
+  }
+
+  // Interactive Resizing logic via handles
+  function startResize(e, id, handle) {
+    e.stopPropagation();
+    e.preventDefault();
+    selectElement(id);
+
+    isResizing = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+
+    const el = document.getElementById(id);
+    elementStartX = parseFloat(el.style.left) || el.offsetLeft;
+    elementStartY = parseFloat(el.style.top) || el.offsetTop;
+    elementStartW = el.offsetWidth;
+    elementStartH = el.offsetHeight;
+
+    if (handle.classList.contains('handle-br')) resizeDir = 'br';
+    if (handle.classList.contains('handle-bl')) resizeDir = 'bl';
+    if (handle.classList.contains('handle-tr')) resizeDir = 'tr';
+    if (handle.classList.contains('handle-tl')) resizeDir = 'tl';
+
+    window.addEventListener('mousemove', onResizeMove);
+    window.addEventListener('mouseup', onResizeEnd);
+  }
+
+  function onResizeMove(e) {
+    if (!isResizing || !selectedElementId) return;
+
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const el = document.getElementById(selectedElementId);
+    let newW = elementStartW, newH = elementStartH;
+    let newX = elementStartX, newY = elementStartY;
+
+    if (resizeDir === 'br') {
+      newW = Math.max(30, elementStartW + dx);
+      newH = Math.max(20, elementStartH + dy);
+    } else if (resizeDir === 'bl') {
+      newW = Math.max(30, elementStartW - dx);
+      newH = Math.max(20, elementStartH + dy);
+      newX = elementStartX + (elementStartW - newW);
+    } else if (resizeDir === 'tr') {
+      newW = Math.max(30, elementStartW + dx);
+      newH = Math.max(20, elementStartH - dy);
+      newY = elementStartY + (elementStartH - newH);
+    } else if (resizeDir === 'tl') {
+      newW = Math.max(30, elementStartW - dx);
+      newH = Math.max(20, elementStartH - dy);
+      newX = elementStartX + (elementStartW - newW);
+      newY = elementStartY + (elementStartH - newH);
+    }
+
+    el.style.width = newW + 'px';
+    el.style.height = newH + 'px';
+    el.style.left = newX + 'px';
+    el.style.top = newY + 'px';
+
+    currentLayout.elements[selectedElementId].width = newW;
+    currentLayout.elements[selectedElementId].height = newH;
+    currentLayout.elements[selectedElementId].left = newX;
+    currentLayout.elements[selectedElementId].top = newY;
+
+    // Update inspector
+    document.getElementById('valWidth').textContent = newW + 'px';
+    document.getElementById('sliderWidth').value = newW;
+    document.getElementById('numWidth').value = newW;
+
+    document.getElementById('valHeight').textContent = newH + 'px';
+    document.getElementById('sliderHeight').value = newH;
+    document.getElementById('numHeight').value = newH;
+
+    document.getElementById('valLeft').textContent = newX + 'px';
+    document.getElementById('sliderLeft').value = newX;
+    document.getElementById('numLeft').value = newX;
+
+    document.getElementById('valTop').textContent = newY + 'px';
+    document.getElementById('sliderTop').value = newY;
+    document.getElementById('numTop').value = newY;
+
+    updateCoordPill(el, newX, newY, newW, newH);
+  }
+
+  function onResizeEnd() {
+    if (!isResizing) return;
+    isResizing = false;
+    window.removeEventListener('mousemove', onResizeMove);
+    window.removeEventListener('mouseup', onResizeEnd);
+  }
+
+  // Text Inputs Handling
+  document.getElementById('inputTextContent').oninput = (e) => {
+    if (!selectedElementId) return;
+    const val = e.target.value;
+    currentLayout.elements[selectedElementId].text = val;
+    const el = document.getElementById(selectedElementId);
+    const node = el.querySelector('.content-text');
+    if (node) node.textContent = val;
+  };
+
+  document.getElementById('inputSubTextContent').oninput = (e) => {
+    if (!selectedElementId) return;
+    const val = e.target.value;
+    currentLayout.elements[selectedElementId].subText = val;
+    const el = document.getElementById(selectedElementId);
+    const node = el.querySelector('.sub-text');
+    if (node) node.textContent = val;
+  };
+
+  document.getElementById('sliderFontSize').oninput = (e) => {
+    if (!selectedElementId) return;
+    const size = parseInt(e.target.value);
+    document.getElementById('valFontSize').textContent = size + 'px';
+    document.getElementById('numFontSize').value = size;
+    currentLayout.elements[selectedElementId].fontSize = size;
+    const el = document.getElementById(selectedElementId);
+    el.style.fontSize = size + 'px';
+  };
+  document.getElementById('numFontSize').oninput = (e) => {
+    if (!selectedElementId) return;
+    const size = parseInt(e.target.value) || 12;
+    document.getElementById('valFontSize').textContent = size + 'px';
+    document.getElementById('sliderFontSize').value = size;
+    currentLayout.elements[selectedElementId].fontSize = size;
+    const el = document.getElementById(selectedElementId);
+    el.style.fontSize = size + 'px';
+  };
+
+  // Dimensions Inputs Handling
+  function updateElementDimension(w, h) {
+    if (!selectedElementId) return;
+    const el = document.getElementById(selectedElementId);
+    if (w !== null) {
+      el.style.width = w + 'px';
+      currentLayout.elements[selectedElementId].width = w;
+      document.getElementById('valWidth').textContent = w + 'px';
+      document.getElementById('sliderWidth').value = w;
+      document.getElementById('numWidth').value = w;
+    }
+    if (h !== null) {
+      el.style.height = h + 'px';
+      currentLayout.elements[selectedElementId].height = h;
+      document.getElementById('valHeight').textContent = h + 'px';
+      document.getElementById('sliderHeight').value = h;
+      document.getElementById('numHeight').value = h;
+    }
+    updateCoordPill(el, el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight);
+  }
+
+  document.getElementById('sliderWidth').oninput = (e) => updateElementDimension(parseInt(e.target.value), null);
+  document.getElementById('numWidth').oninput = (e) => updateElementDimension(parseInt(e.target.value) || 50, null);
+  document.getElementById('sliderHeight').oninput = (e) => updateElementDimension(null, parseInt(e.target.value));
+  document.getElementById('numHeight').oninput = (e) => updateElementDimension(null, parseInt(e.target.value) || 20);
+
+  // Position Inputs Handling
+  function updateElementPosition(left, top) {
+    if (!selectedElementId) return;
+    const el = document.getElementById(selectedElementId);
+    if (left !== null) {
+      el.style.left = left + 'px';
+      currentLayout.elements[selectedElementId].left = left;
+      document.getElementById('valLeft').textContent = left + 'px';
+      document.getElementById('sliderLeft').value = left;
+      document.getElementById('numLeft').value = left;
+    }
+    if (top !== null) {
+      el.style.top = top + 'px';
+      currentLayout.elements[selectedElementId].top = top;
+      document.getElementById('valTop').textContent = top + 'px';
+      document.getElementById('sliderTop').value = top;
+      document.getElementById('numTop').value = top;
+    }
+    updateCoordPill(el, el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight);
+  }
+
+  document.getElementById('sliderLeft').oninput = (e) => updateElementPosition(parseInt(e.target.value), null);
+  document.getElementById('numLeft').oninput = (e) => updateElementPosition(parseInt(e.target.value) || 0, null);
+  document.getElementById('sliderTop').oninput = (e) => updateElementPosition(null, parseInt(e.target.value));
+  document.getElementById('numTop').oninput = (e) => updateElementPosition(null, parseInt(e.target.value) || 0);
+
+  // Anchor selection
+  document.querySelectorAll('.anchor-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (!selectedElementId) return;
+      const axis = btn.getAttribute('data-anchor-axis');
+      const val = btn.getAttribute('data-val');
+      if (axis === 'h') {
+        currentLayout.elements[selectedElementId].anchorH = val;
+        document.querySelectorAll('.anchor-btn[data-anchor-axis="h"]').forEach(b => b.classList.remove('active'));
+      } else {
+        currentLayout.elements[selectedElementId].anchorV = val;
+        document.querySelectorAll('.anchor-btn[data-anchor-axis="v"]').forEach(b => b.classList.remove('active'));
+      }
+      btn.classList.add('active');
+    };
+  });
+
+  // Alignment Buttons Handlers
+  document.getElementById('btnAlignLeft').onclick = () => updateElementPosition(14, null);
+  document.getElementById('btnAlignRight').onclick = () => {
+    if (!selectedElementId) return;
+    const el = document.getElementById(selectedElementId);
+    updateElementPosition(deviceFrame.clientWidth - el.offsetWidth - 14, null);
+  };
+  document.getElementById('btnAlignCenterH').onclick = () => {
+    if (!selectedElementId) return;
+    const el = document.getElementById(selectedElementId);
+    updateElementPosition(Math.round((deviceFrame.clientWidth - el.offsetWidth) / 2), null);
+  };
+  document.getElementById('btnAlignTop').onclick = () => updateElementPosition(null, 12);
+  document.getElementById('btnAlignBottom').onclick = () => {
+    if (!selectedElementId) return;
+    const el = document.getElementById(selectedElementId);
+    updateElementPosition(null, deviceFrame.clientHeight - el.offsetHeight - 12);
+  };
+  document.getElementById('btnAlignCenterV').onclick = () => {
+    if (!selectedElementId) return;
+    const el = document.getElementById(selectedElementId);
+    updateElementPosition(null, Math.round((deviceFrame.clientHeight - el.offsetHeight) / 2));
+  };
+
+  // Custom Props Sliders
+  document.getElementById('sliderTableTilt').oninput = (e) => {
+    currentLayout.customProps.tableTilt = e.target.value;
+    document.getElementById('valTableTilt').textContent = e.target.value + '°';
+    document.getElementById('numTableTilt').value = e.target.value;
+    applyCustomProps();
+  };
+  document.getElementById('sliderTableCardW').oninput = (e) => {
+    currentLayout.customProps.tableCardW = e.target.value;
+    document.getElementById('valTableCardW').textContent = e.target.value + 'px';
+    document.getElementById('numTableCardW').value = e.target.value;
+    applyCustomProps();
+  };
+  document.getElementById('sliderTableCardGap').oninput = (e) => {
+    currentLayout.customProps.tableCardGap = e.target.value;
+    document.getElementById('valTableCardGap').textContent = e.target.value + 'px';
+    document.getElementById('numTableCardGap').value = e.target.value;
+    applyCustomProps();
+  };
+
+  document.getElementById('sliderCardW').oninput = (e) => {
+    currentLayout.customProps.cardW = e.target.value;
+    document.getElementById('valCardW').textContent = e.target.value + 'px';
+    document.getElementById('numCardW').value = e.target.value;
+    applyCustomProps();
+  };
+  document.getElementById('sliderCardOverlap').oninput = (e) => {
+    currentLayout.customProps.cardOverlap = e.target.value;
+    document.getElementById('valCardOverlap').textContent = e.target.value + 'px';
+    document.getElementById('numCardOverlap').value = e.target.value;
+    applyCustomProps();
+  };
+  document.getElementById('sliderGroupGap').oninput = (e) => {
+    currentLayout.customProps.groupGap = e.target.value;
+    document.getElementById('valGroupGap').textContent = e.target.value + 'px';
+    document.getElementById('numGroupGap').value = e.target.value;
+    applyCustomProps();
+  };
+
+  // Keyboard Nudge Support
+  window.addEventListener('keydown', (e) => {
+    if (!selectedElementId || e.target.tagName === 'INPUT') return;
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const el = document.getElementById(selectedElementId);
+      let left = parseFloat(el.style.left) || el.offsetLeft;
+      let top = parseFloat(el.style.top) || el.offsetTop;
+
+      if (e.key === 'ArrowLeft') left -= step;
+      if (e.key === 'ArrowRight') left += step;
+      if (e.key === 'ArrowUp') top -= step;
+      if (e.key === 'ArrowDown') top += step;
+
+      updateElementPosition(left, top);
+    }
+  });
+
+  // Responsive Device Switching & Element Adaptation
+  document.getElementById('presetSelect').onchange = (e) => {
+    let w, h;
+    if (e.target.value === 'custom') {
+      const customW = prompt('Enter viewport width (e.g. 960):', '960');
+      const customH = prompt('Enter viewport height (e.g. 440):', '440');
+      if (!customW || !customH) return;
+      w = parseInt(customW);
+      h = parseInt(customH);
+    } else {
+      [w, h] = e.target.value.split('x').map(Number);
+    }
+
+    const prevW = currentLayout.canvas.width;
+    const prevH = currentLayout.canvas.height;
+
+    deviceFrame.style.width = w + 'px';
+    deviceFrame.style.height = h + 'px';
+    currentLayout.canvas = { width: w, height: h };
+
+    // Auto-adjust elements based on their assigned anchors!
+    adaptElementsToNewCanvas(prevW, prevH, w, h);
+    showToast(`Resized viewport to ${w} × ${h} (Layout adapted)`);
+  };
+
+  function adaptElementsToNewCanvas(oldW, oldH, newW, newH) {
+    const scaleW = newW / oldW;
+    const scaleH = newH / oldH;
+
+    Object.keys(currentLayout.elements).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cfg = currentLayout.elements[id];
+      const anchorH = cfg.anchorH || 'left';
+      const anchorV = cfg.anchorV || 'top';
+      const elW = el.offsetWidth;
+      const elH = el.offsetHeight;
+
+      let newX = cfg.left;
+      let newY = cfg.top;
+
+      // Horizontal adaptation
+      if (anchorH === 'right') {
+        const distFromRight = oldW - (cfg.left + elW);
+        newX = Math.round(newW - elW - distFromRight);
+      } else if (anchorH === 'center') {
+        const centerOffset = (cfg.left + elW / 2) - (oldW / 2);
+        newX = Math.round((newW / 2) - (elW / 2) + centerOffset * scaleW);
+      }
+
+      // Vertical adaptation
+      if (anchorV === 'bottom') {
+        const distFromBottom = oldH - (cfg.top + elH);
+        newY = Math.round(newH - elH - distFromBottom);
+      } else if (anchorV === 'center') {
+        const centerOffset = (cfg.top + elH / 2) - (oldH / 2);
+        newY = Math.round((newH / 2) - (elH / 2) + centerOffset * scaleH);
+      }
+
+      el.style.left = newX + 'px';
+      el.style.top = newY + 'px';
+      cfg.left = newX;
+      cfg.top = newY;
+      updateCoordPill(el, newX, newY, elW, elH);
+    });
+
+    if (selectedElementId) {
+      const cfg = currentLayout.elements[selectedElementId];
+      document.getElementById('valLeft').textContent = cfg.left + 'px';
+      document.getElementById('sliderLeft').value = cfg.left;
+      document.getElementById('numLeft').value = cfg.left;
+      document.getElementById('valTop').textContent = cfg.top + 'px';
+      document.getElementById('sliderTop').value = cfg.top;
+      document.getElementById('numTop').value = cfg.top;
+    }
+  }
+
+  // Guide Toggle
+  document.getElementById('btnToggleGuides').onclick = () => {
+    deviceFrame.classList.toggle('show-guides');
+  };
+
+  // Reset
+  document.getElementById('btnResetAll').onclick = () => {
+    if (confirm('Reset layout to defaults?')) {
+      currentLayout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+      deviceFrame.style.width = currentLayout.canvas.width + 'px';
+      deviceFrame.style.height = currentLayout.canvas.height + 'px';
+      document.getElementById('presetSelect').value = '1024x491';
+      initElements();
+      if (selectedElementId) selectElement(selectedElementId);
+      showToast('Reset to defaults.');
+    }
+  };
+
+  // Save to Server
+  document.getElementById('btnSaveLayout').onclick = async () => {
+    try {
+      const res = await fetch('/api/save_layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentLayout, null, 2)
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        showToast('✓ Layout saved to server (saved_layout.json)!');
+      } else {
+        showToast('Error saving: ' + data.error);
+      }
+    } catch (e) {
+      localStorage.setItem('maya_mobile_layout_v2', JSON.stringify(currentLayout));
+      showToast('✓ Saved to browser local storage!');
+    }
+  };
+
+  // Load from server
+  async function loadSavedLayout() {
+    try {
+      const res = await fetch('/api/load_layout');
+      const data = await res.json();
+      if (data && data.elements && Object.keys(data.elements).length > 0) {
+        currentLayout = data;
+        deviceFrame.style.width = currentLayout.canvas.width + 'px';
+        deviceFrame.style.height = currentLayout.canvas.height + 'px';
+        showToast('Loaded saved layout config.');
+      }
+    } catch (e) {
+      const local = localStorage.getItem('maya_mobile_layout_v2');
+      if (local) currentLayout = JSON.parse(local);
+    }
+    initElements();
+    selectElement('el_player_hand');
+  }
+
+  // Export Code Modal
+  document.getElementById('btnExportCode').onclick = () => {
+    document.getElementById('exportedCode').textContent = generateFlutterCode();
+    document.getElementById('exportModal').classList.add('open');
+  };
+  document.getElementById('btnCloseModal').onclick = () => {
+    document.getElementById('exportModal').classList.remove('open');
+  };
+  document.getElementById('btnCopyCode').onclick = () => {
+    navigator.clipboard.writeText(document.getElementById('exportedCode').textContent);
+    showToast('✓ Flutter specs copied to clipboard!');
+  };
+
+  function generateFlutterCode() {
+    const p = currentLayout.elements;
+    const c = currentLayout.customProps;
+    return `// =============================================================================
+// MAYA AI RUMMY - MOBILE LANDSCAPE RESPONSIVE CODE
+// Calibrated from Visual Layout Studio 2.0
+// Reference Canvas: ${currentLayout.canvas.width} x ${currentLayout.canvas.height}
+// Background Asset: 'assets/images/Maya AI Rummy Mobile Background.png'
+// =============================================================================
+
+// --- 1. LEFT HUD PILLAR (Anchored to Left & Top) ---
+// - Brand Pod:   Positioned(left: ${p.el_left_brand.left}, top: ${p.el_left_brand.top}, width: ${p.el_left_brand.width}, height: ${p.el_left_brand.height})
+//   Text: "${p.el_left_brand.text}" (Font: ${p.el_left_brand.fontSize}px), SubText: "${p.el_left_brand.subText}"
+// - Menu & Joker: Positioned(left: ${p.el_left_menu_joker.left}, top: ${p.el_left_menu_joker.top}, width: ${p.el_left_menu_joker.width}, height: ${p.el_left_menu_joker.height})
+//   Text: "${p.el_left_menu_joker.text}", SubText: "${p.el_left_menu_joker.subText}"
+// - Status Pod:   Positioned(left: ${p.el_left_status.left}, top: ${p.el_left_status.top}, width: ${p.el_left_status.width}, height: ${p.el_left_status.height})
+//   Timer: "${p.el_left_status.text}", SubText: "${p.el_left_status.subText}"
+
+// --- 2. LEFT THUMB ACTION BUTTONS (Anchored to Left & Bottom) ---
+// - Drop Button:   Positioned(left: ${p.el_btn_drop.left}, bottom: ${currentLayout.canvas.height - (p.el_btn_drop.top + (p.el_btn_drop.height || 38))}, width: ${p.el_btn_drop.width || 112}, height: ${p.el_btn_drop.height || 38})
+//   Label: "${p.el_btn_drop.text}"
+// - Sort Button:   Positioned(left: ${p.el_btn_sort.left}, bottom: ${currentLayout.canvas.height - (p.el_btn_sort.top + (p.el_btn_sort.height || 38))}, width: ${p.el_btn_sort.width || 112}, height: ${p.el_btn_sort.height || 38})
+//   Label: "${p.el_btn_sort.text}"
+// - AI Group:      Positioned(left: ${p.el_btn_ai.left}, bottom: ${currentLayout.canvas.height - (p.el_btn_ai.top + (p.el_btn_ai.height || 38))}, width: ${p.el_btn_ai.width || 112}, height: ${p.el_btn_ai.height || 38})
+//   Label: "${p.el_btn_ai.text}"
+
+// --- 3. RIGHT THUMB ACTION CLUSTER (Anchored to Right & Bottom) ---
+// - Group Button:   Positioned(right: ${currentLayout.canvas.width - (p.el_btn_group.left + (p.el_btn_group.width || 90))}, bottom: ${currentLayout.canvas.height - (p.el_btn_group.top + (p.el_btn_group.height || 38))}, width: ${p.el_btn_group.width || 90}, height: ${p.el_btn_group.height || 38})
+//   Label: "${p.el_btn_group.text}"
+// - Discard Button: Positioned(right: ${currentLayout.canvas.width - (p.el_btn_discard.left + (p.el_btn_discard.width || 90))}, bottom: ${currentLayout.canvas.height - (p.el_btn_discard.top + (p.el_btn_discard.height || 38))}, width: ${p.el_btn_discard.width || 90}, height: ${p.el_btn_discard.height || 38})
+//   Label: "${p.el_btn_discard.text}"
+// - Declare Button: Positioned(right: ${currentLayout.canvas.width - (p.el_btn_declare.left + (p.el_btn_declare.width || 154))}, bottom: ${currentLayout.canvas.height - (p.el_btn_declare.top + (p.el_btn_declare.height || 42))}, width: ${p.el_btn_declare.width || 154}, height: ${p.el_btn_declare.height || 42})
+//   Label: "${p.el_btn_declare.text}"
+
+// --- 4. CENTER TOAST & MAYA HOST (Anchored to Center & Top) ---
+// - Toast Banner: Positioned(top: ${p.el_toast_banner.top}), Alignment.topCenter
+//   Text: "${p.el_toast_banner.text}"
+// - Maya Host:    Positioned(top: ${p.el_maya_host.top}), Alignment.topCenter
+//   Text: "${p.el_maya_host.text}"
+
+// --- 5. CENTER TABLE CARDS (Inside Table Circle Felt) ---
+// - Table Center Cluster: Positioned(left: ${p.el_table_cards.left}, top: ${p.el_table_cards.top})
+// - 3D Tilt: Matrix4.identity()..rotateX(-${(c.tableTilt * Math.PI / 180).toFixed(4)})
+// - Table Card Size: Width: ${c.tableCardW}.0, Height: ${(c.tableCardW * 1.41).toFixed(1)}, Spacing: ${c.tableCardGap}.0
+
+// --- 6. GROUPED IN-HAND CARDS (Anchored to Center & Bottom) ---
+// - Hand Tray: Positioned(left: ${p.el_player_hand.left}, bottom: ${currentLayout.canvas.height - (p.el_player_hand.top + 154)})
+// - Card Width:   ${c.cardW}.0
+// - Card Height:  ${(c.cardW * 1.45).toFixed(1)}
+// - Card Overlap: ${c.cardOverlap}.0
+// - Group Gap:    ${c.groupGap}.0
+
+// Full Configuration JSON:
+${JSON.stringify(currentLayout, null, 2)}`;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // Startup
+  loadSavedLayout();
+</script>
+
+</body>
+</html>

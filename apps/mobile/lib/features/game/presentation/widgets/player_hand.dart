@@ -25,6 +25,10 @@ class PlayerHand extends StatelessWidget {
   final void Function(Card card, String groupId)? onCardDragStarted;
   final VoidCallback? onDragEnded;
   final void Function(Card card)? onDiscard;
+  final double? customCardWidth;
+  final double? customCardHeight;
+  final double? customCardOverlap;
+  final double? customGroupSpacing;
 
   const PlayerHand({
     Key? key,
@@ -41,6 +45,10 @@ class PlayerHand extends StatelessWidget {
     this.onCardDragStarted,
     this.onDragEnded,
     this.onDiscard,
+    this.customCardWidth,
+    this.customCardHeight,
+    this.customCardOverlap,
+    this.customGroupSpacing,
   }) : super(key: key);
 
   @override
@@ -55,11 +63,11 @@ class PlayerHand extends StatelessWidget {
         final isCompact = availableWidth < 480;
 
         // Base metrics
-        double cw = isCompact ? 46.0 : Responsive.cardWidth(context);
-        double overlap = isCompact ? 24.0 : Responsive.cardOverlap(context);
-        double spacing = isCompact ? 8.0 : Responsive.groupSpacing(context);
+        double cw = customCardWidth ?? (isCompact ? 46.0 : Responsive.cardWidth(context));
+        double overlap = customCardOverlap ?? (isCompact ? 24.0 : Responsive.cardOverlap(context));
+        double spacing = customGroupSpacing ?? (isCompact ? 8.0 : Responsive.groupSpacing(context));
 
-        if (groupCount > 0 && totalCards > 0) {
+        if (customCardWidth == null && groupCount > 0 && totalCards > 0) {
           final horizontalPadding = isCompact ? 6.0 : 16.0;
           final availableForRack = availableWidth - (horizontalPadding * 2);
           final gapsCount = groupCount - 1;
@@ -87,7 +95,7 @@ class PlayerHand extends StatelessWidget {
           }
         }
 
-        final ch = cw * 1.45;
+        final ch = customCardHeight ?? (cw * 1.45);
 
         return Container(
           clipBehavior: Clip.none,

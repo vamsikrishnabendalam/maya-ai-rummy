@@ -266,3 +266,4 @@ class AvatarCatalog {
     return combined[rand.nextInt(combined.length)];
   }
 }
+

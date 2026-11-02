@@ -372,3 +372,4 @@ class _AvatarPickerModalState extends State<AvatarPickerModal> with SingleTicker
     );
   }
 }
+

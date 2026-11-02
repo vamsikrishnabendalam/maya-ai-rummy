@@ -1,0 +1,160 @@
+{
+  "canvas": {
+    "width": 1024,
+    "height": 491
+  },
+  "elements": {
+    "el_left_brand": {
+      "left": 7,
+      "top": 9,
+      "width": 156,
+      "height": 42,
+      "fontSize": 11,
+      "visible": true,
+      "text": "MAYA AI RUMMY",
+      "subText": "201 POOL",
+      "anchorH": "left",
+      "anchorV": "top"
+    },
+    "el_left_menu_joker": {
+      "left": 949,
+      "top": 8,
+      "width": 86,
+      "height": 37,
+      "fontSize": 10,
+      "visible": true,
+      "text": "MENU",
+      "subText": "",
+      "anchorH": "left",
+      "anchorV": "top"
+    },
+    "el_left_status": {
+      "left": 6,
+      "top": 56,
+      "width": 156,
+      "height": 58,
+      "fontSize": 9.5,
+      "visible": true,
+      "text": "\u23f1\ufe0f 28s",
+      "subText": "DEADWOOD: 0 PTS",
+      "anchorH": "left",
+      "anchorV": "top"
+    },
+    "el_btn_drop": {
+      "left": 14,
+      "top": 345,
+      "width": 112,
+      "height": 38,
+      "fontSize": 13.5,
+      "visible": true,
+      "text": "Drop (40)",
+      "anchorH": "left",
+      "anchorV": "bottom"
+    },
+    "el_btn_sort": {
+      "left": 14,
+      "top": 391,
+      "width": 112,
+      "height": 38,
+      "fontSize": 13.5,
+      "visible": true,
+      "text": "Sort Hand",
+      "anchorH": "left",
+      "anchorV": "bottom"
+    },
+    "el_btn_ai": {
+      "left": 14,
+      "top": 437,
+      "width": 112,
+      "height": 38,
+      "fontSize": 13.5,
+      "visible": true,
+      "text": "AI Group",
+      "anchorH": "left",
+      "anchorV": "bottom"
+    },
+    "el_btn_group": {
+      "left": 14,
+      "top": 297,
+      "width": 112,
+      "height": 38,
+      "fontSize": 13.5,
+      "visible": true,
+      "text": "Group",
+      "anchorH": "left",
+      "anchorV": "bottom"
+    },
+    "el_btn_discard": {
+      "left": 14,
+      "top": 252,
+      "width": 112,
+      "height": 38,
+      "fontSize": 13.5,
+      "visible": true,
+      "text": "Discard",
+      "anchorH": "left",
+      "anchorV": "bottom"
+    },
+    "el_btn_declare": {
+      "left": 808,
+      "top": 10,
+      "width": 129,
+      "height": 30,
+      "fontSize": 13,
+      "visible": true,
+      "text": "Declare Hand",
+      "anchorH": "right",
+      "anchorV": "bottom"
+    },
+    "el_toast_banner": {
+      "left": 334,
+      "top": 12,
+      "width": null,
+      "height": 30,
+      "fontSize": 11.5,
+      "visible": true,
+      "text": "Drew 14th card! Select 1 card to Discard or Declare.",
+      "anchorH": "center",
+      "anchorV": "top"
+    },
+    "el_maya_host": {
+      "left": 449,
+      "top": 48,
+      "width": null,
+      "height": 26,
+      "fontSize": 11,
+      "visible": true,
+      "text": "Maya (AI Host)",
+      "anchorH": "center",
+      "anchorV": "top"
+    },
+    "el_table_cards": {
+      "left": 396,
+      "top": 243,
+      "width": 261,
+      "height": 91,
+      "fontSize": null,
+      "visible": true,
+      "anchorH": "center",
+      "anchorV": "center"
+    },
+    "el_player_hand": {
+      "left": 214,
+      "top": 337,
+      "width": 736,
+      "height": null,
+      "fontSize": null,
+      "visible": true,
+      "anchorH": "center",
+      "anchorV": "bottom"
+    }
+  },
+  "customProps": {
+    "tableTilt": 46,
+    "tableCardW": 58,
+    "tableCardGap": 28,
+    "cardW": 92,
+    "cardOverlap": -48,
+    "groupGap": 16
+  }
+}

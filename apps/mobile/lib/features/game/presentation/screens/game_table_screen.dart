@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Card;
+import 'package:flutter/services.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -401,6 +402,33 @@ class GameTableScreen extends ConsumerWidget {
       ),
     );
 
+    if (isMobileLandscape) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: GameTableBackground(
+          child: _buildMobileLandscapeLayout(
+            context,
+            ref,
+            tableState: tableState,
+            notifier: notifier,
+            toastMessage: toastMessage,
+            isHumanTurn: isHumanTurn,
+            isDrawPhase: isDrawPhase,
+            isDiscardPhase: isDiscardPhase,
+            isGameComplete: isGameComplete,
+            isTournamentOver: isTournamentOver,
+            wildJoker: wildJoker,
+            canDrop: canDrop,
+            dropPenalty: dropPenalty,
+            canDiscard: canDiscard,
+            canDeclare: canDeclare,
+            cardGroups: cardGroups,
+            nextDealNumber: nextDealNumber,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: GameTableBackground(
@@ -559,6 +587,1378 @@ class GameTableScreen extends ConsumerWidget {
                       .dismissSecretJokerReveal(),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // MOBILE LANDSCAPE RESPONSIVE LAYOUT (Calibrated from Visual Layout Studio)
+  // Canonical Reference Canvas: 1024 x 491 with Proportional FittedBox Scaling
+  // ===========================================================================
+
+  Widget _buildMobileLandscapeLayout(
+    BuildContext context,
+    WidgetRef ref, {
+    required GameTableState tableState,
+    required GameTableNotifier notifier,
+    required String toastMessage,
+    required bool isHumanTurn,
+    required bool isDrawPhase,
+    required bool isDiscardPhase,
+    required bool isGameComplete,
+    required bool isTournamentOver,
+    required Card? wildJoker,
+    required bool canDrop,
+    required int dropPenalty,
+    required bool canDiscard,
+    required bool canDeclare,
+    required List<CardGroup> cardGroups,
+    required int nextDealNumber,
+  }) {
+    final uiState = ref.watch(gameUIProvider);
+    final gameState = tableState.gameState;
+    final poolLabel = '${tableState.gameSettings.eliminationScore} POOL';
+
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1024.0 / 491.0,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: 1024.0,
+            height: 491.0,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 1. Center Table Cards (Inside Table Circle Felt - Tilted 46 deg)
+                Positioned(
+                  left: 396,
+                  top: 243,
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.0016)
+                      ..rotateX(-0.8028)
+                      ..translate(0.0, 0.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Closed Deck Stack with Perpendicular Tucked Wild Joker
+                        _buildMobilePerspectiveClosedDeck(
+                          context: context,
+                          count: gameState.closedDeck.length,
+                          wildJoker: wildJoker,
+                          isClosedJoker: tableState.gameSettings.isClosedJoker,
+                          isJokerOpened: tableState.gameSettings.jokerMode == 'OPEN' || tableState.hasHumanOpenedJoker,
+                          hasLife: notifier.hasHumanLife,
+                          onOpenClosedJoker: () => notifier.openClosedJoker(),
+                          canDraw: isHumanTurn && isDrawPhase,
+                          onDraw: () => notifier.drawFromClosedDeck(),
+                        ),
+                        const SizedBox(width: 28),
+                        // Open Discard Pile
+                        _buildMobilePerspectiveOpenPile(
+                          context: context,
+                          discardPile: gameState.openPile,
+                          wildJoker: notifier.effectiveHumanWildJoker,
+                          canDraw: isHumanTurn && isDrawPhase,
+                          onDraw: () => notifier.drawFromOpenDeck(),
+                          canDiscard: isHumanTurn && isDiscardPhase,
+                          onDiscardCard: (card) => notifier.discardCard(card),
+                          onShowHistory: () {
+                            if (gameState.openPile.isNotEmpty) {
+                              DiscardHistoryModal.show(
+                                context,
+                                discardPile: gameState.openPile,
+                                wildJoker: notifier.effectiveHumanWildJoker,
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 28),
+                        // Finish / Declare Slot
+                        _buildMobilePerspectiveFinishSlot(
+                          context: context,
+                          isActivated: canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging),
+                          canAcceptDrop: (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
+                              tableState.isAwaitingHumanDeclarationShow,
+                          canDeclare: canDeclare,
+                          onDeclare: canDeclare
+                              ? () {
+                                  if (tableState.isAwaitingHumanDeclarationShow) {
+                                    _handleSubmitDeclarationShow(context, ref);
+                                  } else {
+                                    _handleDiscardAndDeclare(context, ref);
+                                  }
+                                }
+                              : null,
+                          onCardDeclared: ((isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||
+                                  tableState.isAwaitingHumanDeclarationShow)
+                              ? (card) {
+                                  if (tableState.isAwaitingHumanDeclarationShow) {
+                                    _handleSubmitDeclarationShow(context, ref);
+                                  } else {
+                                    _handleDiscardAndDeclare(context, ref, finishCard: card);
+                                  }
+                                }
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 2. Top-Left Brand Pod
+                Positioned(
+                  left: 7,
+                  top: 9,
+                  width: 156,
+                  height: 42,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xF210192A), Color(0xF7090F1A)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0x99D4AF37), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'MAYA AI RUMMY',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFFF2CA50),
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0x33F2CA50),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0x88F2CA50), width: 1),
+                            ),
+                            child: Text(
+                              poolLabel,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFF2CA50),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 3. Left Status Pod (Turn countdown timer, 1st Life, 2nd Life, Deadwood)
+                Positioned(
+                  left: 6,
+                  top: 56,
+                  width: 156,
+                  height: 58,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xF20E1624), Color(0xF7080E18)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0x66D4AF37), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                isHumanTurn ? 'YOUR TURN' : 'MAYA TURN',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isHumanTurn ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x26F59E0B),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '⏱️ ${tableState.turnSecondsRemaining}s',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFFFBBF24),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    notifier.hasHumanLife ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 11,
+                                    color: notifier.hasHumanLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '1st Life',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: notifier.hasHumanLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    notifier.hasHumanSecondLife ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 11,
+                                    color: notifier.hasHumanSecondLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '2nd Life',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: notifier.hasHumanSecondLife ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'DEADWOOD: ${tableState.currentScore} PTS',
+                              style: GoogleFonts.outfit(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: tableState.currentScore == 0 ? const Color(0xFF34D399) : const Color(0xFFFBBF24),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 4. Center Toast Banner
+                Positioned(
+                  left: 334,
+                  top: 12,
+                  child: Container(
+                    height: 30,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xF00E1828), Color(0xF016263E)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0x99F2CA50), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFFF2CA50), size: 13),
+                        const SizedBox(width: 6),
+                        Text(
+                          toastMessage,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFFFFBEB),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 5. Maya Host Badge
+                Positioned(
+                  left: 449,
+                  top: 48,
+                  child: InkWell(
+                    onTap: tableState.isAwaitingHumanDeclarationShow
+                        ? () => _showOpponentDeclarationModal(context, ref)
+                        : null,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      height: 26,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xE01E1030), Color(0xE010081C)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0x80D4AF37), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 15,
+                            height: 15,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(colors: [Color(0xFFF2CA50), Color(0xFFD4AF37)]),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text('D', style: TextStyle(color: Color(0xFF1A1200), fontSize: 9, fontWeight: FontWeight.w900)),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Maya (AI Host)',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 6. Top Right: Declare Hand / Next Deal Button
+                Positioned(
+                  left: 808,
+                  top: 10,
+                  width: 129,
+                  height: 30,
+                  child: isGameComplete
+                      ? InkWell(
+                          onTap: () {
+                            if (isTournamentOver) {
+                              notifier.resetTournament();
+                            } else {
+                              _checkTournamentStatus(context, ref);
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF2CA50), Color(0xFFD4AF37), Color(0xFFAA771C)],
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white, width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFF2CA50).withValues(alpha: 0.6),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isTournamentOver ? Icons.emoji_events_rounded : Icons.play_arrow_rounded,
+                                  color: const Color(0xFF241A00),
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      isTournamentOver ? 'New Tourney' : 'Deal Next (#$nextDealNumber)',
+                                      style: GoogleFonts.outfit(
+                                        color: const Color(0xFF241A00),
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : InkWell(
+                          onTap: canDeclare
+                              ? () {
+                                  if (tableState.isAwaitingHumanDeclarationShow) {
+                                    _handleSubmitDeclarationShow(context, ref);
+                                  } else {
+                                    _handleDiscardAndDeclare(context, ref);
+                                  }
+                                }
+                              : null,
+                          borderRadius: BorderRadius.circular(10),
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 150),
+                            opacity: canDeclare ? 1.0 : 0.45,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF141B26), Color(0xFF0B1018)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFF2CA50), width: 1.8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFF2CA50).withValues(alpha: canDeclare ? 0.35 : 0.0),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFF2CA50), size: 14),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'Declare Hand',
+                                        style: GoogleFonts.outfit(
+                                          color: const Color(0xFFF2CA50),
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+
+                // 7. Top Right: 3-Dash MENU Button (Without Joker on right)
+                Positioned(
+                  left: 947,
+                  top: 8,
+                  width: 70,
+                  height: 37,
+                  child: InkWell(
+                    onTap: () => _showMobileGameMenu(context, ref),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2A1E0D), Color(0xFF151A22)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFF2CA50), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(width: 14, height: 1.8, color: const Color(0xFFF2CA50)),
+                              const SizedBox(height: 2.5),
+                              Container(width: 14, height: 1.8, color: const Color(0xFFF2CA50)),
+                              const SizedBox(height: 2.5),
+                              Container(width: 14, height: 1.8, color: const Color(0xFFF2CA50)),
+                            ],
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'MENU',
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFFF2CA50),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 8. Left Thumb Action Buttons Stack (5 buttons from top to bottom)
+                // Discard
+                Positioned(
+                  left: 14,
+                  top: 252,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Discard',
+                    icon: Icons.arrow_upward_rounded,
+                    gradientColors: [const Color(0xFF1B2230), const Color(0xFF111722)],
+                    borderColor: canDiscard ? const Color(0xFF60A5FA) : const Color(0xFF475569),
+                    textColor: canDiscard ? Colors.white : const Color(0xFF94A3B8),
+                    onTap: canDiscard
+                        ? () {
+                            if (tableState.selectedCard != null) {
+                              notifier.discardCard(tableState.selectedCard!);
+                            }
+                          }
+                        : null,
+                  ),
+                ),
+                // Group
+                Positioned(
+                  left: 14,
+                  top: 297,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Group',
+                    icon: Icons.folder_rounded,
+                    gradientColors: [const Color(0xFF2F62C9), const Color(0xFF1E4498)],
+                    borderColor: const Color(0xFF60A5FA),
+                    textColor: Colors.white,
+                    onTap: () => notifier.groupSelectedCards(),
+                  ),
+                ),
+                // Drop (40)
+                Positioned(
+                  left: 14,
+                  top: 345,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Drop ($dropPenalty)',
+                    icon: Icons.flag_rounded,
+                    gradientColors: canDrop ? [const Color(0xFFA82020), const Color(0xFF7E1515)] : [const Color(0xFF221616), const Color(0xFF181010)],
+                    borderColor: canDrop ? const Color(0xFFEF4444) : const Color(0x66EF4444),
+                    textColor: canDrop ? Colors.white : const Color(0xFF94A3B8),
+                    onTap: canDrop ? () => _handleDrop(context, ref) : null,
+                  ),
+                ),
+                // Sort Hand
+                Positioned(
+                  left: 14,
+                  top: 391,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'Sort Hand',
+                    icon: Icons.swap_vert_rounded,
+                    gradientColors: [const Color(0xFF2D7D46), const Color(0xFF1E5C32)],
+                    borderColor: const Color(0xFF10B981),
+                    textColor: Colors.white,
+                    onTap: () => notifier.sortHandAscending(),
+                  ),
+                ),
+                // AI Group
+                Positioned(
+                  left: 14,
+                  top: 437,
+                  width: 112,
+                  height: 38,
+                  child: _buildMobilePillButton(
+                    label: 'AI Group',
+                    icon: Icons.auto_awesome_rounded,
+                    gradientColors: [const Color(0xFF6A3EA1), const Color(0xFF502A82)],
+                    borderColor: const Color(0xFFA855F7),
+                    textColor: Colors.white,
+                    onTap: () => notifier.autoGroupHand(),
+                  ),
+                ),
+
+                // 9. Grouped Player Hand (Exact measurements: 92px card width, 44px overlap, 16px group gap)
+                Positioned(
+                  left: 214,
+                  top: 337,
+                  width: 790,
+                  child: PlayerHand(
+                    cardGroups: cardGroups,
+                    wildJokerCard: notifier.effectiveHumanWildJoker,
+                    selectedCard: tableState.selectedCard,
+                    selectedCards: tableState.selectedCards,
+                    isDiscardPhase: isHumanTurn && isDiscardPhase,
+                    customCardWidth: 92.0,
+                    customCardHeight: 133.4,
+                    customCardOverlap: 44.0,
+                    customGroupSpacing: 16.0,
+                    onCardTap: (card) => notifier.selectCard(card),
+                    onCardMoved: (card, fromGroupId, toGroupId) {
+                      notifier.moveCardBetweenGroups(
+                        card,
+                        fromGroupId,
+                        toGroupId,
+                        cardGroups.firstWhere((g) => g.id == toGroupId, orElse: () => cardGroups.first).cards.length,
+                      );
+                    },
+                    onCardMovedToIndex: (card, fromGroupId, toGroupId, insertIndex) {
+                      notifier.moveCardBetweenGroups(card, fromGroupId, toGroupId, insertIndex);
+                    },
+                    onCardReordered: (groupId, oldIndex, newIndex) {
+                      notifier.moveCardWithinGroup(groupId, oldIndex, newIndex);
+                    },
+                    onCardMovedToNewGroup: (card, fromGroupId) {
+                      notifier.moveCardToNewGroup(card, fromGroupId);
+                    },
+                    onCardDragStarted: (card, groupId) {
+                      ref.read(gameUIProvider.notifier).startDrag(card, groupId);
+                    },
+                    onDragEnded: () {
+                      ref.read(gameUIProvider.notifier).endDrag();
+                    },
+                    onDiscard: (card) {
+                      if (isHumanTurn && isDiscardPhase) {
+                        notifier.discardCard(card);
+                      }
+                    },
+                  ),
+                ),
+
+                // 10. Card Animation Layer (Deal & Discard flights)
+                const Positioned.fill(
+                  child: CardAnimationLayer(),
+                ),
+
+                if (uiState.showSecretJokerReveal && uiState.secretJokerCard != null)
+                  Positioned.fill(
+                    child: SecretJokerRevealOverlay(
+                      wildJoker: uiState.secretJokerCard!,
+                      onDismiss: () => ref.read(gameUIProvider.notifier).dismissSecretJokerReveal(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobilePerspectiveClosedDeck({
+    required BuildContext context,
+    required int count,
+    required Card? wildJoker,
+    required bool isClosedJoker,
+    required bool isJokerOpened,
+    required bool hasLife,
+    required VoidCallback onOpenClosedJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+  }) {
+    const double cardW = 58.0;
+    const double cardH = 82.0;
+    final bool showJokerFace = !isClosedJoker || isJokerOpened;
+
+    return SizedBox(
+      width: cardW + 36.0,
+      height: cardH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerRight,
+        children: [
+          // Perpendicular Wild Joker tucked horizontally underneath peeking to the left
+          Positioned(
+            left: 2,
+            top: (cardH - cardW) / 2,
+            child: Transform.rotate(
+              angle: -math.pi / 2,
+              child: Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      blurRadius: 6,
+                      offset: const Offset(2, 3),
+                    ),
+                  ],
+                ),
+                child: (showJokerFace && wildJoker != null)
+                    ? CardWidget(
+                        card: wildJoker,
+                        isWildJoker: true,
+                        width: cardW,
+                        height: cardH,
+                      )
+                    : CardBackWidget(
+                        width: cardW,
+                        height: cardH,
+                        onTap: (!showJokerFace && hasLife) ? onOpenClosedJoker : null,
+                      ),
+              ),
+            ),
+          ),
+          // Face-down closed deck stack on top
+          Positioned(
+            right: 0,
+            top: 0,
+            child: GestureDetector(
+              onTap: canDraw ? onDraw : null,
+              child: Container(
+                width: cardW,
+                height: cardH,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: canDraw
+                          ? const Color(0xFFF2CA50).withValues(alpha: 0.6)
+                          : Colors.black.withValues(alpha: 0.7),
+                      blurRadius: canDraw ? 10 : 6,
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CardBackWidget(
+                      width: cardW,
+                      height: cardH,
+                      onTap: canDraw ? onDraw : null,
+                    ),
+                    Positioned(
+                      bottom: -4,
+                      right: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xF20E141E),
+                          border: Border.all(color: const Color(0xFFF2CA50), width: 1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'CLOSED ($count)',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFF2CA50),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobilePerspectiveOpenPile({
+    required BuildContext context,
+    required List<Card> discardPile,
+    required Card? wildJoker,
+    required bool canDraw,
+    required VoidCallback onDraw,
+    required bool canDiscard,
+    required void Function(Card)? onDiscardCard,
+    required VoidCallback onShowHistory,
+  }) {
+    const double cardW = 58.0;
+    const double cardH = 82.0;
+    final topCard = discardPile.isNotEmpty ? discardPile.last : null;
+
+    final pileWidget = Container(
+      width: cardW,
+      height: cardH,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: canDraw
+                ? const Color(0xFF10B981).withValues(alpha: 0.6)
+                : Colors.black.withValues(alpha: 0.7),
+            blurRadius: canDraw ? 10 : 6,
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (topCard != null)
+            CardWidget(
+              card: topCard,
+              width: cardW,
+              height: cardH,
+              isWildJoker: wildJoker != null && topCard.rank == wildJoker.rank,
+              onTap: canDraw ? onDraw : onShowHistory,
+            )
+          else
+            Container(
+              width: cardW,
+              height: cardH,
+              decoration: BoxDecoration(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white24, width: 1),
+              ),
+              child: const Center(
+                child: Text('EMPTY', style: TextStyle(color: Colors.white38, fontSize: 9)),
+              ),
+            ),
+          Positioned(
+            bottom: -14,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                'OPEN PILE',
+                style: GoogleFonts.outfit(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return DragTarget<Card>(
+      onWillAcceptWithDetails: (details) => canDiscard,
+      onAcceptWithDetails: (details) {
+        if (onDiscardCard != null) {
+          onDiscardCard(details.data);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final bool isTargetHovered = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isTargetHovered
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.8),
+                      blurRadius: 14,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: pileWidget,
+        );
+      },
+    );
+  }
+
+  Widget _buildMobilePerspectiveFinishSlot({
+    required BuildContext context,
+    required bool isActivated,
+    required bool canAcceptDrop,
+    required bool canDeclare,
+    VoidCallback? onDeclare,
+    void Function(Card)? onCardDeclared,
+  }) {
+    const double cardW = 58.0;
+    const double cardH = 82.0;
+
+    return DragTarget<Card>(
+      onWillAcceptWithDetails: (details) => canAcceptDrop,
+      onAcceptWithDetails: (details) {
+        if (onCardDeclared != null) {
+          onCardDeclared(details.data);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        final active = isActivated || isHovering || canDeclare;
+
+        return GestureDetector(
+          onTap: canDeclare ? onDeclare : null,
+          child: Container(
+            width: cardW,
+            height: cardH,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: active
+                    ? [const Color(0x33F59E0B), const Color(0x22FBBF24)]
+                    : [const Color(0x33120424), const Color(0x220A0214)],
+              ),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: active ? const Color(0xFFFBBF24) : const Color(0x55F59E0B),
+                width: active ? 2.0 : 1.2,
+              ),
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFFFBBF24).withValues(alpha: 0.5),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.star_rounded, color: const Color(0xFFF2CA50), size: active ? 18 : 14),
+                      Text(
+                        'FINISH',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFF2CA50),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        '14th Card',
+                        style: GoogleFonts.outfit(
+                          fontSize: 7.5,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xAAF2CA50),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  bottom: -14,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      'DECLARE',
+                      style: GoogleFonts.outfit(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: active ? const Color(0xFFF2CA50) : Colors.white60,
+                        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobilePillButton({
+    required String label,
+    required IconData icon,
+    required List<Color> gradientColors,
+    required Color borderColor,
+    required Color textColor,
+    required VoidCallback? onTap,
+  }) {
+    final enabled = onTap != null;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: enabled ? 1.0 : 0.45,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: gradientColors),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor, width: 1.4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: textColor, size: 14),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      style: GoogleFonts.outfit(
+                        color: textColor,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMobileGameMenu(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Center(
+          child: Container(
+            width: 360,
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xF010192A), Color(0xF7090F1A)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFF2CA50), width: 1.8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.85),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: const Color(0xFFF2CA50).withValues(alpha: 0.25),
+                  blurRadius: 16,
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.menu_rounded, color: Color(0xFFF2CA50), size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'ROYAL GAME MENU',
+                          style: GoogleFonts.cinzel(
+                            color: const Color(0xFFF2CA50),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      borderRadius: BorderRadius.circular(16),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Divider(color: Color(0x33D4AF37), height: 1),
+                const SizedBox(height: 8),
+                _buildMenuItem(
+                  icon: Icons.leaderboard_rounded,
+                  iconColor: const Color(0xFF60A5FA),
+                  title: 'Live Scorecard',
+                  subtitle: 'Round scores & elimination tracker',
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _openScoreCard(context, ref);
+                  },
+                ),
+                _buildMenuItem(
+                  icon: Icons.history_rounded,
+                  iconColor: const Color(0xFFA78BFA),
+                  title: 'Game Action Logs',
+                  subtitle: 'Audited turn & discard event history',
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _openGameLogs(context, ref);
+                  },
+                ),
+                _buildMenuItem(
+                  icon: Icons.settings_rounded,
+                  iconColor: const Color(0xFFFBBF24),
+                  title: 'Table Settings',
+                  subtitle: 'Audio, animations & card options',
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _openSettings(context, ref);
+                  },
+                ),
+                _buildMenuItem(
+                  icon: Icons.android_rounded,
+                  iconColor: const Color(0xFF34D399),
+                  title: 'Download Android App',
+                  subtitle: 'Direct native .apk installer for mobile',
+                  highlight: true,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _showDownloadApkDialog(context);
+                  },
+                ),
+                _buildMenuItem(
+                  icon: Icons.exit_to_app_rounded,
+                  iconColor: const Color(0xFFF87171),
+                  title: 'Exit Game',
+                  subtitle: 'Leave current table session',
+                  isDestructive: true,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _handleExitGame(context, ref);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDownloadApkDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F1726),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFF2CA50), width: 1.8),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.android_rounded, color: Color(0xFF34D399), size: 28),
+              const SizedBox(width: 10),
+              Text(
+                'Download Android App',
+                style: GoogleFonts.cinzel(
+                  color: const Color(0xFFF2CA50),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Get the native Maya AI Rummy experience on your Android phone for smoother 60fps animations and offline play.',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFFE2E8F0),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0x2210B981),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF10B981), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified_rounded, color: Color(0xFF34D399), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Direct APK v1.0.0 • No Play Store required',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF6EE7B7),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.outfit(color: Colors.white60, fontWeight: FontWeight.w700),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Clipboard.setData(const ClipboardData(text: 'https://github.com/vamsikrishnabendalam/maya-ai-rummy/releases/latest/download/maya_rummy.apk'));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: const Color(0xFF10B981),
+                    content: Text(
+                      'APK download link copied to clipboard!',
+                      style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.download_rounded, color: Color(0xFF0F1726)),
+              label: Text(
+                'Copy Download Link',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF0F1726),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF2CA50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool highlight = false,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: highlight ? const Color(0x1F10B981) : const Color(0x14FFFFFF),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: highlight
+                ? const Color(0xFF10B981)
+                : (isDestructive ? const Color(0x66EF4444) : const Color(0x22D4AF37)),
+            width: highlight ? 1.4 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      color: isDestructive ? const Color(0xFFFCA5A5) : Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.outfit(
+                      color: Colors.white60,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 18),
           ],
         ),
       ),

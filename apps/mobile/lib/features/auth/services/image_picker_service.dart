@@ -6,3 +6,4 @@ class ImagePickerService {
     return platform_picker.pickImageAsDataUrl();
   }
 }
+
