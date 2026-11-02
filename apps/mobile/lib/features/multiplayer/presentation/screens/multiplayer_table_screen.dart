@@ -1279,8 +1279,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final myPlayer = game.players.firstWhere((p) => p.uid == user.uid, orElse: () => TablePlayer(uid: user.uid, displayName: 'Player', photoURL: '', seatIndex: 0));
     final isDropped = myPlayer.status == 'DROPPED';
     final isMyTurn = !isDropped && game.isMyTurn(user.uid);
-    final isDrawPhase = game.isDrawPhase;
-    final isDiscardPhase = game.isDiscardPhase;
+
+    final totalCardsInHand = tableState.cardGroups.fold<int>(0, (sum, g) => sum + g.cards.length);
+    final has14Cards = totalCardsInHand >= 14 || game.myHand.length >= 14 || tableState.hasDrawnThisTurn;
+
+    // A player holding 14 cards MUST be in discard phase, never draw phase
+    final isDrawPhase = game.isDrawPhase && !has14Cards;
+    final isDiscardPhase = game.isDiscardPhase || has14Cards;
     final myUid = user.uid;
 
     final opponents = game.players.where((p) => p.uid != myUid).toList();
@@ -1289,15 +1294,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         game.cardDrawnFromOpenThisTurn != null &&
         tableState.selectedCard == game.cardDrawnFromOpenThisTurn;
 
-    final canDiscard = isMyTurn &&
-        isDiscardPhase &&
-        tableState.selectedCard != null &&
-        !isSelectedCardFromOpen &&
-        !game.isDeclaring;
-    final canDeclare = isMyTurn &&
-        isDiscardPhase &&
-        tableState.selectedCard != null &&
-        !game.isDeclaring;
+    final canDiscardAction = isMyTurn && isDiscardPhase && !game.isDeclaring;
+    final canDiscard = canDiscardAction && tableState.selectedCard != null && !isSelectedCardFromOpen;
+    final canDeclare = canDiscardAction && tableState.selectedCard != null;
 
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
@@ -1491,7 +1490,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
             canDrop: canDrop,
             dropPenalty: dropPenalty,
             isFirstDrop: isFirstDrop,
-            canDiscard: canDiscard,
+            canDiscard: canDiscardAction,
             canDeclare: canDeclare,
             myUid: myUid,
             activeCapacity: activeCapacity,
@@ -3936,6 +3935,13 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                 return;
                               }
                               notifier.discardCard(card);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Select 1 card from your hand to discard, or drag it here.'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
                             }
                           }
                         : null,

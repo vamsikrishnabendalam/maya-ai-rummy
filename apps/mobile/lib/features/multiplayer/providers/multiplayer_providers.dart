@@ -303,11 +303,16 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       _revalidateGroups(groups, effectiveJoker);
       final score = _recalculateScore(groups, effectiveJoker);
 
+      final totalCardsCount = groups.expand((grp) => grp.cards).length;
+      final has14Cards = totalCardsCount >= 14 || g.myHand.length >= 14;
+      final effectivePhase = (has14Cards && g.isMyTurn(user.uid)) ? 'DISCARD_PHASE' : g.phase;
+      final normalizedGame = g.copyWith(phase: effectivePhase);
+
       state = state.copyWith(
-        gameState: g,
+        gameState: normalizedGame,
         cardGroups: groups,
         currentScore: score,
-        hasDrawnThisTurn: g.isDiscardPhase && g.isMyTurn(user.uid),
+        hasDrawnThisTurn: (has14Cards || normalizedGame.isDiscardPhase) && normalizedGame.isMyTurn(user.uid),
       );
 
       // Auto-unlock Closed Joker if dealt hand already contains a Pure Sequence (Life)
@@ -378,7 +383,14 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     try {
       await _service.openClosedJoker(gameId: game.gameId, myUid: user.uid);
       final updatedOpened = [...game.openedJokerPlayerUids, user.uid];
-      final updatedGame = game.copyWith(openedJokerPlayerUids: updatedOpened);
+      final currentCardsCount = _allCards().length;
+      final effectivePhase = (currentCardsCount >= 14 || state.hasDrawnThisTurn)
+          ? 'DISCARD_PHASE'
+          : game.phase;
+      final updatedGame = game.copyWith(
+        openedJokerPlayerUids: updatedOpened,
+        phase: effectivePhase,
+      );
       final updatedGroups = List<CardGroup>.from(state.cardGroups);
       _revalidateGroups(updatedGroups, updatedGame.openJoker);
       final score = _recalculateScore(updatedGroups, updatedGame.openJoker);
@@ -387,6 +399,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         gameState: updatedGame,
         cardGroups: updatedGroups,
         currentScore: score,
+        hasDrawnThisTurn: (currentCardsCount >= 14 || effectivePhase == 'DISCARD_PHASE') && game.isMyTurn(user.uid),
         isSubmitting: false,
       );
 
@@ -427,6 +440,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         _persistGroups(game.gameId, user.uid, updatedGroups);
 
         state = state.copyWith(
+          gameState: game.copyWith(phase: 'DISCARD_PHASE'),
           cardGroups: updatedGroups,
           currentScore: score,
           hasDrawnThisTurn: true,
@@ -435,6 +449,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         );
       } else {
         state = state.copyWith(
+          gameState: game.copyWith(phase: 'DISCARD_PHASE'),
           hasDrawnThisTurn: true,
           isSubmitting: false,
           clearSelectedCard: true,
@@ -475,6 +490,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         _persistGroups(game.gameId, user.uid, updatedGroups);
 
         state = state.copyWith(
+          gameState: game.copyWith(phase: 'DISCARD_PHASE'),
           cardGroups: updatedGroups,
           currentScore: score,
           hasDrawnThisTurn: true,
@@ -483,6 +499,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         );
       } else {
         state = state.copyWith(
+          gameState: game.copyWith(phase: 'DISCARD_PHASE'),
           hasDrawnThisTurn: true,
           isSubmitting: false,
           clearSelectedCard: true,

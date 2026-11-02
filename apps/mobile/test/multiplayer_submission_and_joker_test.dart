@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:game_engine/game_engine.dart';
 import 'package:maya_ai_rummy_mobile/features/auth/models/multiplayer_user.dart';
 import 'package:maya_ai_rummy_mobile/features/auth/providers/auth_provider.dart';
+import 'package:maya_ai_rummy_mobile/features/game/models/card_group.dart';
 import 'package:maya_ai_rummy_mobile/features/game/providers/game_ui_provider.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/models/table_models.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/providers/multiplayer_providers.dart';
@@ -174,6 +175,79 @@ void main() {
       // Dismiss animation
       container.read(gameUIProvider.notifier).dismissSecretJokerReveal();
       expect(container.read(gameUIProvider).showSecretJokerReveal, isFalse);
+    });
+  
+    test('Player holding 14 cards on turn is guaranteed DISCARD_PHASE and can discard cleanly even if incoming phase is DRAW_PHASE', () async {
+      final service = MultiplayerService();
+      final mockUser = MultiplayerUser(
+        uid: 'user_cj',
+        displayName: 'cj',
+        email: 'cj@example.com',
+        coins: 1000,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith((ref) => MockAuthNotifier(mockUser)),
+          multiplayerServiceProvider.overrideWithValue(service),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // 14 cards in hand (already drawn)
+      final fourteenCards = List.generate(
+        14,
+        (i) => Card(suit: i == 13 ? Suit.spades : Suit.hearts, rank: Rank.values[i % 13], deckIndex: 0),
+      );
+
+      // State where incoming phase is erroneously DRAW_PHASE (e.g. before snapshot arrives or after openClosedJoker)
+      final desyncGame = MultiplayerGameState(
+        gameId: 'game_desync_test',
+        tableId: 'table_1',
+        roomCode: 'DESYNC',
+        tableName: 'Desync Table',
+        gameMode: 'Best of 2 Deals',
+        status: 'IN_PROGRESS',
+        playerCount: 2,
+        currentTurnPlayerId: 'user_cj',
+        turnNumber: 5,
+        phase: 'DRAW_PHASE', // Server/stale local phase
+        turnDeadline: DateTime.now().add(const Duration(seconds: 30)),
+        jokerMode: 'OPEN',
+        openPile: const [Card(suit: Suit.clubs, rank: Rank.eight, deckIndex: 0)],
+        players: const [
+          TablePlayer(uid: 'user_vk', displayName: 'vk', photoURL: '', seatIndex: 0),
+          TablePlayer(uid: 'user_cj', displayName: 'cj', photoURL: '', seatIndex: 1, cardCount: 14),
+        ],
+        myHand: fourteenCards,
+      );
+
+      // TableModels invariant check
+      expect(desyncGame.isDrawPhase, isFalse, reason: 'Holding 14 cards must never be in Draw Phase');
+      expect(desyncGame.isDiscardPhase, isTrue, reason: 'Holding 14 cards must always be in Discard Phase');
+
+      service.setMockGame(desyncGame);
+      final notifier = container.read(multiplayerGameProvider.notifier);
+      notifier.state = notifier.state.copyWith(
+        gameState: desyncGame,
+        cardGroups: [
+          CardGroup(id: 'grp_0', type: CardGroupType.deadwood, cards: fourteenCards, isValid: false),
+        ],
+      );
+
+      // Select a card to discard
+      final cardToDiscard = fourteenCards.last;
+      notifier.selectCard(cardToDiscard);
+
+      expect(notifier.state.selectedCard, equals(cardToDiscard));
+
+      // Discard the card
+      await notifier.discardSelectedCard();
+
+      // Hand must now be 13 cards and selected card cleared
+      final allRemaining = notifier.state.cardGroups.expand((g) => g.cards).toList();
+      expect(allRemaining.length, equals(13));
+      expect(allRemaining.contains(cardToDiscard), isFalse);
     });
   });
 }

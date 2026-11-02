@@ -381,8 +381,8 @@ class MultiplayerGameState {
     this.endedAt,
   });
 
-  bool get isDrawPhase => phase == 'DRAW_PHASE';
-  bool get isDiscardPhase => phase == 'DISCARD_PHASE';
+  bool get isDrawPhase => phase == 'DRAW_PHASE' && myHand.length < 14;
+  bool get isDiscardPhase => phase == 'DISCARD_PHASE' || myHand.length >= 14;
   bool get isDeclaring => status == 'DECLARING';
   bool get isRoundOver => status == 'ROUND_OVER';
   bool get isGameOver => status == 'COMPLETED';

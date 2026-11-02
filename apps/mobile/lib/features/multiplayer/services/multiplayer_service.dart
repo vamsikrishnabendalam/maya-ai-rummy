@@ -1008,7 +1008,14 @@ class MultiplayerService {
 
           final gameData = gameSnap.data()!;
           if (gameData['currentTurnPlayerId'] != myUid) throw Exception('Not your turn to discard');
-          if (gameData['phase'] != 'DISCARD_PHASE') throw Exception('Not in discard phase');
+          // Check card in hand
+          final handSnap = await tx.get(handRef);
+          List<dynamic> existingCards = [];
+          if (handSnap.exists && handSnap.data() != null) {
+            existingCards = List<dynamic>.from(handSnap.data()!['cards'] ?? []);
+          }
+
+          if (gameData['phase'] != 'DISCARD_PHASE' && existingCards.length < 14) throw Exception('Not in discard phase');
 
           // Indian Rummy open draw rule: Cannot discard same card drawn from open pile in this turn
           final openDrawnInt = gameData['cardDrawnFromOpenThisTurn'] as int?;
@@ -1016,12 +1023,6 @@ class MultiplayerService {
             throw Exception('Cannot discard the card drawn from the open pile in the same turn');
           }
 
-          // Check card in hand
-          final handSnap = await tx.get(handRef);
-          List<dynamic> existingCards = [];
-          if (handSnap.exists && handSnap.data() != null) {
-            existingCards = List<dynamic>.from(handSnap.data()!['cards'] ?? []);
-          }
 
           final cardInt = card.toInt();
           final removeIndex = existingCards.indexWhere((c) {
@@ -1381,8 +1382,14 @@ class MultiplayerService {
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
         await _firestore!.collection('games').doc(gameId).update({
-          'openedJokerPlayerUids': updatedOpened,
-          'actionLog': actionLog,
+          'openedJokerPlayerUids': FieldValue.arrayUnion([myUid]),
+          'actionLog': FieldValue.arrayUnion([{
+            'seq': actionLog.length,
+            'timestamp': now.toIso8601String(),
+            'type': 'CLOSED_JOKER_OPENED',
+            'playerId': myUid,
+            'description': '${player.displayName} unlocked and revealed the Closed Joker ($jokerLabel) with Life! 🃏',
+          }]),
         });
       } catch (e) {
         debugPrint('[MultiplayerService] openClosedJoker Firestore error: $e');
