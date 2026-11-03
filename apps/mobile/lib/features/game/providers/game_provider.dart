@@ -111,6 +111,7 @@ class GameTableState {
     bool clearSelectedCard = false,
     int? currentScore,
     HandPartitionResult? declarationResult,
+    bool clearDeclarationResult = false,
     bool? isHandLocked,
     GameSettings? gameSettings,
     List<RoundScore>? roundScores,
@@ -118,6 +119,7 @@ class GameTableState {
     bool? isAwaitingHumanDeclarationShow,
     HandPartitionResult? botDeclarationResult,
     Card? botDiscardCard,
+    bool clearBotDiscardCard = false,
     AILevel? aiLevel,
     String? dealerId,
     bool? hasHumanOpenedJoker,
@@ -134,15 +136,15 @@ class GameTableState {
       selectedCard: clearSelectedCard ? null : (selectedCard ?? this.selectedCard),
       selectedCards: selectedCards ?? (clearSelectedCard ? const <Card>{} : this.selectedCards),
       currentScore: currentScore ?? this.currentScore,
-      declarationResult: declarationResult ?? this.declarationResult,
+      declarationResult: clearDeclarationResult ? null : (declarationResult ?? this.declarationResult),
       isHandLocked: isHandLocked ?? this.isHandLocked,
       gameSettings: gameSettings ?? this.gameSettings,
       roundScores: roundScores ?? this.roundScores,
       isRoundOver: isRoundOver ?? this.isRoundOver,
       isAwaitingHumanDeclarationShow:
           isAwaitingHumanDeclarationShow ?? this.isAwaitingHumanDeclarationShow,
-      botDeclarationResult: botDeclarationResult ?? this.botDeclarationResult,
-      botDiscardCard: botDiscardCard ?? this.botDiscardCard,
+      botDeclarationResult: clearDeclarationResult ? null : (botDeclarationResult ?? this.botDeclarationResult),
+      botDiscardCard: clearBotDiscardCard || clearFinishCard ? null : (botDiscardCard ?? this.botDiscardCard),
       aiLevel: aiLevel ?? this.aiLevel,
       dealerId: dealerId ?? this.dealerId,
       hasHumanOpenedJoker: hasHumanOpenedJoker ?? this.hasHumanOpenedJoker,
@@ -339,9 +341,10 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
     required String action,
     required String details,
     Card? card,
+    int? roundNumber,
   }) {
     final entry = GameActionLogEntry(
-      roundNumber: state.currentRoundNumber,
+      roundNumber: roundNumber ?? state.currentRoundNumber,
       turnNumber: state.gameState.turnNumber,
       player: player,
       action: action,
@@ -735,6 +738,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   }
 
   void startNextRound() {
+    _engine = GameEngine();
     _groupIdCounter = 0;
     _opponentThreatTracker = OpponentThreatTracker();
     final config = GameConfig(
@@ -804,12 +808,12 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       hasDrawnThisTurn: false,
       currentScore: initialScore,
       isHandLocked: false,
-      declarationResult: null,
+      clearDeclarationResult: true,
       clearSelectedCard: true,
+      clearFinishCard: true,
+      clearBotDiscardCard: true,
       isRoundOver: false,
       isAwaitingHumanDeclarationShow: false,
-      botDeclarationResult: null,
-      botDiscardCard: null,
       dealerId: nextDealerId,
       hasHumanOpenedJoker: initialHumanOpened,
       hasBotOpenedJoker: initialBotOpened,
@@ -865,7 +869,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   }
 
   void resetTournament() {
-    state = state.copyWith(roundScores: []);
+    state = state.copyWith(
+      roundScores: [],
+      clearDeclarationResult: true,
+      clearFinishCard: true,
+      clearBotDiscardCard: true,
+      clearSelectedCard: true,
+    );
     startNewGame();
   }
 
@@ -1254,11 +1264,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           ? 'Declared valid show (0 pts). Finish card: $cardToDiscard.'
           : 'Declared invalid show (${state.gameSettings.fullCountPenalty} pts penalty). Finish card: $cardToDiscard.',
       card: cardToDiscard,
+      roundNumber: newRoundScore.roundNumber,
     );
     _logAction(
       player: 'System',
       action: 'Round Result',
       details: 'Round ${newRoundScore.roundNumber} Ended. Human: ${newRoundScore.humanOutcome} | Maya: ${newRoundScore.aiOutcome}. Cumulative: Human ${newRoundScore.cumulativeHumanScore} pts, Maya ${newRoundScore.cumulativeAiScore} pts.',
+      roundNumber: newRoundScore.roundNumber,
     );
 
     // Final cards & count breakdown for logs and telemetry
@@ -1389,11 +1401,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       details: isFirstDrop
           ? 'First drop taken ($dropPenalty pts penalty).'
           : 'Middle drop taken ($dropPenalty pts penalty).',
+      roundNumber: newRoundScore.roundNumber,
     );
     _logAction(
       player: 'System',
       action: 'Round Result',
       details: 'Round ${newRoundScore.roundNumber} Ended (Human Drop). Human: +$dropPenalty pts (Total: ${newRoundScore.cumulativeHumanScore}), Maya: 0 pts (Total: ${newRoundScore.cumulativeAiScore}).',
+      roundNumber: newRoundScore.roundNumber,
     );
 
     SpectatorSyncService.syncState(
@@ -1891,9 +1905,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
           )
         : 0;
 
-    final currentAIHand = List<Card>.from(
-      state.gameState.players.firstWhere((p) => p.id == 'ai_bot_1').hand,
-    );
+    final currentAIHand = List<Card>.from(aiPlayer.hand);
 
     final updatedPlayers = [
       Player(
@@ -1947,11 +1959,13 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       player: 'Human',
       action: 'Show Submission',
       details: 'Submitted show. Final deadwood count: $humanScore pts.',
+      roundNumber: newRoundScore.roundNumber,
     );
     _logAction(
       player: 'System',
       action: 'Round Result',
       details: 'Round ${newRoundScore.roundNumber} Ended. Human: ${newRoundScore.humanOutcome} | Maya: ${newRoundScore.aiOutcome}. Cumulative: Human ${newRoundScore.cumulativeHumanScore} pts, Maya ${newRoundScore.cumulativeAiScore} pts.',
+      roundNumber: newRoundScore.roundNumber,
     );
 
     final humanHandGroups = state.cardGroups.map((g) {

@@ -331,7 +331,7 @@ class GameTableScreen extends ConsumerWidget {
                                   // 3. Finish / Declare Slot
                                   _buildPerspectiveFinishSlot(
                                     context: context,
-                                    finishCard: tableState.finishCard ?? tableState.botDiscardCard,
+                                    finishCard: (tableState.isRoundOver || tableState.isAwaitingHumanDeclarationShow) ? (tableState.finishCard ?? tableState.botDiscardCard) : tableState.finishCard,
                                     wildJoker: notifier.effectiveHumanWildJoker,
                                     isActivated: canDeclare ||
                                         (isHumanTurn &&
@@ -713,7 +713,7 @@ class GameTableScreen extends ConsumerWidget {
                           // Finish / Declare Slot
                           _buildMobilePerspectiveFinishSlot(
                             context: context,
-                            finishCard: tableState.finishCard ?? tableState.botDiscardCard,
+                            finishCard: (tableState.isRoundOver || tableState.isAwaitingHumanDeclarationShow) ? (tableState.finishCard ?? tableState.botDiscardCard) : tableState.finishCard,
                             wildJoker: notifier.effectiveHumanWildJoker,
                             isActivated: canDeclare || (isHumanTurn && isDiscardPhase && uiState.isDragging),
                             canAcceptDrop: (isHumanTurn && isDiscardPhase && !tableState.isRoundOver) ||

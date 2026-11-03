@@ -1444,7 +1444,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                   // 3. Finish / Declare Slot
                                   _buildPerspectiveFinishSlot(
                                     context: context,
-                                    finishCard: game.finishCard ?? tableState.finishCard,
+                                    finishCard: (game.isDeclaring || game.isRoundOver || game.isCompleted) ? (game.finishCard ?? tableState.finishCard) : null,
                                     wildJoker: wildJoker,
                                     isActivated: (isMyTurn && isDiscardPhase && ref.watch(gameUIProvider).isDragging) ||
                                         (isMyTurn && isDiscardPhase && tableState.selectedCard != null),
@@ -3517,7 +3517,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                           // Finish / Declare Slot
                           _buildMobilePerspectiveFinishSlot(
                             context: context,
-                            finishCard: game.finishCard ?? tableState.finishCard,
+                            finishCard: (game.isDeclaring || game.isRoundOver || game.isCompleted) ? (game.finishCard ?? tableState.finishCard) : null,
                             wildJoker: wildJoker,
                             isActivated: canDeclare || (!game.isDeclaring && isMyTurn && isDiscardPhase && uiState.isDragging),
                             canAcceptDrop: isMyTurn && isDiscardPhase && !game.isDeclaring,
