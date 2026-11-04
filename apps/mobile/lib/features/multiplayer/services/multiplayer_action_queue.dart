@@ -126,3 +126,4 @@ class _TypedQueuedAction<T> implements _QueuedAction<T> {
     if (!completer.isCompleted) completer.completeError(error, stackTrace);
   }
 }
+

@@ -28,6 +28,47 @@ class MultiplayerService {
   int get serverClockOffsetMs => _serverClockOffsetMs;
   DateTime get syncedServerNow => DateTime.now().add(Duration(milliseconds: _serverClockOffsetMs));
 
+  /// Realtime connection & latency tracking for network indicator
+  int _lastPingMs = 32;
+  int get lastPingMs => _lastPingMs;
+
+  bool _isOffline = false;
+  bool get isOffline => _isOffline;
+
+  final ValueNotifier<int> pingNotifier = ValueNotifier<int>(32);
+  final ValueNotifier<bool> offlineNotifier = ValueNotifier<bool>(false);
+
+  void recordPing(int elapsedMs, {bool? offline}) {
+    // print('RECORD PING CALLED: $elapsedMs');
+    final clamped = elapsedMs.clamp(12, 9999);
+    // Exponential smoothing: 60% existing, 40% new
+    _lastPingMs = ((_lastPingMs * 3) + (clamped * 2)) ~/ 5;
+    if (offline != null) {
+      _isOffline = offline;
+    }
+    if (pingNotifier.value != _lastPingMs) {
+      pingNotifier.value = _lastPingMs;
+    }
+    if (offline != null && offlineNotifier.value != _isOffline) {
+      offlineNotifier.value = _isOffline;
+    }
+  }
+
+  void setOffline(bool offline) {
+    if (_isOffline != offline) {
+      _isOffline = offline;
+      offlineNotifier.value = offline;
+    }
+  }
+
+  @visibleForTesting
+  void resetPingForTesting() {
+    _lastPingMs = 32;
+    _isOffline = false;
+    pingNotifier.value = 32;
+    offlineNotifier.value = false;
+  }
+
   void updateServerClockOffset(DateTime serverTime) {
     final localNowMs = DateTime.now().millisecondsSinceEpoch;
     final diff = serverTime.millisecondsSinceEpoch - localNowMs;
@@ -2530,11 +2571,14 @@ class MultiplayerService {
 
   /// Updates player heartbeat timestamp and marks them connected
   Future<void> recordPlayerHeartbeat({required String gameId, required String uid}) async {
+    final start = DateTime.now().millisecondsSinceEpoch;
     final now = DateTime.now();
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
         final gameRef = _firestore!.collection('games').doc(gameId);
         final snap = await gameRef.get();
+        final elapsed = DateTime.now().millisecondsSinceEpoch - start;
+        recordPing(elapsed, offline: false);
         if (snap.exists && snap.data() != null) {
           final rawPlayers = (snap.data()!['players'] as List<dynamic>?) ?? [];
           bool needsUpdate = false;
@@ -2556,6 +2600,7 @@ class MultiplayerService {
         }
       } catch (e) {
         debugPrint('[MultiplayerService] recordPlayerHeartbeat Firestore notice: $e');
+        setOffline(true);
       }
     }
 
@@ -3590,10 +3635,12 @@ class MultiplayerService {
       }
 
       final gameSub = gameRef.snapshots().listen((gSnap) {
+        setOffline(gSnap.metadata.isFromCache);
         latestGameSnap = gSnap;
         emitCombined();
       }, onError: (e) {
         debugPrint('[MultiplayerService] gameRef snapshot error: $e');
+        setOffline(true);
       });
 
       final handSub = privateHandRef.snapshots().listen((hSnap) {

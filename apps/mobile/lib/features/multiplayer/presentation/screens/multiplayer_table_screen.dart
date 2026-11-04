@@ -2342,6 +2342,8 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isDesktop || size.width >= 1100) ...[
+                    _buildNetworkIndicator(isDesktop: true),
+                    SizedBox(width: isDesktop ? 8 : 5),
                     Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: isDesktop ? 9 : 6,
@@ -2853,8 +2855,15 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
           ),
           SizedBox(height: gap),
 
-          // Declare Hand (or Submit Show) Full Width Button with DragTarget
-          Builder(
+          // Declare Hand (Mobile: with Network Indicator on the left)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isDesktop) ...[
+                _buildNetworkIndicator(isDesktop: false),
+                SizedBox(width: gap),
+              ],
+              Builder(
             builder: (ctx) {
               if (game.isDeclaring) {
                 if (game.declaringPlayerId == user.uid) {
@@ -2971,7 +2980,107 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
               );
             },
           ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkIndicator({required bool isDesktop}) {
+    final netStatus = ref.watch(networkStatusProvider).value ?? const NetworkStatus();
+    final isDisconnected = netStatus.isDisconnected;
+    final isDegraded = netStatus.isDegraded;
+
+    final Color dotColor;
+    final Color textColor;
+    final Color bgColor;
+    final Color borderColor;
+    final String label;
+
+    if (isDisconnected) {
+      dotColor = const Color(0xFFEF4444);
+      textColor = const Color(0xFFFECACA);
+      bgColor = const Color(0xFF261010);
+      borderColor = const Color(0xFFEF4444).withValues(alpha: 0.6);
+      if (isDesktop) {
+        label = netStatus.pendingActions > 0
+            ? 'Reconnecting... | Queue: ${netStatus.pendingActions}'
+            : 'Reconnecting...';
+      } else {
+        label = netStatus.pendingActions > 0
+            ? 'Reconnecting (${netStatus.pendingActions})'
+            : 'Reconnecting...';
+      }
+    } else if (isDegraded) {
+      dotColor = const Color(0xFFF59E0B);
+      textColor = const Color(0xFFFDE68A);
+      bgColor = const Color(0xFF241C0A);
+      borderColor = const Color(0xFFF59E0B).withValues(alpha: 0.5);
+      label = isDesktop
+          ? '${netStatus.pingMs}ms • Weak'
+          : '${netStatus.pingMs}ms';
+    } else {
+      dotColor = const Color(0xFF10B981);
+      textColor = const Color(0xFFA7F3D0);
+      bgColor = const Color(0xFF0F231B);
+      borderColor = const Color(0xFF10B981).withValues(alpha: 0.4);
+      label = isDesktop
+          ? '${netStatus.pingMs}ms • Stable'
+          : '${netStatus.pingMs}ms';
+    }
+
+    return Tooltip(
+      message: isDisconnected
+          ? 'Network disconnected. Reconnecting & synchronizing with server...'
+          : (isDegraded ? 'High latency: ${netStatus.pingMs}ms' : 'Connection stable: ${netStatus.pingMs}ms'),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isDesktop ? 9 : 7,
+          vertical: isDesktop ? 5 : 4,
+        ),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: borderColor),
+          boxShadow: isDisconnected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.35),
+                    blurRadius: 8,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: isDesktop ? 7.0 : 6.0,
+              height: isDesktop ? 7.0 : 6.0,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: dotColor.withValues(alpha: 0.8),
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: isDesktop ? 6 : 4),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: isDesktop ? 10.5 : 9.5,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

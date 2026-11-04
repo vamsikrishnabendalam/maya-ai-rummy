@@ -12,6 +12,52 @@ import '../../home/services/player_preferences_storage.dart';
 
 final multiplayerServiceProvider = Provider<MultiplayerService>((ref) => MultiplayerService());
 
+// --------------- Network Resilience & Status Provider ---------------
+
+class NetworkStatus {
+  final int pingMs;
+  final bool isOffline;
+  final int pendingActions;
+
+  const NetworkStatus({
+    this.pingMs = 32,
+    this.isOffline = false,
+    this.pendingActions = 0,
+  });
+
+  bool get isDegraded => !isOffline && (pingMs >= 150 || pendingActions > 0);
+  bool get isDisconnected => isOffline || pingMs >= 600;
+}
+
+final networkStatusProvider = StreamProvider.autoDispose<NetworkStatus>((ref) {
+  final service = ref.watch(multiplayerServiceProvider);
+  final controller = StreamController<NetworkStatus>();
+
+  void emit() {
+    if (!controller.isClosed) {
+      controller.add(NetworkStatus(
+        pingMs: service.lastPingMs,
+        isOffline: service.isOffline,
+        pendingActions: service.actionQueue.pendingCount,
+      ));
+    }
+  }
+
+  final timer = Timer.periodic(const Duration(seconds: 1), (_) => emit());
+  service.pingNotifier.addListener(emit);
+  service.offlineNotifier.addListener(emit);
+  emit();
+
+  ref.onDispose(() {
+    timer.cancel();
+    service.pingNotifier.removeListener(emit);
+    service.offlineNotifier.removeListener(emit);
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
 // --------------- Lobby State Notifier ---------------
 
 class MultiplayerLobbyNotifier extends StateNotifier<AsyncValue<TableLobby?>> {
