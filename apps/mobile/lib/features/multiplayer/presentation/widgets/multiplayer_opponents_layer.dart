@@ -54,8 +54,8 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           // 2-Player: Single opponent centered directly in the central royal throne
           MultiplayerSeatPosition(
             centerX: 878,
-            top: 54,
-            avatarTop: 105,
+            top: 88,
+            avatarTop: 140,
             avatarHeight: 350,
             isCenter: true,
           ),
@@ -175,8 +175,8 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           // 2-Player: Single opponent centered in central armchair, strictly behind the table rim
           MultiplayerSeatPosition(
             centerX: 512,
-            top: 40,
-            avatarTop: 82,
+            top: 58,
+            avatarTop: 102,
             avatarHeight: 140,
             isCenter: true,
           ),
@@ -408,7 +408,7 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
           return const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0.0, 0.70, 0.95],
+            stops: [0.0, 0.75, 0.98],
             colors: [Colors.white, Colors.white, Colors.transparent],
           ).createShader(bounds);
         },

@@ -8,6 +8,7 @@ import 'package:maya_ai_rummy_mobile/features/game/providers/game_ui_provider.da
 import 'package:maya_ai_rummy_mobile/features/multiplayer/models/table_models.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/providers/multiplayer_providers.dart';
 import 'package:maya_ai_rummy_mobile/features/multiplayer/services/multiplayer_service.dart';
+import 'package:maya_ai_rummy_mobile/features/multiplayer/services/multiplayer_action_queue.dart';
 
 class MockAuthNotifier extends StateNotifier<MultiplayerUser?> implements AuthNotifier {
   MockAuthNotifier(MultiplayerUser? user) : super(user);
@@ -662,6 +663,128 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('Universal clock synchronization updates offset and adjusts syncedServerNow', () {
+      final service = MultiplayerService();
+      final localBefore = DateTime.now();
+      expect((service.syncedServerNow.difference(localBefore).inMilliseconds).abs(), lessThan(50));
+
+      // Simulate server clock 5000ms ahead
+      final serverTime = DateTime.now().add(const Duration(milliseconds: 5000));
+      service.updateServerClockOffset(serverTime);
+
+      expect(service.serverClockOffsetMs, greaterThanOrEqualTo(4900));
+      expect(service.syncedServerNow.isAfter(DateTime.now().add(const Duration(milliseconds: 4500))), isTrue);
+    });
+
+    test('MultiplayerActionQueue serializes actions in FIFO order and rejects stale turn actions', () async {
+      final queue = MultiplayerActionQueue();
+      final executed = <String>[];
+      int currentTurn = 3;
+
+      // Enqueue action for turn 3
+      final future1 = queue.enqueue<String>(
+        actionType: 'DRAW_CLOSED',
+        expectedTurnNumber: 3,
+        currentTurnNumberGetter: () => currentTurn,
+        task: () async {
+          await Future.delayed(const Duration(milliseconds: 20));
+          executed.add('action1');
+          return 'ok1';
+        },
+      );
+
+      // Enqueue action that expects turn 2 (already stale because currentTurn is 3)
+      final futureStale = queue.enqueue<String>(
+        actionType: 'DISCARD',
+        expectedTurnNumber: 2,
+        currentTurnNumberGetter: () => currentTurn,
+        task: () async {
+          executed.add('stale');
+          return 'stale_result';
+        },
+      );
+
+      // Enqueue action for turn 3
+      final future2 = queue.enqueue<String>(
+        actionType: 'DISCARD',
+        expectedTurnNumber: 3,
+        currentTurnNumberGetter: () => currentTurn,
+        task: () async {
+          executed.add('action2');
+          return 'ok2';
+        },
+      );
+
+      final r1 = await future1;
+      expect(r1, equals('ok1'));
+      expect(futureStale, throwsA(isA<StateError>()));
+      final r2 = await future2;
+      expect(r2, equals('ok2'));
+
+      expect(executed, equals(['action1', 'action2']));
+    });
+
+    test('14-card invariant auto-reconciles hand to 13 cards when reconnecting in DRAW_PHASE', () async {
+      final service = MultiplayerService();
+      final mockUser = MultiplayerUser(
+        uid: 'user_reconnecting',
+        displayName: 'Reconnector',
+        email: 'rec@example.com',
+        coins: 1000,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith((ref) => MockAuthNotifier(mockUser)),
+          multiplayerServiceProvider.overrideWithValue(service),
+        ],
+      );
+
+      // 14 cards (e.g. drew before disconnect, then opponent timed them out)
+      final fourteenCards = List.generate(14, (i) => Card.fromInt(i));
+
+      // Game state on server has moved back to DRAW_PHASE
+      final serverGame = MultiplayerGameState(
+        gameId: 'game_reconnect_14',
+        tableId: 'table_rec',
+        roomCode: 'REC123',
+        status: 'IN_PROGRESS',
+        playerCount: 2,
+        currentTurnPlayerId: 'user_reconnecting',
+        turnNumber: 2,
+        phase: 'DRAW_PHASE',
+        turnDeadline: DateTime.now().add(const Duration(seconds: 30)),
+        jokerMode: 'OPEN',
+        players: const [
+          TablePlayer(uid: 'user_reconnecting', displayName: 'Reconnector', photoURL: '', seatIndex: 0, cardCount: 13),
+          TablePlayer(uid: 'user_opp', displayName: 'Opponent', photoURL: '', seatIndex: 1, cardCount: 13),
+        ],
+        myHand: fourteenCards,
+      );
+
+      final notifier = container.read(multiplayerGameProvider.notifier);
+      notifier.state = notifier.state.copyWith(
+        gameState: serverGame.copyWith(phase: 'DISCARD_PHASE'),
+        cardGroups: [
+          CardGroup(id: 'grp_0', type: CardGroupType.deadwood, cards: List.from(fourteenCards), isValid: false),
+        ],
+      );
+
+      service.setMockPrivateHand('game_reconnect_14', 'user_reconnecting', fourteenCards);
+      notifier.watchGame('game_reconnect_14');
+      service.setMockGame(serverGame);
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // The notifier must have auto-trimmed the hand down to 13 cards
+      final currentGroups = notifier.state.cardGroups;
+      final totalCards = currentGroups.fold<int>(0, (sum, g) => sum + g.cards.length);
+      expect(totalCards, equals(13));
+      expect(notifier.state.gameState!.phase, equals('DRAW_PHASE'));
+      expect(notifier.state.gameState!.isDrawPhase, isTrue);
+    });
   });
 }
+
 

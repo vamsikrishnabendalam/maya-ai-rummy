@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:game_engine/game_engine.dart';
+import 'multiplayer_action_queue.dart';
 import '../models/table_models.dart';
 import '../../auth/models/multiplayer_user.dart';
 import '../../wallet/services/wallet_service.dart';
@@ -18,6 +19,25 @@ class MultiplayerService {
 
   final WalletService _walletService = WalletService();
   final ProgressionService _progressionService = ProgressionService();
+
+  /// Serialized FIFO action queue for network resilience and deadlock prevention
+  final MultiplayerActionQueue actionQueue = MultiplayerActionQueue();
+
+  /// Synced Firestore universal clock offset (ms)
+  int _serverClockOffsetMs = 0;
+  int get serverClockOffsetMs => _serverClockOffsetMs;
+  DateTime get syncedServerNow => DateTime.now().add(Duration(milliseconds: _serverClockOffsetMs));
+
+  void updateServerClockOffset(DateTime serverTime) {
+    final localNowMs = DateTime.now().millisecondsSinceEpoch;
+    final diff = serverTime.millisecondsSinceEpoch - localNowMs;
+    if (_serverClockOffsetMs == 0) {
+      _serverClockOffsetMs = diff;
+    } else {
+      // Exponential moving average: 80% previous, 20% new
+      _serverClockOffsetMs = ((_serverClockOffsetMs * 4) + diff) ~/ 5;
+    }
+  }
 
   /// Helper: Generate collision-free, unambiguous alphanumeric room code (omits 0, O, 1, I)
   static String generateRoomCode([int length = 6]) {
@@ -728,7 +748,16 @@ class MultiplayerService {
   // --------------- In-Game Server Actions ---------------
 
   /// Draw from closed deck (Popped from authoritative remaining closed deck)
-  Future<Card> drawFromClosed({required String gameId, required String myUid}) async {
+  Future<Card> drawFromClosed({
+    required String gameId,
+    required String myUid,
+    int? expectedTurnNumber,
+  }) {
+    return actionQueue.enqueue<Card>(
+      actionType: 'DRAW_CLOSED',
+      expectedTurnNumber: expectedTurnNumber,
+      currentTurnNumberGetter: () => _mockGames[gameId]?.turnNumber ?? (expectedTurnNumber ?? 0),
+      task: () async {
     // 1. Transactional Firestore Draw
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
@@ -744,6 +773,10 @@ class MultiplayerService {
           final phase = gameData['phase'] as String?;
           if (currentTurnUid != myUid) throw Exception('Not your turn to draw');
           if (phase != 'DRAW_PHASE') throw Exception('Invalid phase for draw: $phase');
+          final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
+          if (expectedTurnNumber != null && currentTurnNum != expectedTurnNumber) {
+            throw StateError('Turn expired: expected turn , current is ');
+          }
 
           final rawClosedDeck = (gameData['closedDeck'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [];
           final rawOpenPile = (gameData['openPile'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [];
@@ -806,9 +839,10 @@ class MultiplayerService {
             'cardDrawnFromOpenThisTurn': null,
             'players': updatedPlayers,
             'actionLog': actionLog,
+            'serverUpdatedAt': FieldValue.serverTimestamp(),
           });
 
-          tx.set(handRef, {'cards': existingCards});
+          tx.set(handRef, {'cards': existingCards, 'serverUpdatedAt': FieldValue.serverTimestamp()});
 
           return drawnCard;
         });
@@ -880,10 +914,21 @@ class MultiplayerService {
     _getOrCreateGameController(gameId).add(updatedGame);
 
     return drawnCard;
+      },
+    );
   }
 
   /// Draw from open pile
-  Future<Card> drawFromOpen({required String gameId, required String myUid}) async {
+  Future<Card> drawFromOpen({
+    required String gameId,
+    required String myUid,
+    int? expectedTurnNumber,
+  }) {
+    return actionQueue.enqueue<Card>(
+      actionType: 'DRAW_OPEN',
+      expectedTurnNumber: expectedTurnNumber,
+      currentTurnNumberGetter: () => _mockGames[gameId]?.turnNumber ?? (expectedTurnNumber ?? 0),
+      task: () async {
     // 1. Transactional Firestore Draw
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
@@ -897,6 +942,10 @@ class MultiplayerService {
           final gameData = gameSnap.data()!;
           if (gameData['currentTurnPlayerId'] != myUid) throw Exception('Not your turn to draw');
           if (gameData['phase'] != 'DRAW_PHASE') throw Exception('Not in draw phase');
+          final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
+          if (expectedTurnNumber != null && currentTurnNum != expectedTurnNumber) {
+            throw StateError('Turn expired: expected turn , current is ');
+          }
 
           final rawOpenPile = (gameData['openPile'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [];
           if (rawOpenPile.isEmpty) throw Exception('Discard pile is empty');
@@ -945,9 +994,10 @@ class MultiplayerService {
             'cardDrawnFromOpenThisTurn': drawnCardInt,
             'players': updatedPlayers,
             'actionLog': actionLog,
+            'serverUpdatedAt': FieldValue.serverTimestamp(),
           });
 
-          tx.set(handRef, {'cards': existingCards});
+          tx.set(handRef, {'cards': existingCards, 'serverUpdatedAt': FieldValue.serverTimestamp()});
 
           return drawnCard;
         });
@@ -998,6 +1048,8 @@ class MultiplayerService {
     _getOrCreateGameController(gameId).add(updatedGame);
 
     return drawnCard;
+      },
+    );
   }
 
   /// Discard card with atomic turn rotation and Indian Rummy rules
@@ -1005,7 +1057,13 @@ class MultiplayerService {
     required String gameId,
     required String myUid,
     required Card card,
-  }) async {
+    int? expectedTurnNumber,
+  }) {
+    return actionQueue.enqueue<void>(
+      actionType: 'DISCARD',
+      expectedTurnNumber: expectedTurnNumber,
+      currentTurnNumberGetter: () => _mockGames[gameId]?.turnNumber ?? (expectedTurnNumber ?? 0),
+      task: () async {
     final existingMock = _mockGames[gameId];
     if (existingMock != null &&
         (existingMock.status == 'COMPLETED' ||
@@ -1029,6 +1087,10 @@ class MultiplayerService {
             throw Exception('Game or round is not active.');
           }
           if (gameData['currentTurnPlayerId'] != myUid) throw Exception('Not your turn to discard');
+          final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
+          if (expectedTurnNumber != null && currentTurnNum != expectedTurnNumber) {
+            throw StateError('Turn expired: expected turn , current is ');
+          }
           // Check card in hand
           final handSnap = await tx.get(handRef);
           List<dynamic> existingCards = [];
@@ -1077,7 +1139,7 @@ class MultiplayerService {
             return p;
           }).toList();
 
-          final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
+          // currentTurnNum already resolved
           final rawLog = (gameData['actionLog'] as List<dynamic>?) ?? [];
           final actionLog = rawLog.map((e) => Map<String, dynamic>.from(e as Map)).toList();
           final playerDisplayName = (updatedPlayers.firstWhere((p) => p['uid'] == myUid, orElse: () => {'displayName': 'Player'}))['displayName'];
@@ -1093,7 +1155,7 @@ class MultiplayerService {
 
           final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
           final nextDeadline = turnTimerSec > 0
-              ? DateTime.now().add(Duration(seconds: turnTimerSec + 5)).toIso8601String()
+              ? syncedServerNow.add(Duration(seconds: turnTimerSec + 5)).toIso8601String()
               : null;
           tx.update(gameRef, {
             'openPile': openPile,
@@ -1104,9 +1166,10 @@ class MultiplayerService {
             'cardDrawnFromOpenThisTurn': null,
             'players': updatedPlayers,
             'actionLog': actionLog,
+            'serverUpdatedAt': FieldValue.serverTimestamp(),
           });
 
-          tx.set(handRef, {'cards': existingCards});
+          tx.set(handRef, {'cards': existingCards, 'serverUpdatedAt': FieldValue.serverTimestamp()});
         });
         return;
       } catch (e) {
@@ -1172,6 +1235,8 @@ class MultiplayerService {
 
     _mockGames[gameId] = updatedGame;
     _getOrCreateGameController(gameId).add(updatedGame);
+      },
+    );
   }
 
   /// Drop Game during DRAW_PHASE (First Drop or Middle Drop)
@@ -1661,7 +1726,13 @@ class MultiplayerService {
     required String myUid,
     required Card discardCard,
     required List<List<Card>> groups,
-  }) async {
+    int? expectedTurnNumber,
+  }) {
+    return actionQueue.enqueue<Map<String, dynamic>>(
+      actionType: 'DECLARE',
+      expectedTurnNumber: expectedTurnNumber,
+      currentTurnNumberGetter: () => _mockGames[gameId]?.turnNumber ?? (expectedTurnNumber ?? 0),
+      task: () async {
     final game = _mockGames[gameId];
     if (game == null) throw Exception('Game not found');
     if (game.status == 'DECLARING' || game.status == 'COMPLETED') {
@@ -1671,7 +1742,7 @@ class MultiplayerService {
     final hasSeenJoker = game.hasPlayerOpenedJoker(myUid);
     final effectiveJoker = hasSeenJoker ? game.openJoker : null;
     final valRes = DeclarationValidator().validate(groups, effectiveJoker);
-    final now = DateTime.now();
+    final now = syncedServerNow;
 
     if (valRes.isValid) {
       final winner = game.players.firstWhere((p) => p.uid == myUid,
@@ -1959,6 +2030,8 @@ class MultiplayerService {
         'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $wrongShowPenalty points and eliminated. Game continues with remaining players.',
       };
     }
+      },
+    );
   }
 
   /// Opponent submits final hand during DECLARING phase to reduce penalty score
@@ -2732,8 +2805,11 @@ class MultiplayerService {
   /// Forces turn advancement when a player exceeds their turn deadline.
   /// After 1 miss (timeout), the player is eliminated with their current score.
   /// A card is picked from the closed deck and dropped into the open pile (or the drawn card is discarded).
-  Future<void> forceAdvanceTurnOnTimeout(String gameId) async {
-    final now = DateTime.now();
+  Future<void> forceAdvanceTurnOnTimeout(String gameId) {
+    return actionQueue.enqueue<void>(
+      actionType: 'TURN_TIMEOUT',
+      task: () async {
+    final now = syncedServerNow;
 
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
@@ -2755,7 +2831,7 @@ class MultiplayerService {
           }
 
           final deadline = parseDate(gameData['turnDeadline']);
-          if (deadline == null || now.isBefore(deadline.add(const Duration(seconds: 1)))) {
+          if (deadline == null || now.isBefore(deadline.add(const Duration(seconds: 4)))) {
             return; // Not timed out yet
           }
 
@@ -2809,7 +2885,7 @@ class MultiplayerService {
           if (currentMisses < 2) {
             // Player used 1 of their 3 chances: auto-discard and pass turn
             final newMisses = currentMisses + 1;
-            players[pIdx] = timedOutPlayer.copyWith(misses: newMisses);
+            players[pIdx] = timedOutPlayer.copyWith(misses: newMisses, cardCount: 13);
 
             // Advance to next active player in sequential circular seat order
             TablePlayer? nextPlayer;
@@ -2847,6 +2923,7 @@ class MultiplayerService {
               'turnDeadline': nextDeadline,
               'cardDrawnFromOpenThisTurn': null,
               'actionLog': actionLog,
+              'serverUpdatedAt': FieldValue.serverTimestamp(),
             });
             return;
           }
@@ -3108,6 +3185,8 @@ class MultiplayerService {
     );
     _mockGames[gameId] = updatedGame;
     _getOrCreateGameController(gameId).add(updatedGame);
+      },
+    );
   }
 
   /// Allows the table owner/host to conclude the game/tournament at any moment
@@ -3451,7 +3530,20 @@ class MultiplayerService {
         }
 
         final gameData = latestGameSnap!.data()!;
+        final serverTs = gameData['serverUpdatedAt'] ?? gameData['lastHeartbeat'] ?? gameData['updatedAt'];
+        if (serverTs is Timestamp) {
+          updateServerClockOffset(serverTs.toDate());
+        } else if (serverTs is DateTime) {
+          updateServerClockOffset(serverTs);
+        } else if (serverTs is String) {
+          final dt = DateTime.tryParse(serverTs);
+          if (dt != null) updateServerClockOffset(dt);
+        }
+
         final gameRound = (gameData['currentRound'] as int?) ?? 1;
+        final gamePhase = gameData['phase'] as String? ?? 'DRAW_PHASE';
+        final currentTurnPlayerId = gameData['currentTurnPlayerId'] as String? ?? '';
+        final isMyTurn = currentTurnPlayerId == myUid;
 
         final handData = latestHandSnap?.data();
         final handRound = (handData?['round'] as int?);
@@ -3476,6 +3568,20 @@ class MultiplayerService {
         List<Card> finalHand = parsedHand;
         if (finalHand.isEmpty && _mockPrivateHands.containsKey('${gameId}_$myUid')) {
           finalHand = _mockPrivateHands['${gameId}_$myUid']!;
+        }
+
+        // Hand Invariant Reconciliation on Reconnect / Snapshot:
+        // If client hand has 14 cards, but the server game is in DRAW_PHASE or turn passed:
+        // Automatically trim surplus card and synchronize canonical 13-card hand in Firestore!
+        if (finalHand.length > 13 && (gamePhase == 'DRAW_PHASE' || !isMyTurn)) {
+          debugPrint('[MultiplayerService] Reconciling 14-card deadlock for . Auto-trimming hand to 13 cards.');
+          finalHand = finalHand.sublist(0, 13);
+          privateHandRef.update({
+            'cards': finalHand.map((c) => c.toInt()).toList(),
+            'serverUpdatedAt': FieldValue.serverTimestamp(),
+          }).catchError((e) {
+            debugPrint('[MultiplayerService] Reconcile privateHand error: ');
+          });
         }
 
         final parsedGame = MultiplayerGameState.fromJson(latestGameSnap!.data()!, myHand: finalHand);
@@ -3514,6 +3620,12 @@ class MultiplayerService {
   @visibleForTesting
   void setMockGame(MultiplayerGameState game) {
     _mockGames[game.gameId] = game;
+    _getOrCreateGameController(game.gameId).add(game);
+  }
+
+  @visibleForTesting
+  void setMockPrivateHand(String gameId, String uid, List<Card> hand) {
+    _mockPrivateHands['_'] = List.from(hand);
   }
 
   @visibleForTesting

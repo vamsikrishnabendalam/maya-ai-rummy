@@ -61,12 +61,14 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
       // Repaint ticking UI every second
       setState(() {});
 
+      final syncedNow = ref.read(multiplayerServiceProvider).syncedServerNow;
+
       if (game.isDeclaring) {
-        if (game.declarationDeadline != null && DateTime.now().isAfter(game.declarationDeadline!)) {
+        if (game.declarationDeadline != null && syncedNow.isAfter(game.declarationDeadline!)) {
           ref.read(multiplayerGameProvider.notifier).checkDeclarationTimeout();
         }
       } else if (game.status == 'ROUND_OVER') {
-        if (game.nextRoundStartTime != null && DateTime.now().isAfter(game.nextRoundStartTime!)) {
+        if (game.nextRoundStartTime != null && syncedNow.isAfter(game.nextRoundStartTime!)) {
           ref.read(multiplayerGameProvider.notifier).startNextRound();
         }
       } else if (game.status == 'IN_PROGRESS') {
@@ -75,12 +77,11 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         if (!isSeated) return;
         final isMyTurn = game.currentTurnPlayerId == currentUid;
 
-        // Turn timeout handling
+        // Turn timeout handling with universal synced clock & 4s grace window
         if (game.turnDeadline != null) {
-          final now = DateTime.now();
-          if (isMyTurn && now.isAfter(game.turnDeadline!)) {
+          if (isMyTurn && syncedNow.isAfter(game.turnDeadline!)) {
             ref.read(multiplayerGameProvider.notifier).handleTurnTimeout();
-          } else if (!isMyTurn && now.isAfter(game.turnDeadline!.add(const Duration(seconds: 3)))) {
+          } else if (!isMyTurn && syncedNow.isAfter(game.turnDeadline!.add(const Duration(seconds: 4)))) {
             ref.read(multiplayerGameProvider.notifier).forceAdvanceTurnOnTimeout();
           }
         }
@@ -763,7 +764,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                     builder: (btnCtx) {
                       int remainingSecs = 0;
                       if (game.nextRoundStartTime != null) {
-                        remainingSecs = game.nextRoundStartTime!.difference(DateTime.now()).inSeconds.clamp(0, 10);
+                        remainingSecs = game.nextRoundStartTime!.difference(ref.read(multiplayerServiceProvider).syncedServerNow).inSeconds.clamp(0, 10);
                       }
                       if (isHost || remainingSecs <= 0) {
                         return ElevatedButton.icon(
@@ -872,7 +873,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
 
     int remainingSeconds = 0;
     if (game.declarationDeadline != null) {
-      remainingSeconds = game.declarationDeadline!.difference(DateTime.now()).inSeconds.clamp(0, 30);
+      remainingSeconds = game.declarationDeadline!.difference(ref.read(multiplayerServiceProvider).syncedServerNow).inSeconds.clamp(0, 30);
     }
 
     return Container(
@@ -1364,7 +1365,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final int remainingTurnSeconds = game.turnTimerSeconds == 0
         ? 0
         : (game.turnDeadline != null
-            ? game.turnDeadline!.difference(DateTime.now()).inSeconds.clamp(0, 99)
+            ? game.turnDeadline!.difference(ref.read(multiplayerServiceProvider).syncedServerNow).inSeconds.clamp(0, 99)
             : game.turnTimerSeconds);
 
     final Card? wildJoker = (game.hasPlayerOpenedJoker(user.uid) || !game.isClosedJoker) ? game.openJoker : null;

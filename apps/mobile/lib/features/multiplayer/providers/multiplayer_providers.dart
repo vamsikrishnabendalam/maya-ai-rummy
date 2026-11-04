@@ -314,7 +314,22 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
       final totalCardsCount = groups.expand((grp) => grp.cards).length;
       final has14Cards = totalCardsCount >= 14 || g.myHand.length >= 14;
-      final effectivePhase = (has14Cards && g.isMyTurn(user.uid)) ? 'DISCARD_PHASE' : g.phase;
+
+      // Invariant Reconciliation: if player holds >= 14 cards, but game is in DRAW_PHASE or not player's turn,
+      // auto-trim excess card(s) from local groups to resolve 14-card deadlock upon reconnect.
+      if (has14Cards && (g.phase == 'DRAW_PHASE' || !g.isMyTurn(user.uid))) {
+        final all = groups.expand((g) => g.cards).toList();
+        if (all.length > 13) {
+          final surplus = all.sublist(13);
+          for (final extraCard in surplus) {
+            groups = _removeCardFromGroups(groups, extraCard);
+          }
+          _revalidateGroups(groups, effectiveJoker);
+          _persistGroups(gameId, user.uid, groups, g.currentRound);
+        }
+      }
+
+      final effectivePhase = (has14Cards && g.isMyTurn(user.uid) && g.phase != 'DRAW_PHASE') ? 'DISCARD_PHASE' : g.phase;
       final normalizedGame = g.copyWith(phase: effectivePhase);
 
       state = state.copyWith(
@@ -447,7 +462,11 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
     state = state.copyWith(isSubmitting: true);
     try {
-      final drawn = await _service.drawFromClosed(gameId: game.gameId, myUid: user.uid);
+      final drawn = await _service.drawFromClosed(
+        gameId: game.gameId,
+        myUid: user.uid,
+        expectedTurnNumber: game.turnNumber,
+      );
 
       // Check if the realtime watchGame stream already incorporated the drawn card
       final currentCards = _allCards();
@@ -497,7 +516,11 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
 
     state = state.copyWith(isSubmitting: true);
     try {
-      final drawn = await _service.drawFromOpen(gameId: game.gameId, myUid: user.uid);
+      final drawn = await _service.drawFromOpen(
+        gameId: game.gameId,
+        myUid: user.uid,
+        expectedTurnNumber: game.turnNumber,
+      );
 
       // Check if the realtime watchGame stream already incorporated the drawn card
       final currentCards = _allCards();
@@ -578,6 +601,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         gameId: game.gameId,
         myUid: user.uid,
         card: cardToDiscard,
+        expectedTurnNumber: game.turnNumber,
       );
 
       // Auto-unlock Closed Joker if pure sequence (Life) is formed after discarding
@@ -687,6 +711,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         myUid: user.uid,
         discardCard: discardCard,
         groups: groupCards,
+        expectedTurnNumber: game.turnNumber,
       );
       final updatedGame = _service.getMockGame(game.gameId);
       state = state.copyWith(
@@ -998,11 +1023,17 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     }
   }
 
+  bool _isHeartbeatInProgress = false;
   Future<void> recordHeartbeat() async {
     final game = state.gameState;
     final user = _ref.read(authProvider);
-    if (game == null || user == null) return;
-    await _service.recordPlayerHeartbeat(gameId: game.gameId, uid: user.uid);
+    if (game == null || user == null || _isHeartbeatInProgress) return;
+    _isHeartbeatInProgress = true;
+    try {
+      await _service.recordPlayerHeartbeat(gameId: game.gameId, uid: user.uid);
+    } finally {
+      _isHeartbeatInProgress = false;
+    }
   }
 
   Future<void> markDisconnected() async {
@@ -1012,10 +1043,23 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     await _service.markPlayerDisconnected(gameId: game.gameId, uid: user.uid);
   }
 
+  bool _isCheckingDisconnections = false;
   Future<void> checkDisconnections() async {
     final game = state.gameState;
-    if (game == null || game.isCompleted) return;
-    await _service.checkDisconnections(game.gameId);
+    if (game == null || game.isCompleted || _isCheckingDisconnections) return;
+    final now = _service.syncedServerNow;
+    final hasCandidate = game.players.any((p) =>
+      p.status == 'ACTIVE' && !p.connected && p.disconnectedAt != null &&
+      now.difference(p.disconnectedAt!).inSeconds >= 180
+    );
+    if (!hasCandidate) return;
+
+    _isCheckingDisconnections = true;
+    try {
+      await _service.checkDisconnections(game.gameId);
+    } finally {
+      _isCheckingDisconnections = false;
+    }
   }
 
   Future<void> forceAdvanceTurnOnTimeout() async {

@@ -36,7 +36,8 @@ void main() {
       expect(pos2p.length, equals(1));
       expect(pos2p.first.isCenter, isTrue);
       expect(pos2p.first.centerX, equals(512.0));
-      expect(pos2p.first.top, equals(40.0));
+      expect(pos2p.first.top, equals(58.0));
+      expect(pos2p.first.avatarTop, equals(102.0));
       expect(pos2p.first.avatarHeight, equals(140.0));
 
       // 3 Players: 2 opponents in twin armchairs
