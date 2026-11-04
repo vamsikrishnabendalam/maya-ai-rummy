@@ -572,6 +572,96 @@ void main() {
       final unchanged = service.getMockGame('game_joker_reject')!;
       expect(unchanged.openedJokerPlayerUids, isEmpty);
     });
+
+    test('Round 2 invalid declaration applies 80 pts penalty, updates roundHistory and cumulative scores', () async {
+      final service = MultiplayerService();
+      final round2Game = MultiplayerGameState(
+        gameId: 'game_r2_invalid_test',
+        tableId: 'tbl_deals_2',
+        roomCode: 'DEALS2',
+        tableName: 'Best of 2 Deals',
+        gameMode: 'Best of 2 Deals',
+        status: 'IN_PROGRESS',
+        currentRound: 2,
+        playerCount: 2,
+        currentTurnPlayerId: 'user_p2',
+        turnNumber: 5,
+        phase: 'DISCARD_PHASE',
+        turnTimerSeconds: 30,
+        jokerMode: 'CLOSED',
+        openJoker: const Card(suit: Suit.spades, rank: Rank.eight, deckIndex: 0),
+        openPile: const [Card(suit: Suit.hearts, rank: Rank.seven, deckIndex: 0)],
+        players: const [
+          TablePlayer(uid: 'user_p1', displayName: 'vamsi', photoURL: '', seatIndex: 0, cardCount: 13, score: 0, isHost: true),
+          TablePlayer(uid: 'user_p2', displayName: 'jagadeesh', photoURL: '', seatIndex: 1, cardCount: 14, score: 24, isHost: false),
+        ],
+        roundHistory: const [
+          {
+            'round': 1,
+            'winnerUid': 'user_p1',
+            'winnerName': 'vamsi',
+            'results': [
+              {'uid': 'user_p1', 'displayName': 'vamsi', 'roundScore': 0, 'cumulativeScore': 0, 'isEliminated': false},
+              {'uid': 'user_p2', 'displayName': 'jagadeesh', 'roundScore': 24, 'cumulativeScore': 24, 'isEliminated': false},
+            ],
+          }
+        ],
+        dealerPlayerId: 'user_p1',
+      );
+
+      service.setMockGame(round2Game);
+
+      // Jagadeesh declares with an invalid meld (no pure sequence)
+      final discardCard = const Card(suit: Suit.spades, rank: Rank.seven, deckIndex: 0);
+      final invalidGroups = [
+        [const Card(suit: Suit.hearts, rank: Rank.two, deckIndex: 0), const Card(suit: Suit.hearts, rank: Rank.five, deckIndex: 0), const Card(suit: Suit.hearts, rank: Rank.nine, deckIndex: 0)],
+        [const Card(suit: Suit.spades, rank: Rank.two, deckIndex: 0), const Card(suit: Suit.spades, rank: Rank.five, deckIndex: 0), const Card(suit: Suit.spades, rank: Rank.nine, deckIndex: 0)],
+        [const Card(suit: Suit.diamonds, rank: Rank.two, deckIndex: 0), const Card(suit: Suit.diamonds, rank: Rank.five, deckIndex: 0), const Card(suit: Suit.diamonds, rank: Rank.nine, deckIndex: 0)],
+        [const Card(suit: Suit.clubs, rank: Rank.two, deckIndex: 0), const Card(suit: Suit.clubs, rank: Rank.five, deckIndex: 0), const Card(suit: Suit.clubs, rank: Rank.nine, deckIndex: 0), const Card(suit: Suit.clubs, rank: Rank.king, deckIndex: 0)],
+      ];
+
+      final res = await service.declareGame(
+        gameId: 'game_r2_invalid_test',
+        myUid: 'user_p2',
+        discardCard: discardCard,
+        groups: invalidGroups,
+      );
+
+      expect(res['isValid'], isFalse);
+      expect(res['status'], equals('COMPLETED'));
+      expect(res['message'], contains('Penalized 80 pts'));
+
+      final finalizedGame = service.getMockGame('game_r2_invalid_test')!;
+      expect(finalizedGame.status, equals('COMPLETED'));
+      expect(finalizedGame.winnerPlayerId, equals('user_p1'));
+      expect(finalizedGame.roundHistory.length, equals(2));
+
+      // Check Round 2 record in roundHistory
+      final r2Record = finalizedGame.roundHistory[1];
+      expect(r2Record['round'], equals(2));
+      expect(r2Record['winnerUid'], equals('user_p1'));
+      final r2Results = r2Record['results'] as List<dynamic>;
+      final vamsiR2 = r2Results.firstWhere((r) => r['uid'] == 'user_p1');
+      final jagadeeshR2 = r2Results.firstWhere((r) => r['uid'] == 'user_p2');
+      expect(vamsiR2['roundScore'], equals(0));
+      expect(vamsiR2['cumulativeScore'], equals(0));
+      expect(jagadeeshR2['roundScore'], equals(80));
+      expect(jagadeeshR2['cumulativeScore'], equals(104)); // 24 + 80 = 104!
+
+      // Final results should show cumulative scores
+      final vamsiFinal = finalizedGame.finalResults.firstWhere((r) => r.uid == 'user_p1');
+      final jagadeeshFinal = finalizedGame.finalResults.firstWhere((r) => r.uid == 'user_p2');
+      expect(vamsiFinal.score, equals(0));
+      expect(vamsiFinal.isWinner, isTrue);
+      expect(jagadeeshFinal.score, equals(104));
+      expect(jagadeeshFinal.isWinner, isFalse);
+
+      // Verify discarding is rejected after completion
+      expect(
+        service.discardCard(gameId: 'game_r2_invalid_test', myUid: 'user_p2', card: const Card(suit: Suit.hearts, rank: Rank.two, deckIndex: 0)),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 }
 

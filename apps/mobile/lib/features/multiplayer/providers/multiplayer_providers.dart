@@ -544,6 +544,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     final user = _ref.read(authProvider);
     final game = state.gameState;
     if (user == null || game == null) return;
+    if (state.isHandLocked || game.isCompleted || game.isGameOver || game.isDeclaring || game.isRoundOver) return;
 
     // Check Indian Rummy Rule: cannot discard open-drawn card
     if (game.cardDrawnFromOpenThisTurn != null && game.cardDrawnFromOpenThisTurn == cardToDiscard) {
@@ -690,8 +691,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       final updatedGame = _service.getMockGame(game.gameId);
       state = state.copyWith(
         gameState: updatedGame ?? state.gameState?.copyWith(status: 'DECLARING', finishCard: discardCard),
+        cardGroups: remainingGroups,
         isSubmitting: false,
-        isHandLocked: false,
+        isHandLocked: true,
         statusMessage: res['message'],
       );
       return res;

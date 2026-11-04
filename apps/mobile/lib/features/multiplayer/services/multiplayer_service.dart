@@ -820,6 +820,12 @@ class MultiplayerService {
     // 2. Local / Offline Simulation
     final game = _mockGames[gameId];
     if (game == null) throw Exception('Game not found');
+    if (game.status == 'COMPLETED' || game.status == 'ROUND_OVER' || game.status == 'DECLARING') {
+      throw Exception('Game or round is not active.');
+    }
+    if (game.status == 'COMPLETED' || game.status == 'ROUND_OVER' || game.status == 'DECLARING') {
+      throw Exception('Game or round is not active.');
+    }
     if (game.currentTurnPlayerId != myUid) throw Exception('Not your turn to draw');
     if (!game.isDrawPhase) throw Exception('Not in draw phase');
 
@@ -1000,6 +1006,14 @@ class MultiplayerService {
     required String myUid,
     required Card card,
   }) async {
+    final existingMock = _mockGames[gameId];
+    if (existingMock != null &&
+        (existingMock.status == 'COMPLETED' ||
+            existingMock.status == 'ROUND_OVER' ||
+            existingMock.status == 'DECLARING')) {
+      throw Exception('Game or round is not active.');
+    }
+
     // 1. Transactional Firestore Discard
     if (FirebaseConfig.isInitialized && _firestore != null) {
       try {
@@ -1011,6 +1025,9 @@ class MultiplayerService {
           if (!gameSnap.exists) throw Exception('Game not found');
 
           final gameData = gameSnap.data()!;
+          if (gameData['status'] == 'COMPLETED' || gameData['status'] == 'ROUND_OVER' || gameData['status'] == 'DECLARING') {
+            throw Exception('Game or round is not active.');
+          }
           if (gameData['currentTurnPlayerId'] != myUid) throw Exception('Not your turn to discard');
           // Check card in hand
           final handSnap = await tx.get(handRef);
@@ -1094,12 +1111,20 @@ class MultiplayerService {
         return;
       } catch (e) {
         debugPrint('[MultiplayerService] discardCard Firestore Transaction notice: $e');
+        if (e.toString().contains('Game or round is not active') ||
+            e.toString().contains('Not your turn to discard') ||
+            e.toString().contains('Cannot discard the card drawn from the open pile')) {
+          rethrow;
+        }
       }
     }
 
     // 2. Local / Offline Simulation
     final game = _mockGames[gameId];
     if (game == null) throw Exception('Game not found');
+    if (game.status == 'COMPLETED' || game.status == 'ROUND_OVER' || game.status == 'DECLARING') {
+      throw Exception('Game or round is not active.');
+    }
 
     if (game.cardDrawnFromOpenThisTurn != null && game.cardDrawnFromOpenThisTurn == card) {
       throw Exception('Cannot discard the card drawn from the open pile in the same turn');
@@ -1744,18 +1769,19 @@ class MultiplayerService {
         'message': 'Valid Declaration! You won the game with 0 points!',
       };
     } else {
-      // Wrong show: 80 points penalty and eliminate the player from active play
+      // Wrong show: Strict 80 points penalty (or maxPenalty) and eliminate the declaring player from active play
       final pIdx = game.players.indexWhere((p) => p.uid == myUid);
       final declaringPlayer = pIdx >= 0
           ? game.players[pIdx]
           : TablePlayer(uid: myUid, displayName: 'Player', photoURL: '', seatIndex: 0);
 
       final players = List<TablePlayer>.from(game.players);
-      final elimScore = declaringPlayer.score > 0 ? declaringPlayer.score : 80;
+      final wrongShowPenalty = game.maxPenalty > 0 ? game.maxPenalty : 80;
       if (pIdx >= 0) {
         players[pIdx] = declaringPlayer.copyWith(
           status: 'ELIMINATED',
-          score: elimScore,
+          score: wrongShowPenalty,
+          cardCount: 13,
         );
       }
 
@@ -1776,51 +1802,75 @@ class MultiplayerService {
         'type': 'DECLARE_INVALID',
         'playerId': myUid,
         'card': discardCard.toInt(),
-        'description': '${declaringPlayer.displayName} submitted an invalid declaration (${valRes.errorMessage}). Penalized $elimScore points and eliminated.',
+        'description': '${declaringPlayer.displayName} submitted an invalid declaration (${valRes.errorMessage}). Penalized $wrongShowPenalty points and eliminated from this deal.',
       });
 
       final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
 
       if (remainingActive.length <= 1) {
-        // Lone remaining active player wins immediately!
+        // Lone remaining active player wins the round with 0 points!
         final winner = remainingActive.isNotEmpty ? remainingActive.first : players.first;
-        final finalResults = players.map((p) {
-          final isWin = p.uid == winner.uid;
-          return MultiplayerFinalResult(
+        actionLog.add({
+          'seq': actionLog.length + 1,
+          'timestamp': now.toIso8601String(),
+          'type': 'ROUND_WON_BY_DEFAULT',
+          'playerId': winner.uid,
+          'description': '${winner.displayName} wins Round ${game.currentRound} with 0 points due to invalid declaration by ${declaringPlayer.displayName}! 👑',
+        });
+
+        // Set round results: winner gets 0, wrong shower gets 80, others keep their respective round scores
+        final roundResults = <MultiplayerFinalResult>[
+          MultiplayerFinalResult(
+            uid: winner.uid,
+            displayName: winner.displayName,
+            photoURL: winner.photoURL,
+            seatIndex: winner.seatIndex,
+            score: 0,
+            isWinner: true,
+          ),
+          MultiplayerFinalResult(
+            uid: myUid,
+            displayName: declaringPlayer.displayName,
+            photoURL: declaringPlayer.photoURL,
+            seatIndex: declaringPlayer.seatIndex,
+            score: wrongShowPenalty,
+            isWinner: false,
+          ),
+        ];
+
+        for (final p in game.players) {
+          if (p.uid == winner.uid || p.uid == myUid) continue;
+          roundResults.add(MultiplayerFinalResult(
             uid: p.uid,
             displayName: p.displayName,
             photoURL: p.photoURL,
             seatIndex: p.seatIndex,
-            score: isWin ? 0 : (p.score > 0 ? p.score : 80),
-            isWinner: isWin,
-          );
-        }).toList();
+            score: p.score > 0 ? p.score : (p.status == 'DROPPED' ? (game.firstDropPenalty > 0 ? game.firstDropPenalty : 20) : wrongShowPenalty),
+            isWinner: false,
+          ));
+        }
 
-        actionLog.add({
-          'seq': actionLog.length + 1,
-          'timestamp': now.toIso8601String(),
-          'type': 'GAME_COMPLETED',
-          'playerId': winner.uid,
-          'description': '${winner.displayName} wins the match as the lone remaining active player! 👑',
-        });
-
-        final updatedGame = game.copyWith(
+        final intermediateGame = game.copyWith(
           players: players,
           openPile: openPile,
-          status: 'COMPLETED',
-          winnerPlayerId: winner.uid,
-          finalResults: finalResults,
-          endedAt: now,
+          finishCard: discardCard,
+          declaringPlayerId: winner.uid,
+          declaringPlayerName: winner.displayName,
+          finalResults: roundResults,
           actionLog: actionLog,
         );
 
-        _mockGames[gameId] = updatedGame;
-        _getOrCreateGameController(gameId).add(updatedGame);
+        final finalizedGame = _finalizeGameResults(intermediateGame);
+
+        _mockGames[gameId] = finalizedGame;
+        _getOrCreateGameController(gameId).add(finalizedGame);
 
         if (FirebaseConfig.isInitialized && _firestore != null) {
           try {
-            await _firestore!.collection('games').doc(gameId).update(updatedGame.toJson());
-            await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+            await _firestore!.collection('games').doc(gameId).update(finalizedGame.toJson());
+            if (finalizedGame.status == 'COMPLETED') {
+              await _firestore!.collection('tables').doc(game.tableId).update({'status': 'FINISHED'});
+            }
             final handRef = _firestore!.collection('games').doc(gameId).collection('privateHands').doc(myUid);
             final handSnap = await handRef.get();
             if (handSnap.exists && handSnap.data() != null) {
@@ -1835,8 +1885,12 @@ class MultiplayerService {
 
         return {
           'isValid': false,
-          'finalResults': finalResults.map((r) => r.toJson()).toList(),
-          'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $elimScore pts and eliminated. Game completed: ${winner.displayName} wins!',
+          'status': finalizedGame.status,
+          'finalResults': finalizedGame.finalResults.map((r) => r.toJson()).toList(),
+          'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $wrongShowPenalty pts.' +
+              (finalizedGame.status == 'COMPLETED'
+                  ? ' Match completed: ${winner.displayName} wins!'
+                  : ' Round ${game.currentRound} ended: ${winner.displayName} wins round!'),
         };
       }
 
@@ -1902,7 +1956,7 @@ class MultiplayerService {
 
       return {
         'isValid': false,
-        'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $elimScore points and eliminated. Game continues with remaining players.',
+        'message': 'Wrong Show! Invalid declaration: ${valRes.errorMessage}. Penalized $wrongShowPenalty points and eliminated. Game continues with remaining players.',
       };
     }
   }
@@ -2026,7 +2080,7 @@ class MultiplayerService {
         if (p.status == 'DROPPED') {
           score = p.score; // Preserve exact drop penalty
         } else if (p.status == 'ELIMINATED') {
-          score = p.score > 0 ? p.score : 80;
+          score = (game.maxPenalty > 0) ? game.maxPenalty : 80;
         } else {
           final pHand = _mockPrivateHands['${game.gameId}_${p.uid}'] ?? [];
           if (pHand.isNotEmpty) {
@@ -2069,7 +2123,7 @@ class MultiplayerService {
         } else if (p.status == 'DROPPED') {
           thisRoundScore = p.score > 0 ? p.score : 20;
         } else if (p.status == 'ELIMINATED') {
-          thisRoundScore = p.score > 0 ? p.score : 80;
+          thisRoundScore = (game.maxPenalty > 0) ? game.maxPenalty : 80;
         }
       }
       roundScoresMap[p.uid] = thisRoundScore;

@@ -88,4 +88,80 @@ void main() {
     expect(find.textContaining('Your Turn!'), findsAtLeastNWidgets(1));
     notifier.cancelTurnTimer();
   });
+
+  testWidgets('Round 1 declared finish card is completely cleared and NOT rendered in finish slot in Round 2', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final oldHandler = FlutterError.onError;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      if (details.exceptionAsString().contains('overflowed')) return;
+      oldHandler?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = oldHandler);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: GameTableScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    final notifier = container.read(gameTableProvider.notifier);
+    addTearDown(() => notifier.cancelTurnTimer());
+
+    // Simulate Round 1 declaration with 6 of hearts as finishCard
+    const finishCardRound1 = Card(suit: Suit.hearts, rank: Rank.six, deckIndex: 0);
+    notifier.state = notifier.state.copyWith(
+      finishCard: finishCardRound1,
+      isRoundOver: true,
+      currentScore: 0,
+      roundScores: [
+        RoundScore(
+          roundNumber: 1,
+          humanScore: 0,
+          aiScore: 40,
+          cumulativeHumanScore: 0,
+          cumulativeAiScore: 40,
+          humanOutcome: 'Declared (0 pts)',
+          aiOutcome: 'Lost (40 pts)',
+          timestamp: DateTime.now(),
+        ),
+      ],
+    );
+    await tester.pump();
+
+    // In Round 1 complete state, finishCard is shown
+    expect(notifier.state.finishCard, equals(finishCardRound1));
+
+    // Now start Round 2
+    notifier.startNextRound();
+    await tester.pump();
+    // Allow the AI turn timer, discard animation, and dealing animation to complete
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    // Verify finishCard in state is strictly null in Round 2
+    expect(notifier.state.finishCard, isNull);
+    expect(notifier.state.botDiscardCard, isNull);
+    expect(notifier.state.isRoundOver, isFalse);
+    expect(notifier.state.currentRoundNumber, equals(2));
+
+    // Verify 6 of hearts is NOT rendered as the finish card in the table
+    // (There should be no CardWidget matching 6 of hearts inside the finish slot)
+    expect(find.text('6♥'), findsNothing);
+    notifier.cancelTurnTimer();
+  });
 }

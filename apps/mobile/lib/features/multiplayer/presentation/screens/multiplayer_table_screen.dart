@@ -455,7 +455,8 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
 
     final res = await gameNotifier.declareWithCard(cardToDeclare);
     if (res != null && mounted) {
-      if (res['isValid'] == false) {
+      if (res['isValid'] == false && !_hasShownResultDialog) {
+        _hasShownResultDialog = true;
         _showResultDialog(res);
       }
     }
@@ -484,6 +485,9 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
       titleColor = Colors.orangeAccent;
       titleText = 'GAME ENDED BY HOST';
     }
+
+    final currentG = ref.read(multiplayerGameProvider).gameState;
+    final isMatchOver = isAborted || (currentG != null && (currentG.isGameOver || currentG.isCompleted));
 
     showDialog(
       context: context,
@@ -587,7 +591,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
               }
             },
           ),
-          if (!isValid && !isAborted)
+          if (!isValid && !isMatchOver)
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
               onPressed: () => Navigator.pop(ctx),
@@ -1028,6 +1032,12 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     required bool isSelectedCardFromOpen,
     required bool isDropped,
   }) {
+    if (game.isGameOver || game.isCompleted) {
+      return 'Match completed! Check the final scorecard.';
+    }
+    if (game.isRoundOver) {
+      return 'Deal completed! Waiting for next deal...';
+    }
     if (game.isDeclaring) {
       return '${game.declaringPlayerName ?? "Opponent"} has declared! Review cards.';
     }
@@ -1193,20 +1203,47 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     ref.listen<MultiplayerGameTableState>(multiplayerGameProvider, (prev, next) {
       final g = next.gameState;
       final prevG = prev?.gameState;
-      if (g != null && prevG != null && g.currentRound > prevG.currentRound) {
-        _hasShownResultDialog = false;
+      if (g != null && (prevG == null || g.currentRound > prevG.currentRound)) {
+        if (!g.isGameOver) {
+          _hasShownResultDialog = false;
+        }
       }
       if (g != null && g.isGameOver && !_hasShownResultDialog) {
         _hasShownResultDialog = true;
         final wasAbortedByHost = g.actionLog.any((a) => a['type'] == 'HOST_ENDED_GAME');
+        final wrongShowLog = g.actionLog.lastWhere(
+          (a) => a['type'] == 'DECLARE_INVALID',
+          orElse: () => <String, dynamic>{},
+        );
+        final hasWrongShow = wrongShowLog.isNotEmpty;
+        final wrongShowPlayerId = wrongShowLog['playerId'];
+        final myUid = user?.uid ?? '';
+        final isMeWrongShow = myUid.isNotEmpty && wrongShowPlayerId == myUid;
+        final winnerPlayer = g.players.firstWhere(
+          (p) => p.uid == g.winnerPlayerId,
+          orElse: () => TablePlayer(uid: '', displayName: 'Winner', photoURL: '', seatIndex: 0),
+        );
+
+        String message;
+        if (wasAbortedByHost) {
+          message = 'The table host ended the match before completion. Match cancelled with 0 points for all players.';
+        } else if (hasWrongShow) {
+          if (isMeWrongShow) {
+            message = 'Wrong Show! Your declaration was invalid and you were penalized 80 points. ${winnerPlayer.displayName} wins the match!';
+          } else {
+            message = 'Opponent Wrong Show! An invalid declaration occurred (80 pts penalty). You win the match with 0 points!';
+          }
+        } else {
+          message = '${g.declaringPlayerName ?? winnerPlayer.displayName} won the match with 0 points!';
+        }
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _showResultDialog({
-              'isValid': !wasAbortedByHost,
+              'isValid': !isMeWrongShow && !wasAbortedByHost,
               'isAborted': wasAbortedByHost,
-              'message': wasAbortedByHost
-                  ? 'The table host ended the match before completion. Match cancelled with 0 points for all players.'
-                  : '${g.declaringPlayerName ?? "Winner"} won the match with 0 points!',
+              'hasWrongShow': hasWrongShow,
+              'message': message,
               'finalResults': g.finalResults.map((r) => r.toJson()).toList(),
             });
           }
@@ -1303,7 +1340,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
         game.cardDrawnFromOpenThisTurn != null &&
         tableState.selectedCard == game.cardDrawnFromOpenThisTurn;
 
-    final canDiscardAction = isMyTurn && isDiscardPhase && !game.isDeclaring;
+    final canDiscardAction = isMyTurn && isDiscardPhase && !game.isDeclaring && !game.isGameOver && !game.isCompleted && !game.isRoundOver && !tableState.isHandLocked;
     final canDiscard = canDiscardAction && tableState.selectedCard != null && !isSelectedCardFromOpen;
     final canDeclare = canDiscardAction && tableState.selectedCard != null;
 
@@ -1312,7 +1349,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
     final isFirstDrop = game.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
     final dropPenalty = isFirstDrop ? game.firstDropPenalty : game.middleDropPenalty;
-    final canDrop = !game.isDeclaring && isMyTurn && isDrawPhase && !isDropped;
+    final canDrop = !game.isDeclaring && !game.isGameOver && !game.isCompleted && !game.isRoundOver && !tableState.isHandLocked && isMyTurn && isDrawPhase && !isDropped;
 
     final toastMessage = _computeMultiplayerToast(
       game: game,
@@ -1415,7 +1452,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                                     onDraw: () => notifier.drawFromOpen(),
                                     canDiscard: isMyTurn && isDiscardPhase && !game.isDeclaring,
                                     onDiscardCard: (card) {
-                                      if (game.isDeclaring) return;
+                                      if (game.isDeclaring || game.isGameOver || game.isCompleted || game.isRoundOver || tableState.isHandLocked) return;
                                       if (!isMyTurn || !isDiscardPhase) return;
                                       if (card == game.cardDrawnFromOpenThisTurn) {
                                         ScaffoldMessenger.of(context).showSnackBar(
@@ -4141,7 +4178,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                       ref.read(gameUIProvider.notifier).endDrag();
                     },
                     onDiscard: (card) {
-                      if (game.isDeclaring) return;
+                      if (game.isDeclaring || game.isGameOver || game.isCompleted || game.isRoundOver || tableState.isHandLocked) return;
                       if (!isMyTurn || !isDiscardPhase) return;
                       if (card == game.cardDrawnFromOpenThisTurn) {
                         ScaffoldMessenger.of(context).showSnackBar(

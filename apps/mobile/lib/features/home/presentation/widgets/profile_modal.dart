@@ -334,12 +334,18 @@ class ProfileModal extends ConsumerWidget {
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Sign in notice: $e'),
-                                        backgroundColor: Colors.redAccent,
-                                      ),
-                                    );
+                                    if (e.toString().contains('10') ||
+                                        e.toString().contains('DEVELOPER_ERROR') ||
+                                        e.toString().contains('sign_in_failed')) {
+                                      GoogleSignInConfigDialog.show(context);
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Sign in notice: $e'),
+                                          backgroundColor: Colors.redAccent,
+                                        ),
+                                      );
+                                    }
                                   }
                                 }
                               },

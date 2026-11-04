@@ -143,16 +143,26 @@ class AuthService {
         try {
           googleUser = await googleSignIn.signIn();
         } catch (signInErr) {
-          debugPrint('[AuthService] GoogleSignIn signIn error: $signInErr');
-          if (signInErr is PlatformException &&
-              (signInErr.code == 'sign_in_failed' ||
-                  signInErr.message?.contains('10') == true ||
-                  signInErr.toString().contains('10'))) {
-            throw Exception(
-              'Google Play Services Error 10 (DEVELOPER_ERROR): SHA-1 fingerprint (45:5D:AE:7A:CB:65:C4:C7:F9:86:2A:23:20:A7:57:1C:19:4A:7B:C6) is not yet registered in Firebase Console for package "com.maya.rummy.maya_ai_rummy_mobile".',
-            );
+          debugPrint('[AuthService] GoogleSignIn signIn with serverClientId failed: $signInErr');
+          // Fallback attempt: sign in without serverClientId
+          try {
+            final fallbackSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+            googleUser = await fallbackSignIn.signIn();
+          } catch (fallbackErr) {
+            debugPrint('[AuthService] GoogleSignIn fallback signIn error: $fallbackErr');
           }
-          rethrow;
+
+          if (googleUser == null) {
+            if (signInErr is PlatformException &&
+                (signInErr.code == 'sign_in_failed' ||
+                    signInErr.message?.contains('10') == true ||
+                    signInErr.toString().contains('10'))) {
+              throw Exception(
+                'Google Play Services Error 10 (DEVELOPER_ERROR): SHA-1 (45:5D:AE:7A:CB:65:C4:C7:F9:86:2A:23:20:A7:57:1C:19:4A:7B:C6) or SHA-256 (8A:5F:21:EC:DB:42:41:61:2A:D3:F7:F9:24:6B:A2:3D:D8:95:6A:CE:06:BB:59:67:09:C9:68:90:89:CE:9D:CE) is not registered in Firebase Console for package "com.maya.rummy.maya_ai_rummy_mobile".',
+              );
+            }
+            rethrow;
+          }
         }
         if (googleUser == null) {
           debugPrint('[AuthService] Google Sign-In canceled by user');
