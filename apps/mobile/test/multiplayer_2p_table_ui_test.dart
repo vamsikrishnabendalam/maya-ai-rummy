@@ -40,13 +40,13 @@ void main() {
       expect(MultiplayerTableBackground.assetForMaxPlayers(10), equals('assets/images/multiplayer_bg_6p.webp'));
     });
 
-    test('MultiplayerSeatPosition for 2 players centers the opponent pod at top: 98 and seated avatar at top: 121', () {
+    test('MultiplayerSeatPosition for 2 players centers the opponent pod at top: 70 and seated avatar at top: 125', () {
       final positions2p = MultiplayerOpponentsLayer.getPositionsForPlayerCount(2);
       expect(positions2p.length, equals(1));
       expect(positions2p.first.isCenter, isTrue);
-      expect(positions2p.first.centerX, equals(618.0));
-      expect(positions2p.first.top, equals(98.0));
-      expect(positions2p.first.avatarTop, equals(121.0));
+      expect(positions2p.first.centerX, equals(877.0));
+      expect(positions2p.first.top, equals(70.0));
+      expect(positions2p.first.avatarTop, equals(125.0));
     });
 
     testWidgets('MultiplayerOpponentsLayer maps opponent player name, dealer badge, cards count and turn timer', (tester) async {

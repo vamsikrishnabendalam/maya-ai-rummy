@@ -52,110 +52,110 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
       case 2:
         return const [
           MultiplayerSeatPosition(
-            centerX: 618.0,
-            top: 98.0,
-            avatarTop: 121.0,
-            avatarHeight: 350.0,
+            centerX: 877.0,
+            top: 70.0,
+            avatarTop: 125.0,
+            avatarHeight: 340.0,
             isCenter: true,
           ),
         ];
       case 3:
         return const [
           MultiplayerSeatPosition(
-            centerX: 275.0,
-            top: 104.0,
-            avatarTop: 127.0,
-            avatarHeight: 345.0,
+            centerX: 550.0,
+            top: 65.0,
+            avatarTop: 120.0,
+            avatarHeight: 330.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 986.0,
-            top: 103.0,
-            avatarTop: 127.0,
-            avatarHeight: 345.0,
+            centerX: 1204.0,
+            top: 65.0,
+            avatarTop: 120.0,
+            avatarHeight: 330.0,
           ),
         ];
       case 4:
         return const [
           MultiplayerSeatPosition(
-            centerX: -5.0,
-            top: 198.0,
-            avatarTop: 224.0,
-            avatarHeight: 270.0,
+            centerX: 280.0,
+            top: 105.0,
+            avatarTop: 160.0,
+            avatarHeight: 280.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 654.0,
-            top: 142.0,
-            avatarTop: 164.0,
-            avatarHeight: 320.0,
+            centerX: 877.0,
+            top: 70.0,
+            avatarTop: 125.0,
+            avatarHeight: 330.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 1307.0,
-            top: 175.0,
-            avatarTop: 196.0,
-            avatarHeight: 302.0,
+            centerX: 1474.0,
+            top: 105.0,
+            avatarTop: 160.0,
+            avatarHeight: 280.0,
           ),
         ];
       case 5:
         return const [
           MultiplayerSeatPosition(
-            centerX: -71.0,
-            top: 258.0,
-            avatarTop: 283.0,
-            avatarHeight: 270.0,
+            centerX: 200.0,
+            top: 125.0,
+            avatarTop: 175.0,
+            avatarHeight: 265.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 384.0,
-            top: 196.0,
-            avatarTop: 219.0,
+            centerX: 640.0,
+            top: 75.0,
+            avatarTop: 130.0,
             avatarHeight: 320.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 835.0,
-            top: 197.0,
-            avatarTop: 222.0,
+            centerX: 1114.0,
+            top: 75.0,
+            avatarTop: 130.0,
             avatarHeight: 320.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 1338.0,
-            top: 258.0,
-            avatarTop: 290.0,
-            avatarHeight: 270.0,
+            centerX: 1554.0,
+            top: 125.0,
+            avatarTop: 175.0,
+            avatarHeight: 265.0,
           ),
         ];
       case 6:
       default:
         return const [
           MultiplayerSeatPosition(
-            centerX: -111.0,
-            top: 260.0,
-            avatarTop: 281.0,
-            avatarHeight: 270.0,
+            centerX: 160.0,
+            top: 135.0,
+            avatarTop: 185.0,
+            avatarHeight: 260.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 246.0,
-            top: 202.0,
-            avatarTop: 227.0,
+            centerX: 510.0,
+            top: 85.0,
+            avatarTop: 140.0,
             avatarHeight: 310.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 616.0,
-            top: 191.0,
-            avatarTop: 216.0,
-            avatarHeight: 320.0,
+            centerX: 877.0,
+            top: 70.0,
+            avatarTop: 125.0,
+            avatarHeight: 330.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 1006.0,
-            top: 206.0,
-            avatarTop: 227.0,
+            centerX: 1244.0,
+            top: 85.0,
+            avatarTop: 140.0,
             avatarHeight: 310.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 1365.0,
-            top: 298.0,
-            avatarTop: 304.0,
-            avatarHeight: 270.0,
+            centerX: 1594.0,
+            top: 135.0,
+            avatarTop: 185.0,
+            avatarHeight: 260.0,
           ),
         ];
     }
@@ -169,8 +169,8 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
         return const [
           MultiplayerSeatPosition(
             centerX: 512.0,
-            top: 80.0,
-            avatarTop: 102.0,
+            top: 48.0,
+            avatarTop: 92.0,
             avatarHeight: 140.0,
             isCenter: true,
           ),
@@ -178,15 +178,15 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
       case 3:
         return const [
           MultiplayerSeatPosition(
-            centerX: 326.0,
-            top: 95.0,
-            avatarTop: 118.0,
+            centerX: 330.0,
+            top: 45.0,
+            avatarTop: 88.0,
             avatarHeight: 138.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 695.0,
-            top: 92.0,
-            avatarTop: 115.0,
+            centerX: 694.0,
+            top: 45.0,
+            avatarTop: 88.0,
             avatarHeight: 138.0,
           ),
         ];
@@ -194,84 +194,84 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
         return const [
           MultiplayerSeatPosition(
             centerX: 200.0,
-            top: 88.0,
-            avatarTop: 111.0,
+            top: 60.0,
+            avatarTop: 98.0,
             avatarHeight: 125.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 510.0,
-            top: 56.0,
-            avatarTop: 79.0,
+            centerX: 512.0,
+            top: 42.0,
+            avatarTop: 84.0,
             avatarHeight: 140.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 828.0,
-            top: 90.0,
-            avatarTop: 113.0,
+            centerX: 824.0,
+            top: 60.0,
+            avatarTop: 98.0,
             avatarHeight: 125.0,
           ),
         ];
       case 5:
         return const [
           MultiplayerSeatPosition(
-            centerX: 158.0,
-            top: 136.0,
-            avatarTop: 158.0,
-            avatarHeight: 125.0,
+            centerX: 165.0,
+            top: 65.0,
+            avatarTop: 102.0,
+            avatarHeight: 122.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 385.0,
-            top: 117.0,
-            avatarTop: 139.0,
-            avatarHeight: 136.0,
+            centerX: 386.0,
+            top: 45.0,
+            avatarTop: 88.0,
+            avatarHeight: 134.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 647.0,
-            top: 118.0,
-            avatarTop: 142.0,
-            avatarHeight: 136.0,
+            centerX: 638.0,
+            top: 45.0,
+            avatarTop: 88.0,
+            avatarHeight: 134.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 879.0,
-            top: 131.0,
-            avatarTop: 153.0,
-            avatarHeight: 125.0,
+            centerX: 859.0,
+            top: 65.0,
+            avatarTop: 102.0,
+            avatarHeight: 122.0,
           ),
         ];
       case 6:
       default:
         return const [
           MultiplayerSeatPosition(
-            centerX: 114.0,
-            top: 149.0,
-            avatarTop: 171.0,
-            avatarHeight: 120.0,
+            centerX: 145.0,
+            top: 68.0,
+            avatarTop: 105.0,
+            avatarHeight: 118.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 298.0,
-            top: 122.0,
-            avatarTop: 146.0,
+            centerX: 328.0,
+            top: 48.0,
+            avatarTop: 90.0,
             avatarHeight: 130.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 508.0,
-            top: 121.0,
-            avatarTop: 141.0,
+            centerX: 512.0,
+            top: 42.0,
+            avatarTop: 84.0,
             avatarHeight: 138.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
             centerX: 696.0,
-            top: 129.0,
-            avatarTop: 148.0,
+            top: 48.0,
+            avatarTop: 90.0,
             avatarHeight: 130.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 900.0,
-            top: 149.0,
-            avatarTop: 172.0,
-            avatarHeight: 120.0,
+            centerX: 879.0,
+            top: 68.0,
+            avatarTop: 105.0,
+            avatarHeight: 118.0,
           ),
         ];
     }
@@ -446,24 +446,16 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
       isMobile: isMobile,
     );
 
-    // Exact horizontal centering anchor
-    if (position.centerX != null && !position.isCenter) {
+    // Exact horizontal centering anchor matching seated avatar
+    final double? xAnchor = position.centerX ?? position.left;
+    if (xAnchor != null) {
       return Positioned(
         top: position.top,
-        left: position.centerX,
+        left: xAnchor,
         child: FractionalTranslation(
           translation: const Offset(-0.5, 0),
           child: pod,
         ),
-      );
-    }
-
-    if (position.isCenter) {
-      return Positioned(
-        top: position.top,
-        left: 0,
-        right: 0,
-        child: Center(child: pod),
       );
     }
 

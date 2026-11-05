@@ -247,6 +247,10 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
   int _groupIdCounter = 0;
   bool _hasTriggeredInitialDeal = false;
 
+  final Set<int> _discardedCardIntsThisRound = {};
+
+  bool _isOpeningClosedJoker = false;
+
   MultiplayerGameNotifier(this._service, this._ref) : super(const MultiplayerGameTableState());
 
   bool get hasFirstLife {
@@ -299,6 +303,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       final alreadyDealt = _storage.getBool('dealt_${gameId}_${user.uid}') ?? false;
       _hasTriggeredInitialDeal = alreadyDealt;
       state = const MultiplayerGameTableState();
+
+      _discardedCardIntsThisRound.clear();
     }
 
     _sub = _service.watchGame(gameId, user.uid).listen((g) {
@@ -314,6 +320,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         _storage.setBool('dealt_${gameId}_${user.uid}_r${g.currentRound}', false);
         _hasTriggeredInitialDeal = false;
         groups = [];
+
+        _discardedCardIntsThisRound.clear();
+
       }
 
       final effectiveJoker = g.effectiveJokerForPlayer(user.uid);
@@ -465,6 +474,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       return;
     }
 
+    if (_isOpeningClosedJoker) return;
+    _isOpeningClosedJoker = true;
+
     state = state.copyWith(isSubmitting: true);
     try {
       await _service.openClosedJoker(gameId: game.gameId, myUid: user.uid);
@@ -495,6 +507,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
       }
     } catch (e) {
       state = state.copyWith(isSubmitting: false, statusMessage: e.toString());
+    } finally {
+      _isOpeningClosedJoker = false;
     }
   }
 
@@ -642,6 +656,8 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     final previousGroups = state.cardGroups;
     final previousScore = state.currentScore;
     try {
+      _discardedCardIntsThisRound.add(cardToDiscard.toInt());
+
       final updated = _removeCardFromGroups(state.cardGroups, cardToDiscard);
       _clearDrawnTags(updated);
       _revalidateGroups(updated, _effectiveWildJoker);
@@ -1229,8 +1245,20 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     );
   }
 
+  @visibleForTesting
+  List<CardGroup> syncGroupsWithHandForTesting(List<CardGroup> currentGroups, List<Card> serverHand, Card? openJoker) =>
+      _syncGroupsWithHand(currentGroups, serverHand, openJoker);
+
   List<CardGroup> _syncGroupsWithHand(List<CardGroup> currentGroups, List<Card> serverHand, Card? openJoker) {
     final serverCardsRemaining = List<Card>.from(serverHand);
+
+    // Defense against snapshot race conditions:
+    // Filter out stale ghost cards that were discarded by this client during this round
+    // but still linger in a stale server snapshot, unless legitimately drawn from open pile.
+    final openDrawnInt = state.gameState?.cardDrawnFromOpenThisTurn?.toInt();
+    serverCardsRemaining.removeWhere((c) =>
+        _discardedCardIntsThisRound.contains(c.toInt()) &&
+        c.toInt() != openDrawnInt);
     final updatedGroups = <CardGroup>[];
 
     for (final group in currentGroups) {

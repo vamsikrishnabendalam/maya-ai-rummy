@@ -36,39 +36,39 @@ void main() {
       expect(pos2p.length, equals(1));
       expect(pos2p.first.isCenter, isTrue);
       expect(pos2p.first.centerX, equals(512.0));
-      expect(pos2p.first.top, equals(80.0));
-      expect(pos2p.first.avatarTop, equals(102.0));
+      expect(pos2p.first.top, equals(48.0));
+      expect(pos2p.first.avatarTop, equals(92.0));
       expect(pos2p.first.avatarHeight, equals(140.0));
 
       // 3 Players: 2 opponents in twin armchairs
       final pos3p = MultiplayerOpponentsLayer.getMobilePositionsForPlayerCount(3);
       expect(pos3p.length, equals(2));
-      expect(pos3p[0].centerX, equals(326.0));
-      expect(pos3p[1].centerX, equals(695.0));
+      expect(pos3p[0].centerX, equals(330.0));
+      expect(pos3p[1].centerX, equals(694.0));
 
       // 4 Players: 3 opponents
       final pos4p = MultiplayerOpponentsLayer.getMobilePositionsForPlayerCount(4);
       expect(pos4p.length, equals(3));
       expect(pos4p[0].centerX, equals(200.0));
-      expect(pos4p[1].centerX, equals(510.0));
-      expect(pos4p[2].centerX, equals(828.0));
+      expect(pos4p[1].centerX, equals(512.0));
+      expect(pos4p[2].centerX, equals(824.0));
 
       // 5 Players: 4 opponents in royal arc
       final pos5p = MultiplayerOpponentsLayer.getMobilePositionsForPlayerCount(5);
       expect(pos5p.length, equals(4));
-      expect(pos5p[0].centerX, equals(158.0));
-      expect(pos5p[1].centerX, equals(385.0));
-      expect(pos5p[2].centerX, equals(647.0));
-      expect(pos5p[3].centerX, equals(879.0));
+      expect(pos5p[0].centerX, equals(165.0));
+      expect(pos5p[1].centerX, equals(386.0));
+      expect(pos5p[2].centerX, equals(638.0));
+      expect(pos5p[3].centerX, equals(859.0));
 
       // 6 Players: 5 opponents
       final pos6p = MultiplayerOpponentsLayer.getMobilePositionsForPlayerCount(6);
       expect(pos6p.length, equals(5));
-      expect(pos6p[0].centerX, equals(114.0));
-      expect(pos6p[1].centerX, equals(298.0));
-      expect(pos6p[2].centerX, equals(508.0));
+      expect(pos6p[0].centerX, equals(145.0));
+      expect(pos6p[1].centerX, equals(328.0));
+      expect(pos6p[2].centerX, equals(512.0));
       expect(pos6p[3].centerX, equals(696.0));
-      expect(pos6p[4].centerX, equals(900.0));
+      expect(pos6p[4].centerX, equals(879.0));
     });
 
     testWidgets('Multiplayer mobile DragTarget on Open Pile accepts drag and drop card for discard', (tester) async {

@@ -892,6 +892,8 @@ class MultiplayerService {
 
           tx.set(handRef, {'cards': existingCards, 'serverUpdatedAt': FieldValue.serverTimestamp()});
 
+          _mockPrivateHands['${gameId}_$myUid'] = existingCards.map((c) => Card.fromInt(c as int)).toList();
+
           return drawnCard;
         });
       } catch (e) {
@@ -1052,6 +1054,8 @@ class MultiplayerService {
           });
 
           tx.set(handRef, {'cards': existingCards, 'serverUpdatedAt': FieldValue.serverTimestamp()});
+
+          _mockPrivateHands['${gameId}_$myUid'] = existingCards.map((c) => Card.fromInt(c as int)).toList();
 
           return drawnCard;
         });
@@ -1246,6 +1250,8 @@ class MultiplayerService {
           });
 
           tx.set(handRef, {'cards': existingCards, 'serverUpdatedAt': FieldValue.serverTimestamp()});
+
+          _mockPrivateHands['${gameId}_$myUid'] = existingCards.map((c) => Card.fromInt(c as int)).toList();
         });
         return;
       } catch (e) {
@@ -3660,15 +3666,22 @@ class MultiplayerService {
         }
 
         final rawCards = (handData?['cards'] as List<dynamic>?) ?? [];
-        final parsedHand = rawCards.map((c) {
-          if (c is int) return Card.fromInt(c);
-          if (c is Map<String, dynamic>) {
-            if (c['val'] != null) return Card.fromInt(c['val'] as int);
-            if (c['intVal'] != null) return Card.fromInt(c['intVal'] as int);
-            return Card.fromJson(c);
+        final parsedHand = <Card>[];
+        for (final c in rawCards) {
+          if (c is int) {
+            parsedHand.add(Card.fromInt(c));
+          } else if (c is Map<String, dynamic>) {
+            if (c['val'] != null) {
+              parsedHand.add(Card.fromInt(c['val'] as int));
+            } else if (c['intVal'] != null) {
+              parsedHand.add(Card.fromInt(c['intVal'] as int));
+            } else {
+              try {
+                parsedHand.add(Card.fromJson(c));
+              } catch (_) {}
+            }
           }
-          return Card(suit: Suit.hearts, rank: Rank.ace, deckIndex: 0);
-        }).toList();
+        }
 
         List<Card> finalHand = parsedHand;
         if (finalHand.isEmpty && _mockPrivateHands.containsKey('${gameId}_$myUid')) {

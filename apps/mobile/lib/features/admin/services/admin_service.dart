@@ -371,7 +371,34 @@ class AdminService {
   /// Export complete game audit history as JSON string
   Future<String> exportGameLogJson(String gameId) async {
     final details = await getGameAuditDetails(gameId);
-    return const JsonEncoder.withIndent('  ').convert(details);
+    final sanitized = sanitizeForJson(details);
+    return const JsonEncoder.withIndent('  ').convert(sanitized);
+  }
+
+  /// Recursively convert Firestore Timestamp and non-serializable objects into JSON-encodable types
+  static dynamic sanitizeForJson(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) {
+      return value.toDate().toIso8601String();
+    }
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), sanitizeForJson(v)));
+    }
+    if (value is Iterable) {
+      return value.map(sanitizeForJson).toList();
+    }
+    if (value is num || value is bool || value is String) {
+      return value;
+    }
+    try {
+      // ignore: avoid_dynamic_calls
+      return (value as dynamic).toJson();
+    } catch (_) {
+      return value.toString();
+    }
   }
 
   /// Grant or adjust player XP authoritatively
