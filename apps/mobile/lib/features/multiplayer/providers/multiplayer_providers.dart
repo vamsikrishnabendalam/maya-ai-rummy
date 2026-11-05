@@ -615,6 +615,21 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     if (user == null || game == null) return;
     if (state.isHandLocked || game.isCompleted || game.isGameOver || game.isDeclaring || game.isRoundOver) return;
 
+    // Turn guard: must be player's turn to discard
+    if (!game.isMyTurn(user.uid)) {
+      state = state.copyWith(statusMessage: 'Not your turn to discard!');
+      return;
+    }
+
+    // Phase / Hand size guard: player must draw before discarding (unless holding 14 cards)
+    final allCardsCount = _allCards().length;
+    if (!state.hasDrawnThisTurn && !game.isDiscardPhase && allCardsCount < 14) {
+      state = state.copyWith(
+        statusMessage: 'You must draw a card before discarding!',
+      );
+      return;
+    }
+
     // Check Indian Rummy Rule: cannot discard open-drawn card
     if (game.cardDrawnFromOpenThisTurn != null && game.cardDrawnFromOpenThisTurn == cardToDiscard) {
       state = state.copyWith(
@@ -658,11 +673,13 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         }
       }
     } catch (e) {
+      // Re-persist previousGroups to local storage so client hand never stays corrupted at 12 cards!
+      _persistGroups(game.gameId, user.uid, previousGroups);
       state = state.copyWith(
         cardGroups: previousGroups,
         currentScore: previousScore,
         isSubmitting: false,
-        statusMessage: e.toString(),
+        statusMessage: e.toString().replaceAll('Exception: ', ''),
       );
     }
   }
@@ -760,12 +777,15 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         expectedTurnNumber: game.turnNumber,
       );
       final updatedGame = _service.getMockGame(game.gameId);
+      final bool isInvalid = res != null && res['isValid'] == false;
       state = state.copyWith(
-        gameState: updatedGame ?? state.gameState?.copyWith(status: 'DECLARING', finishCard: discardCard),
+        gameState: isInvalid
+            ? (updatedGame ?? state.gameState)
+            : (updatedGame ?? state.gameState?.copyWith(status: 'DECLARING', finishCard: discardCard)),
         cardGroups: remainingGroups,
         isSubmitting: false,
         isHandLocked: true,
-        statusMessage: res['message'],
+        statusMessage: res?['message'],
       );
       return res;
     } catch (e) {

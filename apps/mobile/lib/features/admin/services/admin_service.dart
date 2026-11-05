@@ -334,11 +334,15 @@ class AdminService {
 
       final gameData = gameDoc.data()!;
 
-      // Retrieve all player private hands
-      final handsSnap = await fs.collection('games').doc(gameId).collection('privateHands').get();
+      // Retrieve all player private hands (safely catch permission or missing subcollection so audit logs & in-progress view never fail)
       final Map<String, dynamic> privateHands = {};
-      for (final doc in handsSnap.docs) {
-        privateHands[doc.id] = doc.data()['cards'] ?? [];
+      try {
+        final handsSnap = await fs.collection('games').doc(gameId).collection('privateHands').get();
+        for (final doc in handsSnap.docs) {
+          privateHands[doc.id] = doc.data()['cards'] ?? [];
+        }
+      } catch (handErr) {
+        debugPrint('[AdminService] privateHands read notice (non-fatal): $handErr');
       }
 
       return {

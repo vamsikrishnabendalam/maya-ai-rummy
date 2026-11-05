@@ -1952,15 +1952,38 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Match status summary banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.glassBorder),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Status: ${game['status'] ?? 'N/A'}', style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('Phase: ${game['phase'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          Text('Round: ${game['currentRound'] ?? 1}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          Text('Deck: ${game['closedDeckRemaining'] ?? (game['closedDeck'] as List?)?.length ?? 0}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+
                     // Private hands overview
                     const Text('Player Hands Snapshot (Anti-Collusion Verification):', style: TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    ...privateHands.entries.map((e) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text('Player ${e.key}: ${e.value}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                      );
-                    }),
+                    if (privateHands.isEmpty)
+                      const Text('Hands hidden or awaiting round deal', style: TextStyle(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic))
+                    else
+                      ...privateHands.entries.map((e) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text('Player ${e.key}: ${e.value}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        );
+                      }),
                     const Divider(color: AppColors.glassBorder, height: 16),
 
                     // Chronological action timeline
@@ -1970,9 +1993,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                       const Text('No action logs recorded.', style: TextStyle(color: AppColors.textMuted))
                     else
                       ...rawLog.map((item) {
+                        final String desc = item is Map
+                            ? (item['description']?.toString() ?? item['type']?.toString() ?? item.toString())
+                            : item.toString();
+                        final String seqPrefix = (item is Map && item['seq'] != null) ? '[#${item['seq']}] ' : '';
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text('• $item', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                          child: Text('• $seqPrefix$desc', style: const TextStyle(color: Colors.white, fontSize: 12)),
                         );
                       }),
                   ],

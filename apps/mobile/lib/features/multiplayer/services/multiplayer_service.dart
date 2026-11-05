@@ -825,19 +825,6 @@ class MultiplayerService {
           List<int> closedDeck = List<int>.from(rawClosedDeck);
           List<int> openPile = List<int>.from(rawOpenPile);
 
-          // If closed deck is empty, reshuffle open pile (keeping top card) into closed deck
-          if (closedDeck.isEmpty) {
-            if (openPile.length <= 1) {
-              throw Exception('No cards remaining in closed deck or discard pile to draw.');
-            }
-            final topOpenCard = openPile.removeLast();
-            closedDeck = List<int>.from(openPile)..shuffle();
-            openPile = [topOpenCard];
-          }
-
-          final drawnCardInt = closedDeck.removeLast();
-          final drawnCard = Card.fromInt(drawnCardInt);
-
           // Read hand
           final handSnap = await tx.get(handRef);
           List<dynamic> existingCards = [];
@@ -847,6 +834,26 @@ class MultiplayerService {
           if (existingCards.length >= 14) {
             throw Exception('Cannot draw: hand already contains 14 cards.');
           }
+
+          // If closed deck is empty, reshuffle open pile (keeping top card) into closed deck
+          if (closedDeck.isEmpty) {
+            if (openPile.length <= 1) {
+              throw Exception('No cards remaining in closed deck or discard pile to draw.');
+            }
+            final topOpenCard = openPile.removeLast();
+            final candidateDeck = openPile.toSet().toList();
+            candidateDeck.remove(topOpenCard);
+            candidateDeck.removeWhere((c) => existingCards.contains(c));
+            candidateDeck.shuffle();
+            if (candidateDeck.isEmpty) {
+              throw Exception('No cards remaining in closed deck or discard pile to draw.');
+            }
+            closedDeck = candidateDeck;
+            openPile = [topOpenCard];
+          }
+
+          final drawnCardInt = closedDeck.removeLast();
+          final drawnCard = Card.fromInt(drawnCardInt);
           existingCards.add(drawnCardInt);
 
           // Update player card counts
@@ -907,22 +914,30 @@ class MultiplayerService {
     List<int> closedDeck = List<int>.from(game.closedDeck);
     List<Card> openPile = List<Card>.from(game.openPile);
 
+    final hand = _mockPrivateHands['${gameId}_$myUid'] ?? [];
+    if (hand.length >= 14) {
+      throw Exception('Cannot draw: hand already contains 14 cards.');
+    }
+
     if (closedDeck.isEmpty) {
       if (openPile.length <= 1) {
         throw Exception('No cards remaining to draw.');
       }
       final top = openPile.removeLast();
-      closedDeck = openPile.map((c) => c.toInt()).toList()..shuffle();
+      final myHandInts = hand.map((c) => c.toInt()).toSet();
+      final candidateDeck = openPile.map((c) => c.toInt()).toSet().toList();
+      candidateDeck.remove(top.toInt());
+      candidateDeck.removeWhere((c) => myHandInts.contains(c));
+      candidateDeck.shuffle();
+      if (candidateDeck.isEmpty) {
+        throw Exception('No cards remaining to draw.');
+      }
+      closedDeck = candidateDeck;
       openPile = [top];
     }
 
     final drawnCardInt = closedDeck.removeLast();
     final drawnCard = Card.fromInt(drawnCardInt);
-
-    final hand = _mockPrivateHands['${gameId}_$myUid'] ?? [];
-    if (hand.length >= 14) {
-      throw Exception('Cannot draw: hand already contains 14 cards.');
-    }
     hand.add(drawnCard);
 
     final updatedPlayers = game.players.map((p) {
@@ -1149,28 +1164,49 @@ class MultiplayerService {
 
 
           final cardInt = card.toInt();
-          final removeIndex = existingCards.indexWhere((c) {
-            if (c is int) return c == cardInt;
-            if (c is Map) return (c['intVal'] ?? c['val']) == cardInt;
-            return false;
-          });
+          int removedCardInt = cardInt;
+          if (existingCards.isNotEmpty) {
+            int removeIndex = existingCards.indexWhere((c) {
+              final val = c is int ? c : ((c as Map)['intVal'] ?? (c as Map)['val']);
+              return val == cardInt;
+            });
+            if (removeIndex < 0) {
+              // Fallback for multi-deck shoe: match by rank + suit + isPrintedJoker
+              removeIndex = existingCards.indexWhere((c) {
+                final val = c is int ? c : ((c as Map)['intVal'] ?? (c as Map)['val']) as int;
+                final cObj = Card.fromInt(val);
+                return cObj.isPrintedJoker == card.isPrintedJoker &&
+                    (cObj.isPrintedJoker || (cObj.suit == card.suit && cObj.rank == card.rank));
+              });
+            }
 
-          if (removeIndex >= 0) {
-            existingCards.removeAt(removeIndex);
-          } else {
-            if (existingCards.isNotEmpty) existingCards.removeLast();
+            if (removeIndex < 0) {
+              throw Exception('Card ${card.label} not found in player hand.');
+            }
+
+            final removedItem = existingCards.removeAt(removeIndex);
+            removedCardInt = removedItem is int
+                ? removedItem
+                : (((removedItem as Map)['intVal'] ?? (removedItem as Map)['val']) as int);
           }
 
           // Append to open pile
           final openPile = (gameData['openPile'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [];
-          openPile.add(cardInt);
+          openPile.add(removedCardInt);
 
-          // Advance turn to next active player
+          // Advance turn to next active player in sequential circular seat order
           final rawPlayers = (gameData['players'] as List<dynamic>?) ?? [];
-          final activePlayers = rawPlayers.where((p) => (p as Map)['status'] == 'ACTIVE').toList();
-          final currentIdx = activePlayers.indexWhere((p) => (p as Map)['uid'] == myUid);
-          final nextIdx = (currentIdx >= 0 && activePlayers.isNotEmpty) ? ((currentIdx + 1) % activePlayers.length) : 0;
-          final nextPlayerId = activePlayers.isNotEmpty ? (activePlayers[nextIdx] as Map)['uid'] as String : myUid;
+          final currentRawIdx = rawPlayers.indexWhere((p) => (p as Map)['uid'] == myUid);
+          String nextPlayerId = myUid;
+          if (rawPlayers.isNotEmpty) {
+            for (int i = 1; i < rawPlayers.length; i++) {
+              final candidate = rawPlayers[(currentRawIdx + i) % rawPlayers.length] as Map;
+              if (candidate['status'] == 'ACTIVE') {
+                nextPlayerId = candidate['uid'] as String;
+                break;
+              }
+            }
+          }
 
           final updatedPlayers = rawPlayers.map((pMap) {
             final p = Map<String, dynamic>.from(pMap as Map);
@@ -1190,7 +1226,7 @@ class MultiplayerService {
             'timestamp': DateTime.now().toIso8601String(),
             'type': 'DISCARD',
             'playerId': myUid,
-            'card': cardInt,
+            'card': removedCardInt,
             'description': '$playerDisplayName discarded ${card.label}',
           });
 
@@ -1215,11 +1251,7 @@ class MultiplayerService {
         return;
       } catch (e) {
         debugPrint('[MultiplayerService] discardCard Firestore Transaction notice: $e');
-        if (e.toString().contains('Game or round is not active') ||
-            e.toString().contains('Not your turn to discard') ||
-            e.toString().contains('Cannot discard the card drawn from the open pile')) {
-          rethrow;
-        }
+        rethrow;
       }
     }
 
@@ -1235,14 +1267,32 @@ class MultiplayerService {
     }
 
     final hand = _mockPrivateHands['${gameId}_$myUid'] ?? [];
-    hand.remove(card);
+    Card removedCard = card;
+    if (hand.isNotEmpty) {
+      int removeIdx = hand.indexWhere((c) => c.toInt() == card.toInt() || c == card);
+      if (removeIdx < 0) {
+        removeIdx = hand.indexWhere((c) =>
+            c.isPrintedJoker == card.isPrintedJoker &&
+            (c.isPrintedJoker || (c.suit == card.suit && c.rank == card.rank)));
+      }
+      if (removeIdx >= 0) {
+        removedCard = hand.removeAt(removeIdx);
+      }
+    }
 
-    final openPile = List<Card>.from(game.openPile)..add(card);
+    final openPile = List<Card>.from(game.openPile)..add(removedCard);
 
-    final active = game.players.where((p) => p.status == 'ACTIVE').toList();
-    final cIdx = active.indexWhere((p) => p.uid == myUid);
-    final nIdx = (cIdx >= 0 && active.isNotEmpty) ? ((cIdx + 1) % active.length) : 0;
-    final nextPlayerId = active.isNotEmpty ? active[nIdx].uid : myUid;
+    // Advance turn to next active player in sequential circular seat order
+    final pIdx = game.players.indexWhere((p) => p.uid == myUid);
+    TablePlayer? nextPlayer;
+    for (int i = 1; i < game.players.length; i++) {
+      final candidate = game.players[(pIdx + i) % game.players.length];
+      if (candidate.status == 'ACTIVE') {
+        nextPlayer = candidate;
+        break;
+      }
+    }
+    final nextPlayerId = nextPlayer?.uid ?? myUid;
 
     final updatedPlayers = game.players.map((p) {
       if (p.uid == myUid) return p.copyWith(cardCount: hand.length);
@@ -1774,7 +1824,18 @@ class MultiplayerService {
       expectedTurnNumber: expectedTurnNumber,
       currentTurnNumberGetter: () => _mockGames[gameId]?.turnNumber ?? (expectedTurnNumber ?? 0),
       task: () async {
-    final game = _mockGames[gameId];
+    MultiplayerGameState? game = _mockGames[gameId];
+    if (FirebaseConfig.isInitialized && _firestore != null) {
+      try {
+        final gameSnap = await _firestore!.collection('games').doc(gameId).get();
+        if (gameSnap.exists && gameSnap.data() != null) {
+          game = MultiplayerGameState.fromJson(gameSnap.data()!);
+          _mockGames[gameId] = game;
+        }
+      } catch (e) {
+        debugPrint('[MultiplayerService] declareGame fetch live game error: $e');
+      }
+    }
     if (game == null) throw Exception('Game not found');
     if (game.status == 'DECLARING' || game.status == 'COMPLETED') {
       return {'isValid': true, 'message': 'Declaration already processed'};
