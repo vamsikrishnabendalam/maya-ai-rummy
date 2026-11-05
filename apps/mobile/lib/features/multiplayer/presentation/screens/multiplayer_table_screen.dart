@@ -5154,7 +5154,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
                 ),
               ),
               const SizedBox(height: 12),
-              _buildRuleRow('Game Mode', game.gameMode ?? 'Pool Rummy'),
+              _buildRuleRow('Game Mode', game.gameMode),
               _buildRuleRow('First Drop Penalty', '${game.firstDropPenalty} pts'),
               _buildRuleRow('Middle Drop Penalty', '${game.middleDropPenalty} pts'),
               _buildRuleRow('Full Count Cap', '80 pts'),

@@ -112,14 +112,15 @@ function rankToHighValue(rank) {
  * - Minimum 3 cards
  * - Same suit
  * - Strictly consecutive
- * - NO Jokers (printed or wild) permitted
+ * - Printed Jokers are NOT permitted.
+ * - Wild jokers are permitted ONLY when naturally completing the sequence in their natural suit.
  */
 function validatePureSequence(cards, wildJokerCard) {
   if (cards.length < 3) return { isValid: false, type: 'invalid' };
 
-  // Pure sequences cannot contain any joker (printed or wild)
+  // Pure sequences cannot contain printed jokers
   for (const c of cards) {
-    if (isJoker(c, wildJokerCard)) return { isValid: false, type: 'invalid' };
+    if (c.isPrintedJoker) return { isValid: false, type: 'invalid' };
   }
 
   // All must share the exact same suit

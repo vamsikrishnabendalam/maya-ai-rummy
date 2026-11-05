@@ -816,7 +816,7 @@ class MultiplayerService {
           if (phase != 'DRAW_PHASE') throw Exception('Invalid phase for draw: $phase');
           final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
           if (expectedTurnNumber != null && currentTurnNum != expectedTurnNumber) {
-            throw StateError('Turn expired: expected turn , current is ');
+            throw StateError('Turn expired: expected turn $expectedTurnNumber, current is $currentTurnNum');
           }
 
           final rawClosedDeck = (gameData['closedDeck'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [];
@@ -896,15 +896,13 @@ class MultiplayerService {
         });
       } catch (e) {
         debugPrint('[MultiplayerService] drawFromClosed Firestore Transaction notice: $e');
+        rethrow;
       }
     }
 
     // 2. Local / Offline Simulation
     final game = _mockGames[gameId];
     if (game == null) throw Exception('Game not found');
-    if (game.status == 'COMPLETED' || game.status == 'ROUND_OVER' || game.status == 'DECLARING') {
-      throw Exception('Game or round is not active.');
-    }
     if (game.status == 'COMPLETED' || game.status == 'ROUND_OVER' || game.status == 'DECLARING') {
       throw Exception('Game or round is not active.');
     }
@@ -1000,7 +998,7 @@ class MultiplayerService {
           if (gameData['phase'] != 'DRAW_PHASE') throw Exception('Not in draw phase');
           final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
           if (expectedTurnNumber != null && currentTurnNum != expectedTurnNumber) {
-            throw StateError('Turn expired: expected turn , current is ');
+            throw StateError('Turn expired: expected turn $expectedTurnNumber, current is $currentTurnNum');
           }
 
           final rawOpenPile = (gameData['openPile'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [];
@@ -1059,6 +1057,7 @@ class MultiplayerService {
         });
       } catch (e) {
         debugPrint('[MultiplayerService] drawFromOpen Firestore Transaction notice: $e');
+        rethrow;
       }
     }
 
@@ -1145,7 +1144,7 @@ class MultiplayerService {
           if (gameData['currentTurnPlayerId'] != myUid) throw Exception('Not your turn to discard');
           final currentTurnNum = (gameData['turnNumber'] as int?) ?? 0;
           if (expectedTurnNumber != null && currentTurnNum != expectedTurnNumber) {
-            throw StateError('Turn expired: expected turn , current is ');
+            throw StateError('Turn expired: expected turn $expectedTurnNumber, current is $currentTurnNum');
           }
           // Check card in hand
           final handSnap = await tx.get(handRef);
@@ -1167,13 +1166,13 @@ class MultiplayerService {
           int removedCardInt = cardInt;
           if (existingCards.isNotEmpty) {
             int removeIndex = existingCards.indexWhere((c) {
-              final val = c is int ? c : ((c as Map)['intVal'] ?? (c as Map)['val']);
+              final val = c is int ? c : (c['intVal'] ?? c['val']);
               return val == cardInt;
             });
             if (removeIndex < 0) {
               // Fallback for multi-deck shoe: match by rank + suit + isPrintedJoker
               removeIndex = existingCards.indexWhere((c) {
-                final val = c is int ? c : ((c as Map)['intVal'] ?? (c as Map)['val']) as int;
+                final val = (c is int ? c : (c['intVal'] ?? c['val'])) as int;
                 final cObj = Card.fromInt(val);
                 return cObj.isPrintedJoker == card.isPrintedJoker &&
                     (cObj.isPrintedJoker || (cObj.suit == card.suit && cObj.rank == card.rank));
@@ -1185,9 +1184,9 @@ class MultiplayerService {
             }
 
             final removedItem = existingCards.removeAt(removeIndex);
-            removedCardInt = removedItem is int
+            removedCardInt = (removedItem is int
                 ? removedItem
-                : (((removedItem as Map)['intVal'] ?? (removedItem as Map)['val']) as int);
+                : (removedItem['intVal'] ?? removedItem['val'])) as int;
           }
 
           // Append to open pile
@@ -3736,7 +3735,6 @@ class MultiplayerService {
     _mockPrivateHands['_'] = List.from(hand);
   }
 
-  @visibleForTesting
   MultiplayerGameState? getMockGame(String gameId) => _mockGames[gameId];
 
   StreamController<TableLobby> _getOrCreateTableController(String tableId) {

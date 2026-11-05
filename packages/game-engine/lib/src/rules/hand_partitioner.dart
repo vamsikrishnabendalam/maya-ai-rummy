@@ -408,25 +408,6 @@ class HandPartitioner {
     return pairs;
   }
 
-  static List<List<Card>> _findCandidateTwoCardSets(List<Card> cards, Card? openJoker) {
-    final pairs = <List<Card>>[];
-    for (final rank in Rank.values) {
-      final rankCards = cards.where((c) => c.rank == rank && !c.isPrintedJoker).toList();
-      final uniqueSuits = <Suit>{};
-      final pair = <Card>[];
-      for (final c in rankCards) {
-        if (c.suit != null && !uniqueSuits.contains(c.suit)) {
-          uniqueSuits.add(c.suit!);
-          pair.add(c);
-        }
-      }
-      if (pair.length >= 2) {
-        pairs.add(pair.sublist(0, 2));
-      }
-    }
-    return pairs;
-  }
-
   /// Attempts to partition remaining cards into valid sequences or sets
   static List<List<Card>>? _partitionRemainingCards(List<Card> cards, Card? openJoker, {int depth = 0}) {
     if (cards.isEmpty) return [];

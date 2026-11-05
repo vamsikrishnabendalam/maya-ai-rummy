@@ -48,10 +48,10 @@ class ProbabilityEngine {
   }) {
     final suggestions = <GroupSuggestion>[];
 
-    // Build knowledge base of all known cards to the player
-    final knownCardCounts = <int, int>{};
+    // Build knowledge base of all known cards to the player, keyed by card face
+    final knownCardCounts = <String, int>{};
     void record(Card c) {
-      final key = c.toInt();
+      final key = c.isPrintedJoker ? 'PJ' : '${c.suit?.name}_${c.rank?.name}';
       knownCardCounts[key] = (knownCardCounts[key] ?? 0) + 1;
     }
 
@@ -65,17 +65,20 @@ class ProbabilityEngine {
       record(openJoker);
     }
 
-    // 2-deck shoe has 108 cards total (52*2 + 4 jokers). Unseen cards count:
-    const totalShoeCards = 108;
-    final totalKnown = playerHand.length + openPile.length + (openJoker != null ? 1 : 0);
-    final totalUnseen = (totalShoeCards - totalKnown).clamp(1, totalShoeCards);
+    // Determine deck shoe size dynamically: if closedDeckCount is provided and nonzero,
+    // unseen cards in the draw pile is closedDeckCount.
+    // If not known, 2-deck shoe has 108 cards total (52*2 + 4 jokers).
+    final totalUnseen = closedDeckCount > 0
+        ? closedDeckCount
+        : (108 - (playerHand.length + openPile.length + (openJoker != null ? 1 : 0))).clamp(1, 108);
 
     // Helper: calculate probability of drawing at least one card from a list of targets
     double calculateProbability(List<Card> targets) {
       int remainingCopies = 0;
       for (final t in targets) {
-        final seen = knownCardCounts[t.toInt()] ?? 0;
-        final maxCopies = t.isPrintedJoker ? 2 : 2;
+        final key = t.isPrintedJoker ? 'PJ' : '${t.suit?.name}_${t.rank?.name}';
+        final seen = knownCardCounts[key] ?? 0;
+        final maxCopies = t.isPrintedJoker ? 4 : 2; // In 2-deck shoe, 2 per standard card, 4 printed jokers
         final left = (maxCopies - seen).clamp(0, maxCopies);
         remainingCopies += left;
       }

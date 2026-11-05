@@ -3,19 +3,29 @@ import 'observation.dart';
 
 class CardTracker {
   final Set<Card> seenCards = {};
-  final Map<Card, int> discardCounts = {};
-  final int totalDecks = 2;
+  final Map<String, int> discardCounts = {};
+  final int totalDecks;
+
+  CardTracker({this.totalDecks = 2});
+
+  static String _cardKey(Card card) {
+    if (card.isPrintedJoker) return 'PJ';
+    return '${card.suit?.name}_${card.rank?.name}';
+  }
 
   void recordVisibleCard(Card card) {
     seenCards.add(card);
-    discardCounts[card] = (discardCounts[card] ?? 0) + 1;
+    final key = _cardKey(card);
+    discardCounts[key] = (discardCounts[key] ?? 0) + 1;
   }
 
   double probabilityOfDrawing(Card card, AIObservation obs) {
     int totalUnseen = obs.closedDeckRemaining;
     if (totalUnseen <= 0) return 0.0;
-    int copiesSeen = discardCounts[card] ?? 0;
-    int maxCopies = card.isPrintedJoker ? 2 : 2;
+    final key = _cardKey(card);
+    int copiesSeen = discardCounts[key] ?? 0;
+    // In a standard rummy shoe, each standard card has totalDecks copies, printed jokers have totalDecks * 2
+    int maxCopies = card.isPrintedJoker ? (totalDecks * 2) : totalDecks;
     int remainingInDeck = maxCopies - copiesSeen;
     if (remainingInDeck <= 0) return 0.0;
     return remainingInDeck / totalUnseen;

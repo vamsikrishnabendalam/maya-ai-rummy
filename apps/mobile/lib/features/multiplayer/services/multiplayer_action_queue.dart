@@ -73,7 +73,9 @@ class MultiplayerActionQueue {
       action.completeError(StateError('Action queue cleared'));
     }
     _queue.clear();
-    _isProcessing = false;
+    // Note: If an action is currently executing in _processNext(), we let it finish
+    // its current task naturally. _processNext will reset _isProcessing = false
+    // once the while loop finishes, preventing race conditions or concurrent loops.
   }
 }
 

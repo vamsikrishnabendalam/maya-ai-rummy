@@ -97,7 +97,6 @@ class ActionSimulator {
 
     // Simulate discarding the best OTHER card (since openCard cannot be discarded in the same turn)
     double bestOtherScore = -999999.0;
-    Card? bestOtherDiscard;
     HandAnalysisResult? bestSimAnalysis;
 
     for (final c in hand) {
@@ -105,7 +104,6 @@ class ActionSimulator {
       final a = HandAnalyzer.analyze(rem13, openJoker);
       if (a.strategicHandValue > bestOtherScore) {
         bestOtherScore = a.strategicHandValue;
-        bestOtherDiscard = c;
         bestSimAnalysis = a;
       }
     }

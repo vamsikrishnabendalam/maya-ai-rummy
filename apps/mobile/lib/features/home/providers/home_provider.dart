@@ -2,6 +2,7 @@ import 'package:ai_engine/ai_engine.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/player_preferences_service.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../wallet/services/wallet_service.dart';
 
 class HomeState {
   final AILevel selectedDifficulty;
@@ -135,22 +136,54 @@ class HomeNotifier extends StateNotifier<HomeState> {
     state = state.copyWith(soundEnabled: next);
   }
 
-  void claimDailyBonus() {
+  Future<void> claimDailyBonus() async {
     if (state.dailyBonusClaimed) return;
     _prefs.claimDailyBonus();
     state = state.copyWith(
       coins: _prefs.getCoins(),
       dailyBonusClaimed: true,
     );
+
+    final user = _ref.read(authProvider);
+    if (user != null) {
+      try {
+        final newBalance = await WalletService().creditCoins(
+          uid: user.uid,
+          amount: 100,
+          type: 'DAILY_BONUS',
+          reason: 'Daily Login Reward',
+          referenceId: 'daily_reward_${DateTime.now().toIso8601String().substring(0, 10)}',
+        );
+        state = state.copyWith(coins: newBalance);
+      } catch (_) {
+        // Handled silently; offline preferences already updated
+      }
+    }
   }
 
-  void claimDailyChallenge() {
+  Future<void> claimDailyChallenge() async {
     if (state.dailyChallengeClaimed || state.dailyChallengeProgress < 2) return;
     _prefs.claimDailyChallenge();
     state = state.copyWith(
       coins: _prefs.getCoins(),
       dailyChallengeClaimed: true,
     );
+
+    final user = _ref.read(authProvider);
+    if (user != null) {
+      try {
+        final newBalance = await WalletService().creditCoins(
+          uid: user.uid,
+          amount: 250,
+          type: 'DAILY_CHALLENGE',
+          reason: 'Daily Challenge Reward',
+          referenceId: 'daily_challenge_${DateTime.now().toIso8601String().substring(0, 10)}',
+        );
+        state = state.copyWith(coins: newBalance);
+      } catch (_) {
+        // Handled silently; offline preferences already updated
+      }
+    }
   }
 
   void setJokerMode(String mode) {

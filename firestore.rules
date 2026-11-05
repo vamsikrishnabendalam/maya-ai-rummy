@@ -13,11 +13,14 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'ADMIN' ||
-        (request.auth.token.keys().hasAny(['email']) && (
-          request.auth.token.email.matches('.*vamsi.*') ||
-          request.auth.token.email.matches('.*admin.*') ||
-          request.auth.token.email.matches('.*bhava.*')
-        )) ||
+        (request.auth.token.keys().hasAny(['email']) && 
+          request.auth.token.email in [
+            'dev@mayarummy.cwards.com',
+            'admin@mayarummy.cwards.com',
+            'vamsi@mayarummy.cwards.com',
+            'bhavakrishnavamsi@gmail.com'
+          ]
+        ) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
@@ -78,7 +81,7 @@ service cloud.firestore {
       // Only the card owner (request.auth.uid == uid) or an authorized ADMIN can read private hands!
       match /privateHands/{uid} {
         allow read: if isOwner(uid) || isAdmin();
-        allow create, update: if isAuthenticated();
+        allow create, update: if isOwner(uid) || isAdmin();
         allow delete: if false;
       }
 

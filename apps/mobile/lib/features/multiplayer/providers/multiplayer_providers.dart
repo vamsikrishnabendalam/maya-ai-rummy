@@ -777,7 +777,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         expectedTurnNumber: game.turnNumber,
       );
       final updatedGame = _service.getMockGame(game.gameId);
-      final bool isInvalid = res != null && res['isValid'] == false;
+      final bool isInvalid = res['isValid'] == false;
       state = state.copyWith(
         gameState: isInvalid
             ? (updatedGame ?? state.gameState)
@@ -785,7 +785,7 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         cardGroups: remainingGroups,
         isSubmitting: false,
         isHandLocked: true,
-        statusMessage: res?['message'],
+        statusMessage: res['message'] as String?,
       );
       return res;
     } catch (e) {

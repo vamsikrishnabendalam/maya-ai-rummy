@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -54,12 +55,19 @@ class _ProfileSetupModalState extends ConsumerState<ProfileSetupModal> {
     }
   }
 
+  Uint8List? _cachedCustomAvatarBytes;
+  String? _cachedCustomAvatarId;
+
   ImageProvider _getAvatarProvider(String avatarId) {
     if (AvatarCatalog.isCustomPhoto(avatarId)) {
       if (avatarId.startsWith('data:image')) {
         try {
-          final base64String = avatarId.split(',').last;
-          return MemoryImage(base64Decode(base64String));
+          if (_cachedCustomAvatarId != avatarId || _cachedCustomAvatarBytes == null) {
+            final base64String = avatarId.split(',').last;
+            _cachedCustomAvatarBytes = base64Decode(base64String);
+            _cachedCustomAvatarId = avatarId;
+          }
+          return MemoryImage(_cachedCustomAvatarBytes!);
         } catch (_) {}
       } else if (avatarId.startsWith('http')) {
         return NetworkImage(avatarId);

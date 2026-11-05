@@ -48,13 +48,21 @@ const pureSeq = [
 ];
 assert.strictEqual(validatePureSequence(pureSeq, wildJoker).isValid, true);
 
-// Pure sequence with wild joker (Two of spades) is INVALID as pure sequence
+// Non-consecutive cards with wild joker (Two of spades) is INVALID as pure sequence
 const invalidPure = [
   { suit: 'spades', rank: 'four', isPrintedJoker: false },
   { suit: 'spades', rank: 'five', isPrintedJoker: false },
-  { suit: 'spades', rank: 'two', isPrintedJoker: false }, // wild joker!
+  { suit: 'spades', rank: 'two', isPrintedJoker: false }, // wild joker, non-consecutive
 ];
 assert.strictEqual(validatePureSequence(invalidPure, wildJoker).isValid, false);
+
+// Wild joker used naturally in its suit is VALID as pure sequence
+const naturalWildPure = [
+  { suit: 'spades', rank: 'ace', isPrintedJoker: false },
+  { suit: 'spades', rank: 'two', isPrintedJoker: false },
+  { suit: 'spades', rank: 'three', isPrintedJoker: false },
+];
+assert.strictEqual(validatePureSequence(naturalWildPure, wildJoker).isValid, true);
 
 // 6. Impure sequence with joker
 const impureSeq = [

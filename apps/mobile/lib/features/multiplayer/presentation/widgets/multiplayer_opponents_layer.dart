@@ -51,116 +51,111 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     switch (capacity) {
       case 2:
         return const [
-          // 2-Player: Single opponent centered directly in the central royal throne
           MultiplayerSeatPosition(
-            centerX: 878,
-            top: 88,
-            avatarTop: 140,
-            avatarHeight: 350,
+            centerX: 618.0,
+            top: 98.0,
+            avatarTop: 121.0,
+            avatarHeight: 350.0,
             isCenter: true,
           ),
         ];
       case 3:
         return const [
-          // 3-Player: 2 opponents seated in the 2 royal armchairs
           MultiplayerSeatPosition(
-            centerX: 550,
-            top: 58,
-            avatarTop: 110,
-            avatarHeight: 345,
+            centerX: 275.0,
+            top: 104.0,
+            avatarTop: 127.0,
+            avatarHeight: 345.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 1205,
-            top: 58,
-            avatarTop: 110,
-            avatarHeight: 345,
+            centerX: 986.0,
+            top: 103.0,
+            avatarTop: 127.0,
+            avatarHeight: 345.0,
           ),
         ];
       case 4:
         return const [
-          // 4-Player: 3 opponents arrayed across the 3 armchairs
           MultiplayerSeatPosition(
-            centerX: 160,
-            top: 150,
-            avatarTop: 200,
-            avatarHeight: 270,
+            centerX: -5.0,
+            top: 198.0,
+            avatarTop: 224.0,
+            avatarHeight: 270.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 878,
-            top: 85,
-            avatarTop: 135,
-            avatarHeight: 320,
+            centerX: 654.0,
+            top: 142.0,
+            avatarTop: 164.0,
+            avatarHeight: 320.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 1600,
-            top: 150,
-            avatarTop: 200,
-            avatarHeight: 270,
+            centerX: 1307.0,
+            top: 175.0,
+            avatarTop: 196.0,
+            avatarHeight: 302.0,
           ),
         ];
       case 5:
         return const [
-          // 5-Player: 4 opponents arrayed across the 4 armchairs in royal arc
           MultiplayerSeatPosition(
-            centerX: 130,
-            top: 150,
-            avatarTop: 200,
-            avatarHeight: 270,
+            centerX: -71.0,
+            top: 258.0,
+            avatarTop: 283.0,
+            avatarHeight: 270.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 640,
-            top: 85,
-            avatarTop: 135,
-            avatarHeight: 320,
+            centerX: 384.0,
+            top: 196.0,
+            avatarTop: 219.0,
+            avatarHeight: 320.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 1116,
-            top: 85,
-            avatarTop: 135,
-            avatarHeight: 320,
+            centerX: 835.0,
+            top: 197.0,
+            avatarTop: 222.0,
+            avatarHeight: 320.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 1620,
-            top: 150,
-            avatarTop: 200,
-            avatarHeight: 270,
+            centerX: 1338.0,
+            top: 258.0,
+            avatarTop: 290.0,
+            avatarHeight: 270.0,
           ),
         ];
       case 6:
       default:
         return const [
-          // 6-Player: 5 opponents arrayed across the 5 armchairs
           MultiplayerSeatPosition(
-            centerX: 110,
-            top: 150,
-            avatarTop: 200,
-            avatarHeight: 270,
+            centerX: -111.0,
+            top: 260.0,
+            avatarTop: 281.0,
+            avatarHeight: 270.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 490,
-            top: 100,
-            avatarTop: 150,
-            avatarHeight: 310,
+            centerX: 246.0,
+            top: 202.0,
+            avatarTop: 227.0,
+            avatarHeight: 310.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 878,
-            top: 85,
-            avatarTop: 135,
-            avatarHeight: 320,
+            centerX: 616.0,
+            top: 191.0,
+            avatarTop: 216.0,
+            avatarHeight: 320.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 1266,
-            top: 100,
-            avatarTop: 150,
-            avatarHeight: 310,
+            centerX: 1006.0,
+            top: 206.0,
+            avatarTop: 227.0,
+            avatarHeight: 310.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 1640,
-            top: 150,
-            avatarTop: 200,
-            avatarHeight: 270,
+            centerX: 1365.0,
+            top: 298.0,
+            avatarTop: 304.0,
+            avatarHeight: 270.0,
           ),
         ];
     }
@@ -172,116 +167,111 @@ class MultiplayerOpponentsLayer extends StatelessWidget {
     switch (capacity) {
       case 2:
         return const [
-          // 2-Player: Single opponent centered in central armchair, strictly behind the table rim
           MultiplayerSeatPosition(
-            centerX: 512,
-            top: 58,
-            avatarTop: 102,
-            avatarHeight: 140,
+            centerX: 512.0,
+            top: 80.0,
+            avatarTop: 102.0,
+            avatarHeight: 140.0,
             isCenter: true,
           ),
         ];
       case 3:
         return const [
-          // 3-Player: 2 opponents in the 2 armchairs
           MultiplayerSeatPosition(
-            centerX: 330,
-            top: 42,
-            avatarTop: 82,
-            avatarHeight: 138,
+            centerX: 326.0,
+            top: 95.0,
+            avatarTop: 118.0,
+            avatarHeight: 138.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 695,
-            top: 42,
-            avatarTop: 82,
-            avatarHeight: 138,
+            centerX: 695.0,
+            top: 92.0,
+            avatarTop: 115.0,
+            avatarHeight: 138.0,
           ),
         ];
       case 4:
         return const [
-          // 4-Player: 3 opponents arrayed across the 3 armchairs
           MultiplayerSeatPosition(
-            centerX: 196,
-            top: 60,
-            avatarTop: 95,
-            avatarHeight: 125,
+            centerX: 200.0,
+            top: 88.0,
+            avatarTop: 111.0,
+            avatarHeight: 125.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 512,
-            top: 40,
-            avatarTop: 82,
-            avatarHeight: 140,
+            centerX: 510.0,
+            top: 56.0,
+            avatarTop: 79.0,
+            avatarHeight: 140.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 828,
-            top: 60,
-            avatarTop: 95,
-            avatarHeight: 125,
+            centerX: 828.0,
+            top: 90.0,
+            avatarTop: 113.0,
+            avatarHeight: 125.0,
           ),
         ];
       case 5:
         return const [
-          // 5-Player: 4 opponents in royal arc
           MultiplayerSeatPosition(
-            centerX: 184,
-            top: 62,
-            avatarTop: 95,
-            avatarHeight: 125,
+            centerX: 158.0,
+            top: 136.0,
+            avatarTop: 158.0,
+            avatarHeight: 125.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 386,
-            top: 42,
-            avatarTop: 84,
-            avatarHeight: 136,
+            centerX: 385.0,
+            top: 117.0,
+            avatarTop: 139.0,
+            avatarHeight: 136.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 644,
-            top: 42,
-            avatarTop: 84,
-            avatarHeight: 136,
+            centerX: 647.0,
+            top: 118.0,
+            avatarTop: 142.0,
+            avatarHeight: 136.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 856,
-            top: 62,
-            avatarTop: 95,
-            avatarHeight: 125,
+            centerX: 879.0,
+            top: 131.0,
+            avatarTop: 153.0,
+            avatarHeight: 125.0,
           ),
         ];
       case 6:
       default:
         return const [
-          // 6-Player: 5 opponents arrayed across 5 armchairs
           MultiplayerSeatPosition(
-            centerX: 158,
-            top: 62,
-            avatarTop: 95,
-            avatarHeight: 120,
+            centerX: 114.0,
+            top: 149.0,
+            avatarTop: 171.0,
+            avatarHeight: 120.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 330,
-            top: 45,
-            avatarTop: 88,
-            avatarHeight: 130,
+            centerX: 298.0,
+            top: 122.0,
+            avatarTop: 146.0,
+            avatarHeight: 130.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 506,
-            top: 40,
-            avatarTop: 82,
-            avatarHeight: 138,
+            centerX: 508.0,
+            top: 121.0,
+            avatarTop: 141.0,
+            avatarHeight: 138.0,
             isCenter: true,
           ),
           MultiplayerSeatPosition(
-            centerX: 682,
-            top: 45,
-            avatarTop: 88,
-            avatarHeight: 130,
+            centerX: 696.0,
+            top: 129.0,
+            avatarTop: 148.0,
+            avatarHeight: 130.0,
           ),
           MultiplayerSeatPosition(
-            centerX: 860,
-            top: 62,
-            avatarTop: 95,
-            avatarHeight: 120,
+            centerX: 900.0,
+            top: 149.0,
+            avatarTop: 172.0,
+            avatarHeight: 120.0,
           ),
         ];
     }

@@ -1,6 +1,5 @@
 import 'package:test/test.dart';
 import 'package:game_engine/game_engine.dart';
-import 'package:game_engine/src/rules/hand_partitioner.dart';
 
 void main() {
   group('HandPartitioner.findBestPartition', () {

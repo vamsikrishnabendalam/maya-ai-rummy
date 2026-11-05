@@ -12,6 +12,14 @@ const {
 admin.initializeApp();
 const db = admin.firestore();
 
+// Whitelist of authoritative administrator email addresses
+const ADMIN_EMAILS = [
+  'dev@mayarummy.cwards.com',
+  'admin@mayarummy.cwards.com',
+  'vamsi@mayarummy.cwards.com',
+  'bhavakrishnavamsi@gmail.com',
+];
+
 // Helper: Generate collision-free 6-char alphanumeric room code
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Omitted I, O, 0, 1 to prevent ambiguity
@@ -939,7 +947,7 @@ exports.createUserAccount = functions.https.onCall(async (data, context) => {
     const userDoc = await transaction.get(userRef);
     const existing = userDoc.exists ? userDoc.data() : null;
 
-    const isAdmin = email.includes('vamsi') || email.includes('admin') || (existing && existing.role === 'ADMIN');
+    const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase()) || (existing && existing.role === 'ADMIN');
     const role = isAdmin ? 'ADMIN' : 'PLAYER';
     const isProfileComplete = true;
 
@@ -1103,7 +1111,7 @@ exports.adminAdjustCoins = functions.https.onCall(async (data, context) => {
 
   const adminUid = context.auth.uid;
   const adminEmail = (context.auth.token.email || '').toLowerCase();
-  const isAdmin = adminEmail.includes('vamsi') || adminEmail.includes('admin') || context.auth.token.role === 'ADMIN';
+  const isAdmin = ADMIN_EMAILS.includes(adminEmail) || context.auth.token.role === 'ADMIN';
 
   if (!isAdmin) {
     throw new functions.https.HttpsError('permission-denied', 'Administrative privileges required.');

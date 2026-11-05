@@ -129,9 +129,6 @@ void main() {
       final count7D_0 = drawFrequencyMap[19] ?? 0;
       final count7D_1 = drawFrequencyMap[73] ?? 0;
       final total7D = count7D_0 + count7D_1;
-
-      final expectedRatioPerCard = 1.0 / 108.0; // ~0.0092
-      final expected7DRatio = 2.0 / 108.0; // ~0.0185 (since there are two 7♦ in 108 cards)
       final actual7DRatio = total7D / totalClosedDeckDraws;
 
       // In the bug, actual7DRatio was 1.0 (100% of draws were 7♦!).
@@ -150,7 +147,7 @@ void main() {
     test('Deck Reshuffle When Closed Deck is Exhausted', () {
       final deck = Deck.initialize(2);
       final allCards = List<Card>.from(deck.cards);
-      final openJoker = allCards.removeLast();
+      allCards.removeLast(); // open joker
 
       // Give 2 players 13 cards each
       final p1Hand = allCards.sublist(0, 13);

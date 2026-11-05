@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maya AI Rummy - Multiplayer Table Avatar Height & Position Editor</title>
+  <style>
+    :root {
+      --bg-dark: #070D18;
+      --panel-bg: #0E182A;
+      --card-bg: #14223A;
+      --gold: #D4AF37;
+      --gold-bright: #F5CA48;
+      --accent: #60A5FA;
+      --border: rgba(212, 175, 55, 0.25);
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* TOP BAR */
+    header {
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 16px;
+      background: linear-gradient(135deg, #FFF, var(--gold-bright));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+
+    .badge {
+      background: rgba(245, 202, 72, 0.15);
+      border: 1px solid var(--gold);
+      color: var(--gold-bright);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .btn-group {
+      display: flex;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #1E3A8A, #2563EB);
+      color: white;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      border-color: var(--gold-bright);
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--gold-bright);
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #D4AF37, #B8860B);
+      color: #000;
+      border: none;
+      font-weight: bold;
+      box-shadow: 0 2px 10px rgba(212, 175, 55, 0.4);
+    }
+
+    .action-btn.primary:hover {
+      background: linear-gradient(135deg, #F5CA48, #D4AF37);
+      transform: translateY(-1px);
+    }
+
+    /* MAIN WORKSPACE */
+    .workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 58px);
+      overflow: hidden;
+    }
+
+    /* CANVAS AREA */
+    .canvas-container {
+      flex: 1;
+      background: #040810;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 30px;
+    }
+
+    .viewport {
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      transform-origin: center center;
+      transition: transform 0.1s ease-out;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .guide-rim-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: rgba(255, 215, 0, 0.25);
+      pointer-events: none;
+      display: none;
+    }
+
+    /* AVATAR LAYER */
+    .avatar-wrapper {
+      position: absolute;
+      transform: translateX(-50%);
+      cursor: grab;
+      transition: filter 0.15s ease;
+    }
+
+    .avatar-wrapper:active {
+      cursor: grabbing;
+    }
+
+    .avatar-wrapper.selected .avatar-img {
+      filter: drop-shadow(0 0 14px rgba(245, 202, 72, 0.95)) drop-shadow(0 0 4px #FFF);
+    }
+
+    .avatar-img {
+      display: block;
+      width: auto;
+      height: 100%;
+      -webkit-mask-image: linear-gradient(to bottom, black 72%, transparent 98%);
+      mask-image: linear-gradient(to bottom, black 72%, transparent 98%);
+      pointer-events: auto;
+      transition: filter 0.2s;
+    }
+
+    /* POD LAYER */
+    .pod-wrapper {
+      position: absolute;
+      transform: translateX(-50%);
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .pod-pill {
+      background: rgba(14, 26, 46, 0.88);
+      border: 1.5px solid var(--gold);
+      border-radius: 20px;
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .avatar-wrapper.selected + .pod-wrapper .pod-pill,
+    .pod-wrapper.selected .pod-pill {
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 16px rgba(245, 202, 72, 0.7);
+    }
+
+    .pod-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .pod-cards {
+      font-size: 10px;
+      color: var(--gold-bright);
+      font-weight: bold;
+    }
+
+    /* SIDEBAR INSPECTOR */
+    .sidebar {
+      width: 380px;
+      background: var(--panel-bg);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 16px;
+      gap: 16px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .seat-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+      gap: 6px;
+    }
+
+    .seat-btn {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 8px 4px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .seat-btn:hover {
+      border-color: var(--gold);
+      color: white;
+    }
+
+    .seat-btn.active {
+      background: rgba(212, 175, 55, 0.2);
+      border-color: var(--gold-bright);
+      color: var(--gold-bright);
+      box-shadow: 0 0 10px rgba(245, 202, 72, 0.3);
+    }
+
+    .control-card {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .control-value {
+      font-family: monospace;
+      font-weight: bold;
+      color: var(--gold-bright);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .slider-input-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--gold-bright);
+      cursor: pointer;
+      height: 6px;
+      background: #070D18;
+      border-radius: 3px;
+    }
+
+    input[type="number"] {
+      width: 65px;
+      background: #070D18;
+      border: 1px solid var(--border);
+      color: white;
+      padding: 4px 6px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .nudge-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .nudge-btn {
+      background: #0B132B;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.1s;
+    }
+
+    .nudge-btn:hover {
+      background: var(--gold);
+      color: black;
+    }
+
+    select {
+      width: 100%;
+      background: #070D18;
+      border: 1px solid var(--border);
+      color: white;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .code-box {
+      background: #040810;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      color: #38BDF8;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 160px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #10B981;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER NAVIGATION -->
+  <header>
+    <div class="brand">
+      <div class="brand-title">MAYA MULTIPLAYER TABLE EDITOR</div>
+      <div class="badge">LIVE LOCALHOST</div>
+    </div>
+
+    <!-- PLAYER CAPACITY -->
+    <div class="btn-group" id="capacityGroup">
+      <button class="tab-btn" data-capacity="2">2 Players</button>
+      <button class="tab-btn" data-capacity="3">3 Players</button>
+      <button class="tab-btn active" data-capacity="4">4 Players</button>
+      <button class="tab-btn" data-capacity="5">5 Players</button>
+      <button class="tab-btn" data-capacity="6">6 Players</button>
+    </div>
+
+    <!-- PLATFORM TOGGLE -->
+    <div class="btn-group" id="platformGroup">
+      <button class="tab-btn active" data-platform="desktop">🖥️ Desktop (1754×896)</button>
+      <button class="tab-btn" data-platform="mobile">📱 Mobile (1024×491)</button>
+    </div>
+
+    <!-- ZOOM CONTROLS -->
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:12px; color:var(--text-muted);">Zoom:</span>
+      <button class="action-btn" onclick="adjustZoom(-0.05)">−</button>
+      <span id="zoomDisplay" style="font-size:12px; font-family:monospace; min-width:40px; text-align:center;">85%</span>
+      <button class="action-btn" onclick="adjustZoom(0.05)">+</button>
+      <button class="action-btn" onclick="resetZoom()">Fit</button>
+    </div>
+
+    <!-- ACTIONS -->
+    <div style="display:flex; gap:8px;">
+      <button class="action-btn" onclick="resetToDefaults()">🔄 Reset</button>
+      <button class="action-btn" onclick="copyDartCode()">📋 Copy Dart Code</button>
+      <button class="action-btn primary" onclick="saveToServer()">💾 Save Changes</button>
+    </div>
+  </header>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+    <!-- CANVAS -->
+    <div class="canvas-container" id="canvasContainer">
+      <div class="viewport" id="viewport">
+        <!-- Avatars and Pods injected dynamically -->
+      </div>
+    </div>
+
+    <!-- SIDEBAR CONTROLS -->
+    <div class="sidebar">
+      <div>
+        <div class="section-title">
+          <span>Seated Opponents</span>
+          <span id="seatCountBadge" style="font-size:10px; color:var(--text-muted);">3 SEATS</span>
+        </div>
+        <div class="seat-selector" id="seatSelector">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+
+      <!-- PROPERTY INSPECTOR -->
+      <div class="control-card">
+        <div class="section-title">
+          <span id="selectedSeatTitle">Selected Seat</span>
+          <span class="badge" id="seatCoordsBadge">X: 160 | Y: 200</span>
+        </div>
+
+        <!-- AVATAR CHOICE -->
+        <div class="control-row">
+          <label class="control-header">Preview Avatar Cutout</label>
+          <select id="avatarSelect" onchange="onAvatarChange(this.value)">
+            <!-- Options populated from API -->
+          </select>
+        </div>
+
+        <!-- AVATAR Y (avatarTop) -->
+        <div class="control-row">
+          <div class="control-header">
+            <span>Avatar Y Position (avatarTop)</span>
+            <span class="control-value" id="valAvatarTop">200px</span>
+          </div>
+          <div class="slider-input-group">
+            <input type="range" id="rangeAvatarTop" min="20" max="500" step="1" oninput="updateProp('avatarTop', +this.value)">
+            <input type="number" id="numAvatarTop" min="20" max="500" oninput="updateProp('avatarTop', +this.value)">
+          </div>
+          <div class="nudge-grid">
+            <button class="nudge-btn" onclick="nudgeProp('avatarTop', -5)">↑ 5px</button>
+            <button class="nudge-btn" onclick="nudgeProp('avatarTop', -1)">↑ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('avatarTop', 1)">↓ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('avatarTop', 5)">↓ 5px</button>
+          </div>
+        </div>
+
+        <!-- AVATAR HEIGHT (avatarHeight) -->
+        <div class="control-row">
+          <div class="control-header">
+            <span>Avatar Height (avatarHeight)</span>
+            <span class="control-value" id="valAvatarHeight">270px</span>
+          </div>
+          <div class="slider-input-group">
+            <input type="range" id="rangeAvatarHeight" min="80" max="450" step="1" oninput="updateProp('avatarHeight', +this.value)">
+            <input type="number" id="numAvatarHeight" min="80" max="450" oninput="updateProp('avatarHeight', +this.value)">
+          </div>
+          <div class="nudge-grid">
+            <button class="nudge-btn" onclick="nudgeProp('avatarHeight', -5)">− 5px</button>
+            <button class="nudge-btn" onclick="nudgeProp('avatarHeight', -1)">− 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('avatarHeight', 1)">+ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('avatarHeight', 5)">+ 5px</button>
+          </div>
+        </div>
+
+        <!-- HORIZONTAL CENTER X (centerX) -->
+        <div class="control-row">
+          <div class="control-header">
+            <span>Center X Offset (centerX)</span>
+            <span class="control-value" id="valCenterX">160px</span>
+          </div>
+          <div class="slider-input-group">
+            <input type="range" id="rangeCenterX" min="50" max="1700" step="1" oninput="updateProp('centerX', +this.value)">
+            <input type="number" id="numCenterX" min="50" max="1700" oninput="updateProp('centerX', +this.value)">
+          </div>
+          <div class="nudge-grid">
+            <button class="nudge-btn" onclick="nudgeProp('centerX', -5)">← 5px</button>
+            <button class="nudge-btn" onclick="nudgeProp('centerX', -1)">← 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('centerX', 1)">→ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('centerX', 5)">→ 5px</button>
+          </div>
+        </div>
+
+        <!-- POD Y (top) -->
+        <div class="control-row">
+          <div class="control-header">
+            <span>Status Pod Y (top)</span>
+            <span class="control-value" id="valPodTop">150px</span>
+          </div>
+          <div class="slider-input-group">
+            <input type="range" id="rangePodTop" min="20" max="400" step="1" oninput="updateProp('top', +this.value)">
+            <input type="number" id="numPodTop" min="20" max="400" oninput="updateProp('top', +this.value)">
+          </div>
+          <div class="nudge-grid">
+            <button class="nudge-btn" onclick="nudgeProp('top', -5)">↑ 5px</button>
+            <button class="nudge-btn" onclick="nudgeProp('top', -1)">↑ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('top', 1)">↓ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('top', 5)">↓ 5px</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DART CODE SNIPPET -->
+      <div>
+        <div class="section-title">
+          <span>Dart Code Output</span>
+          <button class="action-btn" style="padding:2px 8px; font-size:10px;" onclick="copyDartCode()">Copy</button>
+        </div>
+        <div class="code-box" id="codeBox">// Code updates live as you tweak sliders</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Changes copied to clipboard!</div>
+
+  <script>
+    // Canonical default positions matching multiplayer_opponents_layer.dart
+    const DEFAULTS = {
+      desktop: {
+        2: [
+          { centerX: 878, top: 88, avatarTop: 140, avatarHeight: 350, isCenter: true, avatar: "female_01.webp", name: "Maya (AI)" }
+        ],
+        3: [
+          { centerX: 550, top: 58, avatarTop: 110, avatarHeight: 345, avatar: "female_01.webp", name: "Ananya" },
+          { centerX: 1205, top: 58, avatarTop: 110, avatarHeight: 345, avatar: "male_01.webp", name: "Vikram" }
+        ],
+        4: [
+          { centerX: 160, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_01.webp", name: "Ananya (Left)" },
+          { centerX: 878, top: 85, avatarTop: 135, avatarHeight: 320, isCenter: true, avatar: "male_01.webp", name: "Vikram (Center)" },
+          { centerX: 1600, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_02.webp", name: "Priya (Right)" }
+        ],
+        5: [
+          { centerX: 130, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_01.webp", name: "Ananya" },
+          { centerX: 640, top: 85, avatarTop: 135, avatarHeight: 320, avatar: "male_02.webp", name: "Karthik" },
+          { centerX: 1116, top: 85, avatarTop: 135, avatarHeight: 320, avatar: "female_03.webp", name: "Meera" },
+          { centerX: 1620, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "male_03.webp", name: "Arjun" }
+        ],
+        6: [
+          { centerX: 110, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_01.webp", name: "Ananya" },
+          { centerX: 490, top: 100, avatarTop: 150, avatarHeight: 310, avatar: "male_01.webp", name: "Vikram" },
+          { centerX: 878, top: 85, avatarTop: 135, avatarHeight: 320, isCenter: true, avatar: "female_02.webp", name: "Maya" },
+          { centerX: 1266, top: 100, avatarTop: 150, avatarHeight: 310, avatar: "male_02.webp", name: "Karthik" },
+          { centerX: 1640, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_03.webp", name: "Meera" }
+        ]
+      },
+      mobile: {
+        2: [
+          { centerX: 512, top: 58, avatarTop: 102, avatarHeight: 140, isCenter: true, avatar: "female_01.webp", name: "Maya (AI)" }
+        ],
+        3: [
+          { centerX: 330, top: 42, avatarTop: 82, avatarHeight: 138, avatar: "female_01.webp", name: "Ananya" },
+          { centerX: 695, top: 42, avatarTop: 82, avatarHeight: 138, avatar: "male_01.webp", name: "Vikram" }
+        ],
+        4: [
+          { centerX: 196, top: 60, avatarTop: 95, avatarHeight: 125, avatar: "female_01.webp", name: "Ananya (Left)" },
+          { centerX: 512, top: 40, avatarTop: 82, avatarHeight: 140, isCenter: true, avatar: "male_01.webp", name: "Vikram (Center)" },
+          { centerX: 828, top: 60, avatarTop: 95, avatarHeight: 125, avatar: "female_02.webp", name: "Priya (Right)" }
+        ],
+        5: [
+          { centerX: 184, top: 62, avatarTop: 95, avatarHeight: 125, avatar: "female_01.webp", name: "Ananya" },
+          { centerX: 386, top: 42, avatarTop: 84, avatarHeight: 136, avatar: "male_02.webp", name: "Karthik" },
+          { centerX: 644, top: 42, avatarTop: 84, avatarHeight: 136, avatar: "female_03.webp", name: "Meera" },
+          { centerX: 856, top: 62, avatarTop: 95, avatarHeight: 125, avatar: "male_03.webp", name: "Arjun" }
+        ],
+        6: [
+          { centerX: 158, top: 62, avatarTop: 95, avatarHeight: 120, avatar: "female_01.webp", name: "Ananya" },
+          { centerX: 330, top: 45, avatarTop: 88, avatarHeight: 130, avatar: "male_01.webp", name: "Vikram" },
+          { centerX: 506, top: 40, avatarTop: 82, avatarHeight: 138, isCenter: true, avatar: "female_02.webp", name: "Maya" },
+          { centerX: 682, top: 45, avatarTop: 88, avatarHeight: 130, avatar: "male_02.webp", name: "Karthik" },
+          { centerX: 860, top: 62, avatarTop: 95, avatarHeight: 120, avatar: "female_03.webp", name: "Meera" }
+        ]
+      }
+    };
+
+    // Active state clone
+    let state = JSON.parse(JSON.stringify(DEFAULTS));
+    let currentCapacity = 4;
+    let currentPlatform = 'desktop';
+    let selectedSeatIdx = 0;
+    let zoomLevel = 0.85;
+
+    let availableAvatars = [];
+
+    // Initialize
+    async function init() {
+      setupEventListeners();
+      await loadAvatars();
+      await loadSavedData();
+      renderAll();
+      resetZoom();
+    }
+
+    async function loadAvatars() {
+      try {
+        const res = await fetch('/api/avatars');
+        availableAvatars = await res.json();
+      } catch (_) {
+        availableAvatars = ['female_01.webp', 'female_02.webp', 'female_03.webp', 'male_01.webp', 'male_02.webp'];
+      }
+      const select = document.getElementById('avatarSelect');
+      select.innerHTML = availableAvatars.map(av => `<option value="${av}">${av.replace('.webp', '')}</option>`).join('');
+    }
+
+    async function loadSavedData() {
+      try {
+        const res = await fetch('/api/load');
+        if (res.ok) {
+          const loaded = await res.json();
+          if (loaded.desktop && loaded.mobile) {
+            state = loaded;
+            showToast('Loaded saved custom coordinates from server!');
+          }
+        }
+      } catch (_) {}
+    }
+
+    function setupEventListeners() {
+      // Capacity buttons
+      document.querySelectorAll('#capacityGroup .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#capacityGroup .tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentCapacity = +btn.dataset.capacity;
+          selectedSeatIdx = 0;
+          renderAll();
+        });
+      });
+
+      // Platform buttons
+      document.querySelectorAll('#platformGroup .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#platformGroup .tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentPlatform = btn.dataset.platform;
+          selectedSeatIdx = 0;
+          renderAll();
+          resetZoom();
+        });
+      });
+    }
+
+    function getCanvasSize() {
+      return currentPlatform === 'desktop' ? { w: 1754, h: 896 } : { w: 1024, h: 491 };
+    }
+
+    function getBackgroundImage() {
+      const p = currentCapacity;
+      if (currentPlatform === 'desktop') {
+        return `/assets/images/multiplayer_bg_${p}p.webp`;
+      } else {
+        return `/assets/images/multiplayer_mobile_bg_${p}p.webp`;
+      }
+    }
+
+    function renderAll() {
+      renderViewport();
+      renderSeatSelector();
+      updateInspector();
+      updateCodeBox();
+    }
+
+    function renderViewport() {
+      const vp = document.getElementById('viewport');
+      const size = getCanvasSize();
+      vp.style.width = size.w + 'px';
+      vp.style.height = size.h + 'px';
+      vp.style.backgroundImage = `url("${getBackgroundImage()}")`;
+      vp.style.transform = `scale(${zoomLevel})`;
+
+      vp.innerHTML = '';
+
+      const seats = state[currentPlatform][currentCapacity];
+      seats.forEach((seat, idx) => {
+        // 1. Avatar element
+        const avWrap = document.createElement('div');
+        avWrap.className = 'avatar-wrapper' + (idx === selectedSeatIdx ? ' selected' : '');
+        avWrap.style.left = seat.centerX + 'px';
+        avWrap.style.top = seat.avatarTop + 'px';
+        avWrap.style.height = seat.avatarHeight + 'px';
+
+        const img = document.createElement('img');
+        img.className = 'avatar-img';
+        img.src = `/assets/avatars/${seat.avatar || 'female_01.webp'}`;
+        img.draggable = false;
+
+        avWrap.appendChild(img);
+        avWrap.addEventListener('mousedown', (e) => startDrag(e, idx, 'avatar'));
+        avWrap.addEventListener('click', () => selectSeat(idx));
+        vp.appendChild(avWrap);
+
+        // 2. Pod Pill element
+        const podWrap = document.createElement('div');
+        podWrap.className = 'pod-wrapper' + (idx === selectedSeatIdx ? ' selected' : '');
+        podWrap.style.left = seat.centerX + 'px';
+        podWrap.style.top = seat.top + 'px';
+
+        const isMobile = currentPlatform === 'mobile';
+        podWrap.innerHTML = `
+          <div class="pod-pill" style="padding:${isMobile ? '3px 8px' : '4px 12px'}; font-size:${isMobile ? '10px' : '11px'};">
+            <span style="color:#F5CA48;">👑</span>
+            <span class="pod-name">${seat.name || 'Player ' + (idx + 1)}</span>
+            <span class="pod-cards">🂠13</span>
+          </div>
+        `;
+        podWrap.addEventListener('mousedown', (e) => startDrag(e, idx, 'pod'));
+        podWrap.addEventListener('click', () => selectSeat(idx));
+        vp.appendChild(podWrap);
+      });
+    }
+
+    function renderSeatSelector() {
+      const container = document.getElementById('seatSelector');
+      container.innerHTML = '';
+      const seats = state[currentPlatform][currentCapacity];
+      document.getElementById('seatCountBadge').textContent = `${seats.length} SEATS`;
+
+      seats.forEach((seat, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'seat-btn' + (idx === selectedSeatIdx ? ' active' : '');
+        let label = `Seat ${idx}`;
+        if (seats.length === 3) {
+          label = idx === 0 ? 'Left' : idx === 1 ? 'Center' : 'Right';
+        } else if (seats.length === 4) {
+          label = idx === 0 ? 'Far Left' : idx === 1 ? 'Mid L' : idx === 2 ? 'Mid R' : 'Far Right';
+        } else if (seats.length === 5) {
+          label = idx === 0 ? 'Far L' : idx === 1 ? 'Mid L' : idx === 2 ? 'Center' : idx === 3 ? 'Mid R' : 'Far R';
+        }
+        btn.textContent = label;
+        btn.onclick = () => selectSeat(idx);
+        container.appendChild(btn);
+      });
+    }
+
+    function selectSeat(idx) {
+      selectedSeatIdx = idx;
+      renderViewport();
+      renderSeatSelector();
+      updateInspector();
+    }
+
+    function updateInspector() {
+      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      if (!seat) return;
+
+      document.getElementById('selectedSeatTitle').textContent = `Seat ${selectedSeatIdx} (${seat.name || 'Opponent'})`;
+      document.getElementById('seatCoordsBadge').textContent = `X: ${seat.centerX} | Top: ${seat.avatarTop}`;
+
+      // Max values based on canvas
+      const size = getCanvasSize();
+      document.getElementById('rangeCenterX').max = size.w;
+      document.getElementById('numCenterX').max = size.w;
+
+      // avatarTop
+      document.getElementById('valAvatarTop').textContent = seat.avatarTop + 'px';
+      document.getElementById('rangeAvatarTop').value = seat.avatarTop;
+      document.getElementById('numAvatarTop').value = seat.avatarTop;
+
+      // avatarHeight
+      document.getElementById('valAvatarHeight').textContent = seat.avatarHeight + 'px';
+      document.getElementById('rangeAvatarHeight').value = seat.avatarHeight;
+      document.getElementById('numAvatarHeight').value = seat.avatarHeight;
+
+      // centerX
+      document.getElementById('valCenterX').textContent = seat.centerX + 'px';
+      document.getElementById('rangeCenterX').value = seat.centerX;
+      document.getElementById('numCenterX').value = seat.centerX;
+
+      // top (podTop)
+      document.getElementById('valPodTop').textContent = seat.top + 'px';
+      document.getElementById('rangePodTop').value = seat.top;
+      document.getElementById('numPodTop').value = seat.top;
+
+      // select avatar
+      document.getElementById('avatarSelect').value = seat.avatar || 'female_01.webp';
+    }
+
+    function updateProp(prop, val) {
+      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      if (!seat) return;
+      seat[prop] = Math.round(val);
+      renderViewport();
+      updateInspector();
+      updateCodeBox();
+    }
+
+    function nudgeProp(prop, delta) {
+      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      if (!seat) return;
+      seat[prop] = Math.round(seat[prop] + delta);
+      renderViewport();
+      updateInspector();
+      updateCodeBox();
+    }
+
+    function onAvatarChange(av) {
+      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      if (!seat) return;
+      seat.avatar = av;
+      renderViewport();
+    }
+
+    // Direct Canvas Dragging
+    let dragging = null;
+
+    function startDrag(e, idx, type) {
+      e.preventDefault();
+      selectSeat(idx);
+      const seat = state[currentPlatform][currentCapacity][idx];
+      dragging = {
+        idx,
+        type,
+        startX: e.clientX,
+        startY: e.clientY,
+        origCenterX: seat.centerX,
+        origAvatarTop: seat.avatarTop,
+        origPodTop: seat.top,
+      };
+
+      window.addEventListener('mousemove', onDrag);
+      window.addEventListener('mouseup', endDrag);
+    }
+
+    function onDrag(e) {
+      if (!dragging) return;
+      const dx = (e.clientX - dragging.startX) / zoomLevel;
+      const dy = (e.clientY - dragging.startY) / zoomLevel;
+      const seat = state[currentPlatform][currentCapacity][dragging.idx];
+
+      if (dragging.type === 'avatar') {
+        seat.centerX = Math.round(dragging.origCenterX + dx);
+        seat.avatarTop = Math.round(dragging.origAvatarTop + dy);
+      } else if (dragging.type === 'pod') {
+        seat.centerX = Math.round(dragging.origCenterX + dx);
+        seat.top = Math.round(dragging.origPodTop + dy);
+      }
+
+      renderViewport();
+      updateInspector();
+      updateCodeBox();
+    }
+
+    function endDrag() {
+      dragging = null;
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', endDrag);
+    }
+
+    // Zoom Controls
+    function adjustZoom(delta) {
+      zoomLevel = Math.max(0.3, Math.min(1.5, zoomLevel + delta));
+      document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%';
+      document.getElementById('viewport').style.transform = `scale(${zoomLevel})`;
+    }
+
+    function resetZoom() {
+      const container = document.getElementById('canvasContainer');
+      const size = getCanvasSize();
+      const availW = container.clientWidth - 60;
+      const availH = container.clientHeight - 60;
+      const scaleX = availW / size.w;
+      const scaleY = availH / size.h;
+      zoomLevel = Math.min(scaleX, scaleY, 1.0);
+      document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%';
+      document.getElementById('viewport').style.transform = `scale(${zoomLevel})`;
+    }
+
+    function resetToDefaults() {
+      state[currentPlatform][currentCapacity] = JSON.parse(JSON.stringify(DEFAULTS[currentPlatform][currentCapacity]));
+      renderAll();
+      showToast('Reset current table to default coordinates');
+    }
+
+    // Generate Dart Code
+    function generateDartCode() {
+      const isMobile = currentPlatform === 'mobile';
+      const methodName = isMobile ? 'getMobilePositionsForPlayerCount' : 'getPositionsForPlayerCount';
+      const seats = state[currentPlatform][currentCapacity];
+
+      let lines = [];
+      lines.push(`// ${currentCapacity}-Player ${isMobile ? 'Mobile (1024x491)' : 'Desktop (1754x896)'}`);
+      lines.push(`case ${currentCapacity}:`);
+      lines.push(`  return const [`);
+      seats.forEach((s, i) => {
+        lines.push(`    MultiplayerSeatPosition(`);
+        lines.push(`      centerX: ${s.centerX},`);
+        lines.push(`      top: ${s.top},`);
+        lines.push(`      avatarTop: ${s.avatarTop},`);
+        lines.push(`      avatarHeight: ${s.avatarHeight},`);
+        if (s.isCenter) lines.push(`      isCenter: true,`);
+        lines.push(`    ),`);
+      });
+      lines.push(`  ];`);
+      return lines.join('\n');
+    }
+
+    function updateCodeBox() {
+      document.getElementById('codeBox').textContent = generateDartCode();
+    }
+
+    function copyDartCode() {
+      const code = generateDartCode();
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('Dart code copied to clipboard!');
+      });
+    }
+
+    async function saveToServer() {
+      try {
+        const res = await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Saved all coordinates to localhost server!');
+        } else {
+          alert('Save error: ' + data.error);
+        }
+      } catch (e) {
+        alert('Failed to connect to local server: ' + e);
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    window.addEventListener('load', init);
+    window.addEventListener('resize', resetZoom);
+  </script>
+</body>
+</html>
+

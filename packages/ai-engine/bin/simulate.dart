@@ -132,6 +132,7 @@ void main(List<String> args) {
         currentConfig,
         currentThreatTracker,
         turnCount,
+        cardDrawnFromOpenPile: chooseOpen ? drawnCard : null,
       );
 
       // Verify invariant: candidate discard must not break pure sequence or meld without overwhelming cause

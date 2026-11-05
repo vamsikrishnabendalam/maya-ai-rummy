@@ -12,12 +12,12 @@ void main() {
     test('3-Player Table: positions 2 opponents matching the twin royal armchairs', () {
       final positions3p = MultiplayerOpponentsLayer.getPositionsForPlayerCount(3);
       expect(positions3p.length, equals(2));
-      expect(positions3p[0].centerX, equals(550.0));
-      expect(positions3p[0].top, equals(58.0));
-      expect(positions3p[0].avatarTop, equals(110.0));
-      expect(positions3p[1].centerX, equals(1205.0));
-      expect(positions3p[1].top, equals(58.0));
-      expect(positions3p[1].avatarTop, equals(110.0));
+      expect(positions3p[0].centerX, equals(275.0));
+      expect(positions3p[0].top, equals(104.0));
+      expect(positions3p[0].avatarTop, equals(127.0));
+      expect(positions3p[1].centerX, equals(986.0));
+      expect(positions3p[1].top, equals(103.0));
+      expect(positions3p[1].avatarTop, equals(127.0));
       expect(MultiplayerTableBackground.assetForMaxPlayers(3), equals('assets/images/multiplayer_bg_3p.webp'));
     });
 
@@ -79,13 +79,13 @@ void main() {
     test('4-Player Table: positions 3 opponents across Left, Center, and Right armchair crests', () {
       final positions4p = MultiplayerOpponentsLayer.getPositionsForPlayerCount(4);
       expect(positions4p.length, equals(3));
-      expect(positions4p[0].centerX, equals(160.0));
-      expect(positions4p[0].top, equals(150.0));
-      expect(positions4p[1].centerX, equals(878.0));
+      expect(positions4p[0].centerX, equals(-5.0));
+      expect(positions4p[0].top, equals(198.0));
+      expect(positions4p[1].centerX, equals(654.0));
       expect(positions4p[1].isCenter, isTrue);
-      expect(positions4p[1].top, equals(85.0));
-      expect(positions4p[2].centerX, equals(1600.0));
-      expect(positions4p[2].top, equals(150.0));
+      expect(positions4p[1].top, equals(142.0));
+      expect(positions4p[2].centerX, equals(1307.0));
+      expect(positions4p[2].top, equals(175.0));
       expect(MultiplayerTableBackground.assetForMaxPlayers(4), equals('assets/images/multiplayer_bg_4p.webp'));
     });
 
@@ -93,14 +93,14 @@ void main() {
     test('5-Player Table: positions 4 opponents matching 4 armchair crests in royal arc', () {
       final positions5p = MultiplayerOpponentsLayer.getPositionsForPlayerCount(5);
       expect(positions5p.length, equals(4));
-      expect(positions5p[0].centerX, equals(130.0));
-      expect(positions5p[0].top, equals(150.0));
-      expect(positions5p[1].centerX, equals(640.0));
-      expect(positions5p[1].top, equals(85.0));
-      expect(positions5p[2].centerX, equals(1116.0));
-      expect(positions5p[2].top, equals(85.0));
-      expect(positions5p[3].centerX, equals(1620.0));
-      expect(positions5p[3].top, equals(150.0));
+      expect(positions5p[0].centerX, equals(-71.0));
+      expect(positions5p[0].top, equals(258.0));
+      expect(positions5p[1].centerX, equals(384.0));
+      expect(positions5p[1].top, equals(196.0));
+      expect(positions5p[2].centerX, equals(835.0));
+      expect(positions5p[2].top, equals(197.0));
+      expect(positions5p[3].centerX, equals(1338.0));
+      expect(positions5p[3].top, equals(258.0));
       expect(MultiplayerTableBackground.assetForMaxPlayers(5), equals('assets/images/multiplayer_bg_5p.webp'));
     });
 
@@ -108,17 +108,17 @@ void main() {
     test('6-Player Table: positions 5 opponents across 5 armchair crests in royal arc', () {
       final positions6p = MultiplayerOpponentsLayer.getPositionsForPlayerCount(6);
       expect(positions6p.length, equals(5));
-      expect(positions6p[0].centerX, equals(110.0));
-      expect(positions6p[0].top, equals(150.0));
-      expect(positions6p[1].centerX, equals(490.0));
-      expect(positions6p[1].top, equals(100.0));
-      expect(positions6p[2].centerX, equals(878.0));
+      expect(positions6p[0].centerX, equals(-111.0));
+      expect(positions6p[0].top, equals(260.0));
+      expect(positions6p[1].centerX, equals(246.0));
+      expect(positions6p[1].top, equals(202.0));
+      expect(positions6p[2].centerX, equals(616.0));
       expect(positions6p[2].isCenter, isTrue);
-      expect(positions6p[2].top, equals(85.0));
-      expect(positions6p[3].centerX, equals(1266.0));
-      expect(positions6p[3].top, equals(100.0));
-      expect(positions6p[4].centerX, equals(1640.0));
-      expect(positions6p[4].top, equals(150.0));
+      expect(positions6p[2].top, equals(191.0));
+      expect(positions6p[3].centerX, equals(1006.0));
+      expect(positions6p[3].top, equals(206.0));
+      expect(positions6p[4].centerX, equals(1365.0));
+      expect(positions6p[4].top, equals(298.0));
       expect(MultiplayerTableBackground.assetForMaxPlayers(6), equals('assets/images/multiplayer_bg_6p.webp'));
     });
 
