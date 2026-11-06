@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/models/multiplayer_user.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../multiplayer/models/table_models.dart';
+import '../../../multiplayer/utils/file_saver_stub.dart' if (dart.library.html) '../../../multiplayer/utils/file_saver_web.dart';
 import '../../../progression/models/progression_models.dart';
 import '../../../home/services/player_preferences_storage.dart';
 import '../../services/admin_service.dart';
@@ -2027,12 +2029,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
   Future<void> _exportGameLog(String gameId) async {
     try {
       final jsonStr = await _adminService.exportGameLogJson(gameId);
+      if (kIsWeb) {
+        saveFileWeb(
+          fileName: '${gameId}_audit_log.json',
+          content: jsonStr,
+          mimeType: 'application/json',
+        );
+      }
       await Clipboard.setData(ClipboardData(text: jsonStr));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: const Color(0xFF0F1E36),
-            content: Text('Match $gameId JSON audit log copied to clipboard!'),
+            content: Text(kIsWeb
+                ? 'Match $gameId JSON audit log downloaded & copied to clipboard!'
+                : 'Match $gameId JSON audit log copied to clipboard!'),
           ),
         );
       }

@@ -11,6 +11,7 @@ class TablePlayer {
   final int score;
   final String status; // ACTIVE | DECLARED | WRONG_SHOW | DROPPED | ELIMINATED
   final int misses; // Number of missed turns / timeouts (up to 3 chances)
+  final int turnsPlayed;
   final DateTime? disconnectedAt;
   final DateTime? lastHeartbeat;
 
@@ -25,6 +26,7 @@ class TablePlayer {
     this.score = 0,
     this.status = 'ACTIVE',
     this.misses = 0,
+    this.turnsPlayed = 0,
     this.disconnectedAt,
     this.lastHeartbeat,
   });
@@ -40,6 +42,7 @@ class TablePlayer {
     int? score,
     String? status,
     int? misses,
+    int? turnsPlayed,
     DateTime? disconnectedAt,
     bool clearDisconnectedAt = false,
     DateTime? lastHeartbeat,
@@ -55,6 +58,7 @@ class TablePlayer {
       score: score ?? this.score,
       status: status ?? this.status,
       misses: misses ?? this.misses,
+      turnsPlayed: turnsPlayed ?? this.turnsPlayed,
       disconnectedAt: clearDisconnectedAt ? null : (disconnectedAt ?? this.disconnectedAt),
       lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
     );
@@ -89,6 +93,7 @@ class TablePlayer {
       score: json['score'] ?? 0,
       status: json['status'] ?? 'ACTIVE',
       misses: (json['misses'] as num?)?.toInt() ?? 0,
+      turnsPlayed: (json['turnsPlayed'] as num?)?.toInt() ?? 0,
       disconnectedAt: parseDate(json['disconnectedAt']),
       lastHeartbeat: parseDate(json['lastHeartbeat']),
     );
@@ -105,6 +110,7 @@ class TablePlayer {
     'score': score,
     'status': status,
     'misses': misses,
+    'turnsPlayed': turnsPlayed,
     'disconnectedAt': disconnectedAt?.toIso8601String(),
     'lastHeartbeat': lastHeartbeat?.toIso8601String(),
   };
@@ -402,6 +408,42 @@ class MultiplayerGameState {
 
   bool hasPlayerOpenedJoker(String uid) => jokerMode == 'OPEN' || openedJokerPlayerUids.contains(uid);
   Card? effectiveJokerForPlayer(String uid) => hasPlayerOpenedJoker(uid) ? openJoker : null;
+
+  /// Determines whether [playerUid] qualifies for a First Drop (e.g. 20 pts) in the current round.
+  /// A drop is a First Drop if and only if the player has NOT drawn a card on the current turn,
+  /// and has NOT completed any turns (draw/discard/timeout) previously in this round.
+  bool isPlayerFirstDrop(String playerUid, {bool hasDrawnThisTurn = false}) {
+    if (hasDrawnThisTurn || isDiscardPhase) return false;
+
+    // Check player's recorded turns completed in this round
+    final p = players.firstWhere(
+      (p) => p.uid == playerUid,
+      orElse: () => const TablePlayer(uid: '', displayName: '', seatIndex: 0),
+    );
+    if (p.uid.isNotEmpty && p.turnsPlayed > 0) {
+      return false;
+    }
+
+    // Isolate actionLog entries strictly belonging to the current round
+    int roundStartIndex = 0;
+    for (int i = actionLog.length - 1; i >= 0; i--) {
+      final typ = actionLog[i]['type'];
+      if (typ == 'ROUND_STARTED' || typ == 'GAME_STARTED') {
+        roundStartIndex = i;
+        break;
+      }
+    }
+
+    final currentRoundLog = actionLog.sublist(roundStartIndex);
+    final hasPlayedInRound = currentRoundLog.any((a) =>
+        a['playerId'] == playerUid &&
+        (a['type'] == 'DRAW_CLOSED' ||
+         a['type'] == 'DRAW_OPEN' ||
+         a['type'] == 'DISCARD' ||
+         a['type'] == 'TURN_TIMEOUT'));
+
+    return !hasPlayedInRound;
+  }
 
   MultiplayerGameState copyWith({
     String? gameId,

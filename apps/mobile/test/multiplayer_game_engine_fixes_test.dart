@@ -93,7 +93,7 @@ void main() {
           TablePlayer(uid: 'user_vamsi', displayName: 'Vamsi Krishna B', photoURL: '', seatIndex: 0, cardCount: 13),
           TablePlayer(uid: 'user_jagadeesh', displayName: 'Jagadeesh', photoURL: '', seatIndex: 1, cardCount: 13),
         ],
-        openJoker: Card(suit: Suit.hearts, rank: Rank.seven, deckIndex: 0),
+        openJoker: Card(deckIndex: 0, suit: Suit.hearts, rank: Rank.seven),
         effectiveWildRank: 'seven',
         openPile: [Card.fromInt(30)],
         closedDeck: [31, 32, 33],
@@ -149,7 +149,7 @@ void main() {
           TablePlayer(uid: 'user_jaga', displayName: 'Jagadeesh', photoURL: '', seatIndex: 0, cardCount: 14),
           TablePlayer(uid: 'user_vamsi', displayName: 'Vamsi', photoURL: '', seatIndex: 1, cardCount: 13),
         ],
-        openJoker: Card(suit: Suit.hearts, rank: Rank.seven, deckIndex: 0),
+        openJoker: Card(deckIndex: 0, suit: Suit.hearts, rank: Rank.seven),
         effectiveWildRank: 'seven',
         openPile: [Card.fromInt(20)],
         closedDeck: [21, 22, 23],
@@ -260,6 +260,87 @@ void main() {
       final updated = service.getMockGame(testGame.gameId);
       expect(updated, isNotNull);
       expect(updated!.currentTurnPlayerId, equals('p4'), reason: 'Turn must advance strictly to next ACTIVE player (skipping DROPPED and ELIMINATED)');
+    });
+
+    test('Circular seatIndex rotation: respects physical seating order even when player array is unordered', () {
+      final unorderedPlayers = [
+        const TablePlayer(uid: 'p_seat2', displayName: 'P2', photoURL: '', seatIndex: 2, status: 'ACTIVE'),
+        const TablePlayer(uid: 'p_seat0', displayName: 'P0', photoURL: '', seatIndex: 0, status: 'ACTIVE'),
+        const TablePlayer(uid: 'p_seat3', displayName: 'P3', photoURL: '', seatIndex: 3, status: 'ACTIVE'),
+        const TablePlayer(uid: 'p_seat1', displayName: 'P1', photoURL: '', seatIndex: 1, status: 'ACTIVE'),
+      ];
+
+      // Clockwise rotation from seat 0 -> seat 1 -> seat 2 -> seat 3 -> seat 0
+      expect(MultiplayerService.resolveNextActiveSeatPlayer(unorderedPlayers, 'p_seat0'), equals('p_seat1'));
+      expect(MultiplayerService.resolveNextActiveSeatPlayer(unorderedPlayers, 'p_seat1'), equals('p_seat2'));
+      expect(MultiplayerService.resolveNextActiveSeatPlayer(unorderedPlayers, 'p_seat2'), equals('p_seat3'));
+      expect(MultiplayerService.resolveNextActiveSeatPlayer(unorderedPlayers, 'p_seat3'), equals('p_seat0'));
+
+      // If seat 1 is dropped, seat 0 must rotate directly to seat 2
+      final withDropped = [
+        const TablePlayer(uid: 'p_seat2', displayName: 'P2', photoURL: '', seatIndex: 2, status: 'ACTIVE'),
+        const TablePlayer(uid: 'p_seat0', displayName: 'P0', photoURL: '', seatIndex: 0, status: 'ACTIVE'),
+        const TablePlayer(uid: 'p_seat3', displayName: 'P3', photoURL: '', seatIndex: 3, status: 'ACTIVE'),
+        const TablePlayer(uid: 'p_seat1', displayName: 'P1', photoURL: '', seatIndex: 1, status: 'DROPPED'),
+      ];
+      expect(MultiplayerService.resolveNextActiveSeatPlayer(withDropped, 'p_seat0'), equals('p_seat2'));
+    });
+
+    test('Closed Joker Declaration Fallback: valid hand with pure sequence succeeds even if joker was not manually unlocked', () async {
+      final service = MultiplayerService();
+      // Deal valid hand with Pure Sequence (A♠ 2♠ 3♠), Impure Sequence (4♥ 5♥ + wild joker 7♣), and Sets
+      final wildJoker = Card(deckIndex: 0, suit: Suit.clubs, rank: Rank.seven); // Rank 7 is wild
+      final List<List<Card>> validGroups = [
+        [Card(deckIndex: 0, suit: Suit.spades, rank: Rank.ace), Card(deckIndex: 0, suit: Suit.spades, rank: Rank.two), Card(deckIndex: 0, suit: Suit.spades, rank: Rank.three)], // Pure Seq (Life 1)
+        [Card(deckIndex: 0, suit: Suit.hearts, rank: Rank.four), Card(deckIndex: 0, suit: Suit.hearts, rank: Rank.five), Card(deckIndex: 0, suit: Suit.clubs, rank: Rank.seven)], // Impure Seq with wild joker (Life 2)
+        [Card(deckIndex: 0, suit: Suit.diamonds, rank: Rank.nine), Card(deckIndex: 0, suit: Suit.clubs, rank: Rank.nine), Card(deckIndex: 0, suit: Suit.spades, rank: Rank.nine)], // Set 1
+        [Card(deckIndex: 0, suit: Suit.hearts, rank: Rank.jack), Card(deckIndex: 0, suit: Suit.spades, rank: Rank.jack), Card(deckIndex: 0, suit: Suit.diamonds, rank: Rank.jack), Card(deckIndex: 0, suit: Suit.clubs, rank: Rank.jack)], // Set 2
+      ];
+
+      final game = MultiplayerGameState(
+        gameId: 'game_cj_fallback',
+        tableId: 'tbl_cj',
+        tableName: 'Closed Joker Table',
+        gameMode: 'Points Rummy',
+        jokerMode: 'CLOSED',
+        openJoker: wildJoker,
+        status: 'IN_PROGRESS',
+        phase: 'DISCARD_PHASE',
+        currentTurnPlayerId: 'declarer_uid',
+        turnNumber: 5,
+        openedJokerPlayerUids: [], // Player has NOT manually unlocked the closed joker
+        players: [
+          const TablePlayer(uid: 'declarer_uid', displayName: 'Declarer', photoURL: '', seatIndex: 0, status: 'ACTIVE'),
+          const TablePlayer(uid: 'opp_uid', displayName: 'Opponent', photoURL: '', seatIndex: 1, status: 'ACTIVE'),
+        ],
+      );
+
+      service.setMockGame(game);
+
+      final result = await service.declareGame(
+        gameId: 'game_cj_fallback',
+        myUid: 'declarer_uid',
+        discardCard: Card(deckIndex: 0, suit: Suit.hearts, rank: Rank.king),
+        groups: validGroups,
+      );
+
+      expect(result['isValid'], isTrue, reason: 'Valid show with pure sequence must succeed in Closed Joker mode');
+      final updatedGame = service.getMockGame('game_cj_fallback');
+      expect(updatedGame!.status, equals('DECLARING'));
+      expect(updatedGame.declaringPlayerId, equals('declarer_uid'));
+    });
+
+    test('Lifecycle resource cleanup: cleanupTable and cleanupGame evict stream controllers and state', () {
+      final service = MultiplayerService();
+      service.setMockGame(const MultiplayerGameState(gameId: 'game_cleanup_test', tableId: 'tbl_cleanup_test'));
+      service.setMockPrivateHand('game_cleanup_test', 'user_1', [Card.fromInt(0)]);
+
+      expect(service.getMockGame('game_cleanup_test'), isNotNull);
+
+      service.cleanupGame('game_cleanup_test');
+      expect(service.getMockGame('game_cleanup_test'), isNull);
+
+      service.cleanupTable('tbl_cleanup_test');
     });
   });
 }

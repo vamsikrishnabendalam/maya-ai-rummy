@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maya AI Rummy - Multiplayer Table Avatar Height & Position Editor</title>
+  <title>Maya AI Rummy - Live Desktop Multiplayer Table UI & Avatar Editor</title>
   <style>
     :root {
-      --bg-dark: #070D18;
-      --panel-bg: #0E182A;
-      --card-bg: #14223A;
+      --bg-dark: #050B14;
+      --panel-bg: #0C1526;
+      --card-bg: #13223A;
       --gold: #D4AF37;
       --gold-bright: #F5CA48;
-      --accent: #60A5FA;
-      --border: rgba(212, 175, 55, 0.25);
+      --gold-glow: rgba(245, 202, 72, 0.4);
+      --green-felt: #0B3B24;
+      --accent: #38BDF8;
+      --border: rgba(212, 175, 55, 0.28);
       --text: #F1F5F9;
       --text-muted: #94A3B8;
     }
@@ -34,16 +36,17 @@
       overflow: hidden;
     }
 
-    /* TOP BAR */
+    /* TOP HEADER BAR */
     header {
       background: var(--panel-bg);
       border-bottom: 1px solid var(--border);
-      padding: 10px 20px;
+      padding: 8px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 15px;
+      gap: 12px;
       z-index: 100;
+      flex-shrink: 0;
     }
 
     .brand {
@@ -54,8 +57,8 @@
 
     .brand-title {
       font-weight: 800;
-      font-size: 16px;
-      background: linear-gradient(135deg, #FFF, var(--gold-bright));
+      font-size: 15px;
+      background: linear-gradient(135deg, #FFF 30%, var(--gold-bright) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: 0.5px;
@@ -68,7 +71,8 @@
       font-size: 11px;
       padding: 2px 8px;
       border-radius: 12px;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.5px;
     }
 
     .btn-group {
@@ -84,10 +88,10 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.15s ease;
     }
@@ -98,91 +102,500 @@
     }
 
     .tab-btn.active {
-      background: linear-gradient(135deg, #1E3A8A, #2563EB);
-      color: white;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(245, 202, 72, 0.15));
+      color: var(--gold-bright);
+      border: 1px solid var(--gold);
+      box-shadow: 0 0 10px rgba(245, 202, 72, 0.25);
     }
 
     .action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
       background: var(--card-bg);
       border: 1px solid var(--border);
-      color: var(--text);
-      padding: 7px 14px;
-      border-radius: 8px;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
     }
 
     .action-btn:hover {
+      background: rgba(212, 175, 55, 0.2);
       border-color: var(--gold-bright);
-      background: rgba(212, 175, 55, 0.15);
-      color: var(--gold-bright);
+      box-shadow: 0 0 10px rgba(245, 202, 72, 0.25);
     }
 
     .action-btn.primary {
-      background: linear-gradient(135deg, #D4AF37, #B8860B);
+      background: linear-gradient(135deg, #B8860B 0%, #D4AF37 50%, #F5CA48 100%);
       color: #000;
       border: none;
-      font-weight: bold;
-      box-shadow: 0 2px 10px rgba(212, 175, 55, 0.4);
+      box-shadow: 0 2px 10px rgba(245, 202, 72, 0.4);
     }
 
     .action-btn.primary:hover {
-      background: linear-gradient(135deg, #F5CA48, #D4AF37);
-      transform: translateY(-1px);
+      filter: brightness(1.15);
+      box-shadow: 0 4px 16px rgba(245, 202, 72, 0.6);
     }
 
     /* MAIN WORKSPACE */
     .workspace {
       display: flex;
       flex: 1;
-      height: calc(100vh - 58px);
+      height: calc(100vh - 54px);
       overflow: hidden;
+      position: relative;
     }
 
     /* CANVAS AREA */
     .canvas-container {
       flex: 1;
-      background: #040810;
+      background: radial-gradient(circle at center, #0B1322 0%, #03060C 100%);
       overflow: auto;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
-      padding: 30px;
+      padding: 24px;
     }
 
+    /* DESKTOP TABLE VIEWPORT (1754 x 896 reference canvas) */
     .viewport {
       position: relative;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(212, 175, 55, 0.3);
-      border-radius: 12px;
+      width: 1754px;
+      height: 896px;
+      flex-shrink: 0;
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(212, 175, 55, 0.35);
+      border-radius: 16px;
       overflow: hidden;
       transform-origin: center center;
       transition: transform 0.1s ease-out;
       background-size: cover;
       background-position: center;
+      background-repeat: no-repeat;
     }
 
-    .guide-rim-line {
+    /* GUIDE LINES */
+    .chair-guide {
       position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(245, 202, 72, 0.35);
+      border-left: 1px dashed rgba(245, 202, 72, 0.6);
+      pointer-events: none;
+      z-index: 45;
+    }
+
+    .chair-guide-label {
+      position: absolute;
+      top: 10px;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid var(--gold);
+      color: var(--gold-bright);
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    /* ======================================================== */
+    /* REALISTIC IN-GAME UI OVERLAYS                             */
+    /* ======================================================== */
+
+    /* 1. TOP GAME BAR */
+    .game-top-bar {
+      position: absolute;
+      top: 0;
       left: 0;
       right: 0;
-      height: 1px;
-      background: rgba(255, 215, 0, 0.25);
+      height: 48px;
+      background: linear-gradient(180deg, rgba(8, 14, 26, 0.95) 0%, rgba(8, 14, 26, 0.8) 100%);
+      border-bottom: 1.5px solid rgba(212, 175, 55, 0.3);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 50;
       pointer-events: none;
-      display: none;
     }
 
-    /* AVATAR LAYER */
+    .top-left-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .top-pill {
+      background: rgba(14, 26, 46, 0.85);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      border-radius: 14px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #E2E8F0;
+    }
+
+    .top-pill .pill-val {
+      color: var(--gold-bright);
+    }
+
+    .top-center-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #FFF, var(--gold-bright));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .top-right-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .top-action-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #CBD5E1;
+    }
+
+    /* 2. 3D PERSPECTIVE TABLE CENTER */
+    .table-center-layer {
+      position: absolute;
+      top: 360px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .deck-slot-card {
+      width: 86px;
+      height: 122px;
+      border-radius: 8px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(212, 175, 55, 0.3);
+      position: relative;
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .deck-slot-card.closed-deck {
+      background: linear-gradient(135deg, #8B0000 0%, #4A0000 100%);
+      border: 2px solid #D4AF37;
+    }
+
+    .deck-slot-card.closed-deck::before {
+      content: 'MAYA';
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: #F5CA48;
+      text-shadow: 0 0 8px rgba(0,0,0,0.8);
+      border: 1.5px solid #F5CA48;
+      padding: 10px 6px;
+      border-radius: 4px;
+    }
+
+    .deck-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #D97706;
+      color: white;
+      border: 1.5px solid white;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 1px 7px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    .wild-joker-tucked {
+      position: absolute;
+      left: -48px;
+      bottom: -6px;
+      width: 76px;
+      height: 108px;
+      border-radius: 6px;
+      background: white;
+      border: 2px solid var(--gold-bright);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.7), 0 0 12px var(--gold-glow);
+      transform: rotate(-18deg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px 6px;
+      color: #1E293B;
+      font-weight: 900;
+      z-index: -1;
+    }
+
+    .wild-joker-badge {
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gold-bright);
+      color: black;
+      font-size: 9px;
+      font-weight: 900;
+      padding: 1px 6px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    .open-pile-card {
+      width: 86px;
+      height: 122px;
+      border-radius: 8px;
+      background: #FFFFFF;
+      border: 2px solid #38BDF8;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.75), 0 0 16px rgba(56, 189, 248, 0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 6px 8px;
+      color: #DC2626;
+      font-weight: 900;
+      position: relative;
+    }
+
+    .finish-slot-card {
+      width: 86px;
+      height: 122px;
+      border-radius: 8px;
+      border: 2px dashed rgba(245, 202, 72, 0.55);
+      background: rgba(14, 26, 46, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--gold-bright);
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: inset 0 0 14px rgba(245, 202, 72, 0.15);
+    }
+
+    /* 3. BOTTOM PLAYER HAND & ACTION BAR */
+    .bottom-player-section {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 8px;
+      z-index: 40;
+      pointer-events: none;
+    }
+
+    /* LIFE CHECKLIST BAR */
+    .royal-life-bar {
+      background: rgba(12, 22, 38, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    .life-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .life-item.valid {
+      color: #34D399;
+    }
+
+    .life-item.score-badge {
+      color: var(--gold-bright);
+    }
+
+    /* CARD GROUPS ROW */
+    .card-groups-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 14px;
+      margin-bottom: 6px;
+    }
+
+    .card-group-box {
+      background: rgba(10, 18, 32, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 4px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    .group-label {
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      background: rgba(52, 211, 153, 0.2);
+      color: #34D399;
+      border: 1px solid rgba(52, 211, 153, 0.4);
+    }
+
+    .group-label.impure {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38BDF8;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .group-cards {
+      display: flex;
+      margin-left: 0;
+    }
+
+    .inhand-card {
+      width: 58px;
+      height: 82px;
+      background: #FFFFFF;
+      border-radius: 6px;
+      border: 1px solid #CBD5E1;
+      margin-left: -20px;
+      box-shadow: -2px 3px 8px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 3px 5px;
+      font-weight: 900;
+      font-size: 11px;
+    }
+
+    .inhand-card:first-child {
+      margin-left: 0;
+    }
+
+    .inhand-card.red {
+      color: #E11D48;
+    }
+
+    .inhand-card.black {
+      color: #0F172A;
+    }
+
+    /* BOTTOM CONTROLS & PROFILE */
+    .bottom-controls-bar {
+      width: 100%;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .player-profile-pill {
+      background: rgba(14, 26, 46, 0.92);
+      border: 1.5px solid var(--gold);
+      border-radius: 24px;
+      padding: 4px 14px 4px 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+
+    .profile-avatar-thumb {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gold-bright);
+      background: #1E293B;
+      overflow: hidden;
+    }
+
+    .profile-avatar-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .profile-text-name {
+      font-size: 12px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .profile-text-coins {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold-bright);
+    }
+
+    .action-button-pill {
+      background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      border-radius: 20px;
+      padding: 6px 18px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    .action-button-pill.btn-drop {
+      background: linear-gradient(135deg, #991B1B 0%, #7F1D1D 100%);
+      border-color: #EF4444;
+      color: #FEE2E2;
+    }
+
+    .action-button-pill.btn-declare {
+      background: linear-gradient(135deg, #047857 0%, #065F46 100%);
+      border-color: #10B981;
+      color: #ECFDF5;
+    }
+
+    /* ======================================================== */
+    /* OPPONENTS LAYER (ACTIVE DRAGGABLE AVATARS & PODS)        */
+    /* ======================================================== */
+
     .avatar-wrapper {
       position: absolute;
       transform: translateX(-50%);
       cursor: grab;
+      z-index: 20;
       transition: filter 0.15s ease;
     }
 
@@ -191,36 +604,36 @@
     }
 
     .avatar-wrapper.selected .avatar-img {
-      filter: drop-shadow(0 0 14px rgba(245, 202, 72, 0.95)) drop-shadow(0 0 4px #FFF);
+      filter: drop-shadow(0 0 16px rgba(245, 202, 72, 0.95)) drop-shadow(0 0 6px #FFF);
     }
 
     .avatar-img {
       display: block;
       width: auto;
       height: 100%;
-      -webkit-mask-image: linear-gradient(to bottom, black 72%, transparent 98%);
-      mask-image: linear-gradient(to bottom, black 72%, transparent 98%);
+      -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 98%);
+      mask-image: linear-gradient(to bottom, black 70%, transparent 98%);
       pointer-events: auto;
       transition: filter 0.2s;
     }
 
-    /* POD LAYER */
     .pod-wrapper {
       position: absolute;
       transform: translateX(-50%);
       pointer-events: auto;
       cursor: pointer;
+      z-index: 25;
     }
 
     .pod-pill {
-      background: rgba(14, 26, 46, 0.88);
+      background: rgba(12, 22, 38, 0.92);
       border: 1.5px solid var(--gold);
-      border-radius: 20px;
+      border-radius: 22px;
       padding: 4px 12px;
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
       white-space: nowrap;
       transition: all 0.15s ease;
     }
@@ -228,36 +641,68 @@
     .avatar-wrapper.selected + .pod-wrapper .pod-pill,
     .pod-wrapper.selected .pod-pill {
       border-color: var(--gold-bright);
-      box-shadow: 0 0 16px rgba(245, 202, 72, 0.7);
+      box-shadow: 0 0 18px rgba(245, 202, 72, 0.8), 0 4px 12px rgba(0,0,0,0.8);
+      background: rgba(20, 36, 62, 0.95);
+    }
+
+    .pod-avatar-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gold);
+      background: #1E293B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
     }
 
     .pod-name {
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 800;
       color: white;
     }
 
     .pod-cards {
       font-size: 10px;
       color: var(--gold-bright);
-      font-weight: bold;
+      font-weight: 800;
+      background: rgba(245, 202, 72, 0.15);
+      border-radius: 10px;
+      padding: 1px 6px;
     }
 
-    /* SIDEBAR INSPECTOR */
+    .pod-timer-ring {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #10B981;
+      border-top-color: transparent;
+      animation: spin 3s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ======================================================== */
+    /* SIDEBAR PROPERTY INSPECTOR                               */
+    /* ======================================================== */
     .sidebar {
-      width: 380px;
+      width: 400px;
       background: var(--panel-bg);
       border-left: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       overflow-y: auto;
       padding: 16px;
-      gap: 16px;
+      gap: 14px;
+      flex-shrink: 0;
     }
 
     .section-title {
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 800;
       color: var(--gold-bright);
       text-transform: uppercase;
       letter-spacing: 0.8px;
@@ -269,7 +714,7 @@
 
     .seat-selector {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
       gap: 6px;
     }
 
@@ -280,7 +725,7 @@
       padding: 8px 4px;
       border-radius: 8px;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       text-align: center;
       transition: all 0.15s ease;
@@ -302,49 +747,47 @@
       background: var(--card-bg);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 10px;
-      padding: 14px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
     .control-row {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
 
     .control-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-muted);
+      font-weight: 600;
     }
 
     .control-value {
       font-family: monospace;
-      font-weight: bold;
+      font-weight: 800;
       color: var(--gold-bright);
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.4);
       padding: 2px 6px;
       border-radius: 4px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(245, 202, 72, 0.2);
     }
 
     .slider-input-group {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     input[type="range"] {
       flex: 1;
       accent-color: var(--gold-bright);
       cursor: pointer;
-      height: 6px;
-      background: #070D18;
-      border-radius: 3px;
     }
 
     input[type="number"] {
@@ -357,23 +800,23 @@
       font-family: monospace;
       font-size: 12px;
       text-align: center;
+      font-weight: 700;
     }
 
     .nudge-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-top: 4px;
+      gap: 4px;
     }
 
     .nudge-btn {
-      background: #0B132B;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #0B1428;
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: white;
-      padding: 6px;
-      border-radius: 6px;
+      padding: 5px;
+      border-radius: 5px;
       font-size: 11px;
-      font-weight: bold;
+      font-weight: 700;
       cursor: pointer;
       text-align: center;
       transition: all 0.1s;
@@ -389,10 +832,27 @@
       background: #070D18;
       border: 1px solid var(--border);
       color: white;
-      padding: 8px 10px;
+      padding: 6px 10px;
       border-radius: 6px;
       font-size: 12px;
+      font-weight: 600;
       outline: none;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #CBD5E1;
+      padding: 2px 0;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      accent-color: var(--gold-bright);
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
     }
 
     .code-box {
@@ -410,15 +870,15 @@
 
     .toast {
       position: fixed;
-      bottom: 20px;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
       background: #10B981;
       color: white;
-      padding: 10px 20px;
+      padding: 10px 24px;
       border-radius: 8px;
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 800;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
       opacity: 0;
       transition: opacity 0.3s;
@@ -433,14 +893,14 @@
 </head>
 <body>
 
-  <!-- HEADER NAVIGATION -->
+  <!-- TOP HEADER NAVIGATION -->
   <header>
     <div class="brand">
-      <div class="brand-title">MAYA MULTIPLAYER TABLE EDITOR</div>
-      <div class="badge">LIVE LOCALHOST</div>
+      <div class="brand-title">MAYA MULTIPLAYER TABLE UI & AVATAR EDITOR</div>
+      <div class="badge">DESKTOP (1754×896)</div>
     </div>
 
-    <!-- PLAYER CAPACITY -->
+    <!-- CAPACITY TABS -->
     <div class="btn-group" id="capacityGroup">
       <button class="tab-btn" data-capacity="2">2 Players</button>
       <button class="tab-btn" data-capacity="3">3 Players</button>
@@ -449,19 +909,14 @@
       <button class="tab-btn" data-capacity="6">6 Players</button>
     </div>
 
-    <!-- PLATFORM TOGGLE -->
-    <div class="btn-group" id="platformGroup">
-      <button class="tab-btn active" data-platform="desktop">🖥️ Desktop (1754×896)</button>
-      <button class="tab-btn" data-platform="mobile">📱 Mobile (1024×491)</button>
-    </div>
-
     <!-- ZOOM CONTROLS -->
     <div style="display:flex; align-items:center; gap:8px;">
-      <span style="font-size:12px; color:var(--text-muted);">Zoom:</span>
-      <button class="action-btn" onclick="adjustZoom(-0.05)">−</button>
-      <span id="zoomDisplay" style="font-size:12px; font-family:monospace; min-width:40px; text-align:center;">85%</span>
-      <button class="action-btn" onclick="adjustZoom(0.05)">+</button>
-      <button class="action-btn" onclick="resetZoom()">Fit</button>
+      <span style="font-size:11px; color:var(--text-muted); font-weight:700;">Zoom:</span>
+      <button class="action-btn" style="padding:4px 8px;" onclick="adjustZoom(-0.05)">−</button>
+      <span id="zoomDisplay" style="font-size:12px; font-family:monospace; min-width:38px; text-align:center; font-weight:bold;">80%</span>
+      <button class="action-btn" style="padding:4px 8px;" onclick="adjustZoom(0.05)">+</button>
+      <button class="action-btn" style="padding:4px 10px;" onclick="fitToWindow()">Fit</button>
+      <button class="action-btn" style="padding:4px 10px;" onclick="resetZoom()">100%</button>
     </div>
 
     <!-- ACTIONS -->
@@ -474,45 +929,243 @@
 
   <!-- WORKSPACE -->
   <div class="workspace">
-    <!-- CANVAS -->
+    <!-- CANVAS CONTAINER -->
     <div class="canvas-container" id="canvasContainer">
       <div class="viewport" id="viewport">
-        <!-- Avatars and Pods injected dynamically -->
+
+        <!-- 1. TOP GAME BAR OVERLAY -->
+        <div class="game-top-bar" id="gameTopBar">
+          <div class="top-left-info">
+            <div class="top-pill">
+              <span>🏠 ROOM:</span>
+              <span class="pill-val">XE98DX</span>
+            </div>
+            <div class="top-pill">
+              <span>🎯 MODE:</span>
+              <span class="pill-val">POINTS (₹10)</span>
+            </div>
+            <div class="top-pill">
+              <span>⚡ PING:</span>
+              <span class="pill-val" style="color:#34D399;">24ms</span>
+            </div>
+            <div class="top-pill">
+              <span>🛡️ DROP:</span>
+              <span class="pill-val">20 / 40 PTS</span>
+            </div>
+          </div>
+
+          <div class="top-center-title">ROYAL RUMMY CHAMPIONSHIP</div>
+
+          <div class="top-right-actions">
+            <div class="top-pill" style="border-color:#F5CA48;">
+              <span>🏆 PRIZE:</span>
+              <span class="pill-val">🪙 1,000</span>
+            </div>
+            <div class="top-action-icon">🔊</div>
+            <div class="top-action-icon">⚙️</div>
+            <div class="top-action-icon" style="color:#EF4444; border-color:rgba(239,68,68,0.4);">✕</div>
+          </div>
+        </div>
+
+        <!-- 2. TABLE CENTER AREA (Deck, Open Pile, Wild Joker, Finish Slot) -->
+        <div class="table-center-layer" id="tableCenterLayer">
+          <!-- Closed Deck with Tucked Wild Joker -->
+          <div style="position:relative;">
+            <div class="deck-slot-card closed-deck">
+              <span class="deck-badge">45</span>
+            </div>
+            <!-- Face-up Wild Joker tucked underneath -->
+            <div class="wild-joker-tucked" id="wildJokerCard">
+              <div style="display:flex; justify-content:space-between;">
+                <span>8</span><span>♠</span>
+              </div>
+              <div style="text-align:center; font-size:18px;">♠</div>
+              <div style="display:flex; justify-content:space-between; transform:rotate(180deg);">
+                <span>8</span><span>♠</span>
+              </div>
+              <div class="wild-joker-badge">WILD JOKER</div>
+            </div>
+          </div>
+
+          <!-- Open Discard Pile -->
+          <div style="position:relative;">
+            <div class="open-pile-card">
+              <div style="display:flex; justify-content:space-between;">
+                <span>Q</span><span>♦</span>
+              </div>
+              <div style="text-align:center; font-size:22px;">♦</div>
+              <div style="display:flex; justify-content:space-between; transform:rotate(180deg);">
+                <span>Q</span><span>♦</span>
+              </div>
+            </div>
+            <div style="position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:10px; color:#38BDF8; font-weight:800; white-space:nowrap;">
+              OPEN PILE
+            </div>
+          </div>
+
+          <!-- Finish / Declare Slot -->
+          <div style="position:relative;">
+            <div class="finish-slot-card">
+              <span style="font-size:20px;">⭐</span>
+              <span>FINISH</span>
+              <span style="font-size:9px; opacity:0.8;">DECLARE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. BOTTOM PLAYER HAND & ACTION BAR -->
+        <div class="bottom-player-section" id="bottomPlayerSection">
+          <!-- Life Checklist Bar -->
+          <div class="royal-life-bar">
+            <div class="life-item valid">
+              <span>✓</span>
+              <span>1st Pure Life</span>
+            </div>
+            <div class="life-item valid">
+              <span>✓</span>
+              <span>2nd Life</span>
+            </div>
+            <div class="life-item score-badge">
+              <span>SCORE:</span>
+              <span style="color:#FFF;">0 PTS</span>
+            </div>
+            <div class="life-item" style="color:#60A5FA;">
+              <span>TURN:</span>
+              <span style="color:#FFF;">28s</span>
+            </div>
+          </div>
+
+          <!-- 13 In-Hand Cards in realistic groups -->
+          <div class="card-groups-row">
+            <!-- Group 1: Pure Sequence (4♥, 5♥, 6♥) -->
+            <div class="card-group-box">
+              <div class="group-label">Pure Life</div>
+              <div class="group-cards">
+                <div class="inhand-card red"><div>4♥</div><div style="text-align:center;">♥</div><div>4♥</div></div>
+                <div class="inhand-card red"><div>5♥</div><div style="text-align:center;">♥</div><div>5♥</div></div>
+                <div class="inhand-card red"><div>6♥</div><div style="text-align:center;">♥</div><div>6♥</div></div>
+              </div>
+            </div>
+
+            <!-- Group 2: Impure Sequence with Wild Joker (9♠, 10♠, J♠, 8♦) -->
+            <div class="card-group-box">
+              <div class="group-label impure">2nd Life</div>
+              <div class="group-cards">
+                <div class="inhand-card black"><div>9♠</div><div style="text-align:center;">♠</div><div>9♠</div></div>
+                <div class="inhand-card black"><div>10♠</div><div style="text-align:center;">♠</div><div>10♠</div></div>
+                <div class="inhand-card black"><div>J♠</div><div style="text-align:center;">♠</div><div>J♠</div></div>
+                <div class="inhand-card red" style="border-color:#F5CA48; box-shadow:0 0 6px #F5CA48;"><div>8♦</div><div style="text-align:center; font-size:9px; color:#D97706;">WILD</div><div>8♦</div></div>
+              </div>
+            </div>
+
+            <!-- Group 3: Set (K♣, K♦, K♠) -->
+            <div class="card-group-box">
+              <div class="group-label impure">Set</div>
+              <div class="group-cards">
+                <div class="inhand-card black"><div>K♣</div><div style="text-align:center;">♣</div><div>K♣</div></div>
+                <div class="inhand-card red"><div>K♦</div><div style="text-align:center;">♦</div><div>K♦</div></div>
+                <div class="inhand-card black"><div>K♠</div><div style="text-align:center;">♠</div><div>K♠</div></div>
+              </div>
+            </div>
+
+            <!-- Group 4: Set (2♣, 2♦, 2♥) -->
+            <div class="card-group-box">
+              <div class="group-label impure">Set</div>
+              <div class="group-cards">
+                <div class="inhand-card black"><div>2♣</div><div style="text-align:center;">♣</div><div>2♣</div></div>
+                <div class="inhand-card red"><div>2♦</div><div style="text-align:center;">♦</div><div>2♦</div></div>
+                <div class="inhand-card red"><div>2♥</div><div style="text-align:center;">♥</div><div>2♥</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Actions & Host Profile Bar -->
+          <div class="bottom-controls-bar">
+            <!-- Left Thumb: Drop & Sort -->
+            <div style="display:flex; gap:10px;">
+              <button class="action-button-pill btn-drop">Drop (20)</button>
+              <button class="action-button-pill">Sort Hand</button>
+            </div>
+
+            <!-- Center Host Profile -->
+            <div class="player-profile-pill">
+              <div class="profile-avatar-thumb">
+                <img src="/assets/avatars/male_01.webp" alt="Host">
+              </div>
+              <div>
+                <div class="profile-text-name">You (Host) 👑</div>
+                <div class="profile-text-coins">🪙 5,420 COINS</div>
+              </div>
+            </div>
+
+            <!-- Right Thumb: Group, Discard, Declare -->
+            <div style="display:flex; gap:10px;">
+              <button class="action-button-pill">Group</button>
+              <button class="action-button-pill" style="border-color:#38BDF8;">Discard</button>
+              <button class="action-button-pill btn-declare">Declare Hand</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. DYNAMIC OPPONENTS LAYER (Injected via JS) -->
+        <div id="opponentsLayer"></div>
+
+        <!-- 5. CHAIR GUIDES (Injected via JS) -->
+        <div id="guidesLayer"></div>
       </div>
     </div>
 
-    <!-- SIDEBAR CONTROLS -->
+    <!-- SIDEBAR INSPECTOR -->
     <div class="sidebar">
+      <!-- OPPONENTS SEATS -->
       <div>
         <div class="section-title">
           <span>Seated Opponents</span>
-          <span id="seatCountBadge" style="font-size:10px; color:var(--text-muted);">3 SEATS</span>
+          <span id="seatCountBadge" class="badge">3 OPPONENTS</span>
         </div>
         <div class="seat-selector" id="seatSelector">
-          <!-- Injected dynamically -->
+          <!-- Populated by JS -->
         </div>
       </div>
 
-      <!-- PROPERTY INSPECTOR -->
+      <!-- PROPERTY CONTROLS -->
       <div class="control-card">
         <div class="section-title">
           <span id="selectedSeatTitle">Selected Seat</span>
-          <span class="badge" id="seatCoordsBadge">X: 160 | Y: 200</span>
+          <span class="badge" id="seatCoordsBadge">X: 280 | Y: 160</span>
         </div>
 
-        <!-- AVATAR CHOICE -->
+        <!-- AVATAR CHARACTER PICKER -->
         <div class="control-row">
-          <label class="control-header">Preview Avatar Cutout</label>
+          <label class="control-header">Opponent Character Model</label>
           <select id="avatarSelect" onchange="onAvatarChange(this.value)">
-            <!-- Options populated from API -->
+            <!-- Populated via API -->
           </select>
         </div>
 
-        <!-- AVATAR Y (avatarTop) -->
+        <!-- HORIZONTAL CENTER (centerX) -->
         <div class="control-row">
           <div class="control-header">
-            <span>Avatar Y Position (avatarTop)</span>
-            <span class="control-value" id="valAvatarTop">200px</span>
+            <span>Horizontal Anchor (centerX)</span>
+            <span class="control-value" id="valCenterX">280px</span>
+          </div>
+          <div class="slider-input-group">
+            <input type="range" id="rangeCenterX" min="50" max="1704" step="1" oninput="updateProp('centerX', +this.value)">
+            <input type="number" id="numCenterX" min="50" max="1704" oninput="updateProp('centerX', +this.value)">
+          </div>
+          <div class="nudge-grid">
+            <button class="nudge-btn" onclick="nudgeProp('centerX', -5)">← 5px</button>
+            <button class="nudge-btn" onclick="nudgeProp('centerX', -1)">← 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('centerX', 1)">→ 1px</button>
+            <button class="nudge-btn" onclick="nudgeProp('centerX', 5)">→ 5px</button>
+          </div>
+        </div>
+
+        <!-- AVATAR VERTICAL POSITION (avatarTop) -->
+        <div class="control-row">
+          <div class="control-header">
+            <span>Avatar Vertical Position (avatarTop)</span>
+            <span class="control-value" id="valAvatarTop">160px</span>
           </div>
           <div class="slider-input-group">
             <input type="range" id="rangeAvatarTop" min="20" max="500" step="1" oninput="updateProp('avatarTop', +this.value)">
@@ -526,15 +1179,15 @@
           </div>
         </div>
 
-        <!-- AVATAR HEIGHT (avatarHeight) -->
+        <!-- AVATAR HEIGHT / SCALE (avatarHeight) -->
         <div class="control-row">
           <div class="control-header">
-            <span>Avatar Height (avatarHeight)</span>
-            <span class="control-value" id="valAvatarHeight">270px</span>
+            <span>Avatar Scale / Height (avatarHeight)</span>
+            <span class="control-value" id="valAvatarHeight">280px</span>
           </div>
           <div class="slider-input-group">
-            <input type="range" id="rangeAvatarHeight" min="80" max="450" step="1" oninput="updateProp('avatarHeight', +this.value)">
-            <input type="number" id="numAvatarHeight" min="80" max="450" oninput="updateProp('avatarHeight', +this.value)">
+            <input type="range" id="rangeAvatarHeight" min="150" max="450" step="1" oninput="updateProp('avatarHeight', +this.value)">
+            <input type="number" id="numAvatarHeight" min="150" max="450" oninput="updateProp('avatarHeight', +this.value)">
           </div>
           <div class="nudge-grid">
             <button class="nudge-btn" onclick="nudgeProp('avatarHeight', -5)">− 5px</button>
@@ -544,29 +1197,11 @@
           </div>
         </div>
 
-        <!-- HORIZONTAL CENTER X (centerX) -->
+        <!-- POD VERTICAL POSITION (top) -->
         <div class="control-row">
           <div class="control-header">
-            <span>Center X Offset (centerX)</span>
-            <span class="control-value" id="valCenterX">160px</span>
-          </div>
-          <div class="slider-input-group">
-            <input type="range" id="rangeCenterX" min="50" max="1700" step="1" oninput="updateProp('centerX', +this.value)">
-            <input type="number" id="numCenterX" min="50" max="1700" oninput="updateProp('centerX', +this.value)">
-          </div>
-          <div class="nudge-grid">
-            <button class="nudge-btn" onclick="nudgeProp('centerX', -5)">← 5px</button>
-            <button class="nudge-btn" onclick="nudgeProp('centerX', -1)">← 1px</button>
-            <button class="nudge-btn" onclick="nudgeProp('centerX', 1)">→ 1px</button>
-            <button class="nudge-btn" onclick="nudgeProp('centerX', 5)">→ 5px</button>
-          </div>
-        </div>
-
-        <!-- POD Y (top) -->
-        <div class="control-row">
-          <div class="control-header">
-            <span>Status Pod Y (top)</span>
-            <span class="control-value" id="valPodTop">150px</span>
+            <span>Status Pod Vertical Position (top)</span>
+            <span class="control-value" id="valPodTop">105px</span>
           </div>
           <div class="slider-input-group">
             <input type="range" id="rangePodTop" min="20" max="400" step="1" oninput="updateProp('top', +this.value)">
@@ -579,178 +1214,170 @@
             <button class="nudge-btn" onclick="nudgeProp('top', 5)">↓ 5px</button>
           </div>
         </div>
+
+        <!-- MIRROR SYMMETRY BUTTON -->
+        <button class="action-btn" onclick="mirrorSymmetry()" style="justify-content:center; background:#0B162C; border-color:var(--gold);">
+          ⚖️ Auto-Mirror Symmetry to Opposite Chair
+        </button>
       </div>
 
-      <!-- DART CODE SNIPPET -->
+      <!-- UI OVERLAY TOGGLES -->
+      <div class="control-card">
+        <div class="section-title">
+          <span>In-Game Elements Visibility</span>
+        </div>
+        <div class="toggle-row">
+          <span>Top Navigation Bar</span>
+          <input type="checkbox" id="toggleTopBar" checked onchange="toggleElement('gameTopBar', this.checked)">
+        </div>
+        <div class="toggle-row">
+          <span>Center Table (Deck & Open Pile)</span>
+          <input type="checkbox" id="toggleCenter" checked onchange="toggleElement('tableCenterLayer', this.checked)">
+        </div>
+        <div class="toggle-row">
+          <span>Bottom Player Hand & Controls</span>
+          <input type="checkbox" id="toggleHand" checked onchange="toggleElement('bottomPlayerSection', this.checked)">
+        </div>
+        <div class="toggle-row">
+          <span>Armchair Alignment Vertical Guides</span>
+          <input type="checkbox" id="toggleGuides" checked onchange="toggleGuides(this.checked)">
+        </div>
+      </div>
+
+      <!-- DART CODE OUTPUT -->
       <div>
         <div class="section-title">
           <span>Dart Code Output</span>
           <button class="action-btn" style="padding:2px 8px; font-size:10px;" onclick="copyDartCode()">Copy</button>
         </div>
-        <div class="code-box" id="codeBox">// Code updates live as you tweak sliders</div>
+        <div class="code-box" id="codeBox">// Dart coordinates update live</div>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast">Changes copied to clipboard!</div>
+  <div class="toast" id="toast">Saved successfully!</div>
 
   <script>
-    // Canonical default positions matching multiplayer_opponents_layer.dart
+    // Canonical coordinate positions matching MultiplayerOpponentsLayer.getPositionsForPlayerCount()
     const DEFAULTS = {
-      desktop: {
-        2: [
-          { centerX: 878, top: 88, avatarTop: 140, avatarHeight: 350, isCenter: true, avatar: "female_01.webp", name: "Maya (AI)" }
-        ],
-        3: [
-          { centerX: 550, top: 58, avatarTop: 110, avatarHeight: 345, avatar: "female_01.webp", name: "Ananya" },
-          { centerX: 1205, top: 58, avatarTop: 110, avatarHeight: 345, avatar: "male_01.webp", name: "Vikram" }
-        ],
-        4: [
-          { centerX: 160, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_01.webp", name: "Ananya (Left)" },
-          { centerX: 878, top: 85, avatarTop: 135, avatarHeight: 320, isCenter: true, avatar: "male_01.webp", name: "Vikram (Center)" },
-          { centerX: 1600, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_02.webp", name: "Priya (Right)" }
-        ],
-        5: [
-          { centerX: 130, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_01.webp", name: "Ananya" },
-          { centerX: 640, top: 85, avatarTop: 135, avatarHeight: 320, avatar: "male_02.webp", name: "Karthik" },
-          { centerX: 1116, top: 85, avatarTop: 135, avatarHeight: 320, avatar: "female_03.webp", name: "Meera" },
-          { centerX: 1620, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "male_03.webp", name: "Arjun" }
-        ],
-        6: [
-          { centerX: 110, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_01.webp", name: "Ananya" },
-          { centerX: 490, top: 100, avatarTop: 150, avatarHeight: 310, avatar: "male_01.webp", name: "Vikram" },
-          { centerX: 878, top: 85, avatarTop: 135, avatarHeight: 320, isCenter: true, avatar: "female_02.webp", name: "Maya" },
-          { centerX: 1266, top: 100, avatarTop: 150, avatarHeight: 310, avatar: "male_02.webp", name: "Karthik" },
-          { centerX: 1640, top: 150, avatarTop: 200, avatarHeight: 270, avatar: "female_03.webp", name: "Meera" }
-        ]
-      },
-      mobile: {
-        2: [
-          { centerX: 512, top: 58, avatarTop: 102, avatarHeight: 140, isCenter: true, avatar: "female_01.webp", name: "Maya (AI)" }
-        ],
-        3: [
-          { centerX: 330, top: 42, avatarTop: 82, avatarHeight: 138, avatar: "female_01.webp", name: "Ananya" },
-          { centerX: 695, top: 42, avatarTop: 82, avatarHeight: 138, avatar: "male_01.webp", name: "Vikram" }
-        ],
-        4: [
-          { centerX: 196, top: 60, avatarTop: 95, avatarHeight: 125, avatar: "female_01.webp", name: "Ananya (Left)" },
-          { centerX: 512, top: 40, avatarTop: 82, avatarHeight: 140, isCenter: true, avatar: "male_01.webp", name: "Vikram (Center)" },
-          { centerX: 828, top: 60, avatarTop: 95, avatarHeight: 125, avatar: "female_02.webp", name: "Priya (Right)" }
-        ],
-        5: [
-          { centerX: 184, top: 62, avatarTop: 95, avatarHeight: 125, avatar: "female_01.webp", name: "Ananya" },
-          { centerX: 386, top: 42, avatarTop: 84, avatarHeight: 136, avatar: "male_02.webp", name: "Karthik" },
-          { centerX: 644, top: 42, avatarTop: 84, avatarHeight: 136, avatar: "female_03.webp", name: "Meera" },
-          { centerX: 856, top: 62, avatarTop: 95, avatarHeight: 125, avatar: "male_03.webp", name: "Arjun" }
-        ],
-        6: [
-          { centerX: 158, top: 62, avatarTop: 95, avatarHeight: 120, avatar: "female_01.webp", name: "Ananya" },
-          { centerX: 330, top: 45, avatarTop: 88, avatarHeight: 130, avatar: "male_01.webp", name: "Vikram" },
-          { centerX: 506, top: 40, avatarTop: 82, avatarHeight: 138, isCenter: true, avatar: "female_02.webp", name: "Maya" },
-          { centerX: 682, top: 45, avatarTop: 88, avatarHeight: 130, avatar: "male_02.webp", name: "Karthik" },
-          { centerX: 860, top: 62, avatarTop: 95, avatarHeight: 120, avatar: "female_03.webp", name: "Meera" }
-        ]
-      }
+      2: [
+        { centerX: 877, top: 70, avatarTop: 125, avatarHeight: 340, isCenter: true, avatar: "female_01.webp", name: "Maya (AI)" }
+      ],
+      3: [
+        { centerX: 550, top: 65, avatarTop: 120, avatarHeight: 330, avatar: "female_01.webp", name: "Ananya (Left)" },
+        { centerX: 1204, top: 65, avatarTop: 120, avatarHeight: 330, avatar: "male_01.webp", name: "Vikram (Right)" }
+      ],
+      4: [
+        { centerX: 280, top: 105, avatarTop: 160, avatarHeight: 280, avatar: "female_01.webp", name: "Ananya (Left)" },
+        { centerX: 877, top: 70, avatarTop: 125, avatarHeight: 330, isCenter: true, avatar: "male_01.webp", name: "Vikram (Center)" },
+        { centerX: 1474, top: 105, avatarTop: 160, avatarHeight: 280, avatar: "female_02.webp", name: "Priya (Right)" }
+      ],
+      5: [
+        { centerX: 200, top: 125, avatarTop: 175, avatarHeight: 265, avatar: "female_01.webp", name: "Ananya" },
+        { centerX: 640, top: 75, avatarTop: 130, avatarHeight: 320, avatar: "male_02.webp", name: "Karthik" },
+        { centerX: 1114, top: 75, avatarTop: 130, avatarHeight: 320, avatar: "female_03.webp", name: "Meera" },
+        { centerX: 1554, top: 125, avatarTop: 175, avatarHeight: 265, avatar: "male_03.webp", name: "Arjun" }
+      ],
+      6: [
+        { centerX: 160, top: 135, avatarTop: 185, avatarHeight: 260, avatar: "female_01.webp", name: "Ananya" },
+        { centerX: 510, top: 85, avatarTop: 140, avatarHeight: 310, avatar: "male_01.webp", name: "Vikram" },
+        { centerX: 877, top: 70, avatarTop: 125, avatarHeight: 330, isCenter: true, avatar: "female_02.webp", name: "Maya" },
+        { centerX: 1244, top: 85, avatarTop: 140, avatarHeight: 310, avatar: "male_02.webp", name: "Karthik" },
+        { centerX: 1594, top: 135, avatarTop: 185, avatarHeight: 260, avatar: "female_03.webp", name: "Meera" }
+      ]
     };
 
-    // Active state clone
     let state = JSON.parse(JSON.stringify(DEFAULTS));
     let currentCapacity = 4;
-    let currentPlatform = 'desktop';
     let selectedSeatIdx = 0;
-    let zoomLevel = 0.85;
-
+    let zoomLevel = 0.8;
     let availableAvatars = [];
+    let isDragging = false;
+    let dragMode = null; // 'avatar' | 'pod'
+    let dragStartY = 0;
+    let dragStartX = 0;
+    let initialPropX = 0;
+    let initialPropY = 0;
 
-    // Initialize
-    async function init() {
-      setupEventListeners();
-      await loadAvatars();
-      await loadSavedData();
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadAvailableAvatars();
+      await loadSavedPositions();
+      initEvents();
+      fitToWindow();
       renderAll();
-      resetZoom();
-    }
+    });
 
-    async function loadAvatars() {
+    async function loadAvailableAvatars() {
       try {
         const res = await fetch('/api/avatars');
-        availableAvatars = await res.json();
-      } catch (_) {
-        availableAvatars = ['female_01.webp', 'female_02.webp', 'female_03.webp', 'male_01.webp', 'male_02.webp'];
+        if (res.ok) {
+          availableAvatars = await res.json();
+        }
+      } catch (e) {
+        console.warn('Could not load avatars list from API:', e);
+      }
+      if (!availableAvatars.length) {
+        availableAvatars = ['female_01.webp', 'female_02.webp', 'female_03.webp', 'male_01.webp', 'male_02.webp', 'male_03.webp'];
       }
       const select = document.getElementById('avatarSelect');
-      select.innerHTML = availableAvatars.map(av => `<option value="${av}">${av.replace('.webp', '')}</option>`).join('');
+      select.innerHTML = '';
+      availableAvatars.forEach(av => {
+        const opt = document.createElement('option');
+        opt.value = av;
+        opt.textContent = av.replace('.webp', '');
+        select.appendChild(opt);
+      });
     }
 
-    async function loadSavedData() {
+    async function loadSavedPositions() {
       try {
         const res = await fetch('/api/load');
         if (res.ok) {
           const loaded = await res.json();
-          if (loaded.desktop && loaded.mobile) {
-            state = loaded;
-            showToast('Loaded saved custom coordinates from server!');
+          if (loaded.desktop) {
+            for (let c in loaded.desktop) {
+              if (state[c]) state[c] = loaded.desktop[c];
+            }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        console.warn('Failed loading saved positions:', e);
+      }
     }
 
-    function setupEventListeners() {
-      // Capacity buttons
+    function initEvents() {
       document.querySelectorAll('#capacityGroup .tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('#capacityGroup .tab-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-          currentCapacity = +btn.dataset.capacity;
+          currentCapacity = parseInt(btn.dataset.capacity, 10);
           selectedSeatIdx = 0;
           renderAll();
         });
       });
 
-      // Platform buttons
-      document.querySelectorAll('#platformGroup .tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('#platformGroup .tab-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentPlatform = btn.dataset.platform;
-          selectedSeatIdx = 0;
-          renderAll();
-          resetZoom();
-        });
-      });
-    }
-
-    function getCanvasSize() {
-      return currentPlatform === 'desktop' ? { w: 1754, h: 896 } : { w: 1024, h: 491 };
-    }
-
-    function getBackgroundImage() {
-      const p = currentCapacity;
-      if (currentPlatform === 'desktop') {
-        return `/assets/images/multiplayer_bg_${p}p.webp`;
-      } else {
-        return `/assets/images/multiplayer_mobile_bg_${p}p.webp`;
-      }
+      window.addEventListener('mousemove', onDragMove);
+      window.addEventListener('mouseup', endDrag);
+      window.addEventListener('resize', () => fitToWindow());
     }
 
     function renderAll() {
       renderViewport();
       renderSeatSelector();
+      renderGuides();
       updateInspector();
       updateCodeBox();
     }
 
     function renderViewport() {
       const vp = document.getElementById('viewport');
-      const size = getCanvasSize();
-      vp.style.width = size.w + 'px';
-      vp.style.height = size.h + 'px';
-      vp.style.backgroundImage = `url("${getBackgroundImage()}")`;
+      vp.style.backgroundImage = `url("/assets/images/multiplayer_bg_${currentCapacity}p.webp")`;
       vp.style.transform = `scale(${zoomLevel})`;
 
-      vp.innerHTML = '';
+      const layer = document.getElementById('opponentsLayer');
+      layer.innerHTML = '';
 
-      const seats = state[currentPlatform][currentCapacity];
+      const seats = state[currentCapacity];
       seats.forEach((seat, idx) => {
         // 1. Avatar element
         const avWrap = document.createElement('div');
@@ -767,7 +1394,7 @@
         avWrap.appendChild(img);
         avWrap.addEventListener('mousedown', (e) => startDrag(e, idx, 'avatar'));
         avWrap.addEventListener('click', () => selectSeat(idx));
-        vp.appendChild(avWrap);
+        layer.appendChild(avWrap);
 
         // 2. Pod Pill element
         const podWrap = document.createElement('div');
@@ -775,34 +1402,54 @@
         podWrap.style.left = seat.centerX + 'px';
         podWrap.style.top = seat.top + 'px';
 
-        const isMobile = currentPlatform === 'mobile';
         podWrap.innerHTML = `
-          <div class="pod-pill" style="padding:${isMobile ? '3px 8px' : '4px 12px'}; font-size:${isMobile ? '10px' : '11px'};">
-            <span style="color:#F5CA48;">👑</span>
+          <div class="pod-pill">
+            <div class="pod-avatar-dot">👑</div>
             <span class="pod-name">${seat.name || 'Player ' + (idx + 1)}</span>
-            <span class="pod-cards">🂠13</span>
+            <span class="pod-cards">🂠 13</span>
+            <div class="pod-timer-ring"></div>
           </div>
         `;
         podWrap.addEventListener('mousedown', (e) => startDrag(e, idx, 'pod'));
         podWrap.addEventListener('click', () => selectSeat(idx));
-        vp.appendChild(podWrap);
+        layer.appendChild(podWrap);
+      });
+    }
+
+    function renderGuides() {
+      const guidesLayer = document.getElementById('guidesLayer');
+      guidesLayer.innerHTML = '';
+      if (!document.getElementById('toggleGuides').checked) return;
+
+      const seats = state[currentCapacity];
+      seats.forEach((seat, idx) => {
+        const guide = document.createElement('div');
+        guide.className = 'chair-guide';
+        guide.style.left = seat.centerX + 'px';
+
+        const label = document.createElement('div');
+        label.className = 'chair-guide-label';
+        label.textContent = `Seat ${idx + 1}: ${seat.centerX}px`;
+        guide.appendChild(label);
+
+        guidesLayer.appendChild(guide);
       });
     }
 
     function renderSeatSelector() {
       const container = document.getElementById('seatSelector');
       container.innerHTML = '';
-      const seats = state[currentPlatform][currentCapacity];
-      document.getElementById('seatCountBadge').textContent = `${seats.length} SEATS`;
+      const seats = state[currentCapacity];
+      document.getElementById('seatCountBadge').textContent = `${seats.length} OPPONENTS`;
 
       seats.forEach((seat, idx) => {
         const btn = document.createElement('button');
         btn.className = 'seat-btn' + (idx === selectedSeatIdx ? ' active' : '');
-        let label = `Seat ${idx}`;
+        let label = `Seat ${idx + 1}`;
         if (seats.length === 3) {
           label = idx === 0 ? 'Left' : idx === 1 ? 'Center' : 'Right';
         } else if (seats.length === 4) {
-          label = idx === 0 ? 'Far Left' : idx === 1 ? 'Mid L' : idx === 2 ? 'Mid R' : 'Far Right';
+          label = idx === 0 ? 'Far L' : idx === 1 ? 'Center L' : idx === 2 ? 'Center R' : 'Far R';
         } else if (seats.length === 5) {
           label = idx === 0 ? 'Far L' : idx === 1 ? 'Mid L' : idx === 2 ? 'Center' : idx === 3 ? 'Mid R' : 'Far R';
         }
@@ -820,187 +1467,206 @@
     }
 
     function updateInspector() {
-      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      const seat = state[currentCapacity][selectedSeatIdx];
       if (!seat) return;
 
-      document.getElementById('selectedSeatTitle').textContent = `Seat ${selectedSeatIdx} (${seat.name || 'Opponent'})`;
+      document.getElementById('selectedSeatTitle').textContent = `Seat ${selectedSeatIdx + 1} (${seat.name || 'Opponent'})`;
       document.getElementById('seatCoordsBadge').textContent = `X: ${seat.centerX} | Top: ${seat.avatarTop}`;
 
-      // Max values based on canvas
-      const size = getCanvasSize();
-      document.getElementById('rangeCenterX').max = size.w;
-      document.getElementById('numCenterX').max = size.w;
-
-      // avatarTop
-      document.getElementById('valAvatarTop').textContent = seat.avatarTop + 'px';
-      document.getElementById('rangeAvatarTop').value = seat.avatarTop;
-      document.getElementById('numAvatarTop').value = seat.avatarTop;
-
-      // avatarHeight
-      document.getElementById('valAvatarHeight').textContent = seat.avatarHeight + 'px';
-      document.getElementById('rangeAvatarHeight').value = seat.avatarHeight;
-      document.getElementById('numAvatarHeight').value = seat.avatarHeight;
-
-      // centerX
       document.getElementById('valCenterX').textContent = seat.centerX + 'px';
       document.getElementById('rangeCenterX').value = seat.centerX;
       document.getElementById('numCenterX').value = seat.centerX;
 
-      // top (podTop)
+      document.getElementById('valAvatarTop').textContent = seat.avatarTop + 'px';
+      document.getElementById('rangeAvatarTop').value = seat.avatarTop;
+      document.getElementById('numAvatarTop').value = seat.avatarTop;
+
+      document.getElementById('valAvatarHeight').textContent = seat.avatarHeight + 'px';
+      document.getElementById('rangeAvatarHeight').value = seat.avatarHeight;
+      document.getElementById('numAvatarHeight').value = seat.avatarHeight;
+
       document.getElementById('valPodTop').textContent = seat.top + 'px';
       document.getElementById('rangePodTop').value = seat.top;
       document.getElementById('numPodTop').value = seat.top;
 
-      // select avatar
-      document.getElementById('avatarSelect').value = seat.avatar || 'female_01.webp';
+      if (seat.avatar) {
+        document.getElementById('avatarSelect').value = seat.avatar;
+      }
     }
 
     function updateProp(prop, val) {
-      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      const seat = state[currentCapacity][selectedSeatIdx];
       if (!seat) return;
       seat[prop] = Math.round(val);
       renderViewport();
+      renderGuides();
       updateInspector();
       updateCodeBox();
     }
 
     function nudgeProp(prop, delta) {
-      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+      const seat = state[currentCapacity][selectedSeatIdx];
       if (!seat) return;
       seat[prop] = Math.round(seat[prop] + delta);
       renderViewport();
+      renderGuides();
       updateInspector();
       updateCodeBox();
     }
 
-    function onAvatarChange(av) {
-      const seat = state[currentPlatform][currentCapacity][selectedSeatIdx];
+    function onAvatarChange(avatarFile) {
+      const seat = state[currentCapacity][selectedSeatIdx];
       if (!seat) return;
-      seat.avatar = av;
+      seat.avatar = avatarFile;
       renderViewport();
     }
 
-    // Direct Canvas Dragging
-    let dragging = null;
+    function mirrorSymmetry() {
+      const seats = state[currentCapacity];
+      const oppositeIdx = seats.length - 1 - selectedSeatIdx;
+      if (oppositeIdx === selectedSeatIdx) {
+        showToast('Center seat is already symmetric!');
+        return;
+      }
+      const current = seats[selectedSeatIdx];
+      const target = seats[oppositeIdx];
 
-    function startDrag(e, idx, type) {
-      e.preventDefault();
-      selectSeat(idx);
-      const seat = state[currentPlatform][currentCapacity][idx];
-      dragging = {
-        idx,
-        type,
-        startX: e.clientX,
-        startY: e.clientY,
-        origCenterX: seat.centerX,
-        origAvatarTop: seat.avatarTop,
-        origPodTop: seat.top,
-      };
+      // Mirror horizontal coordinate across canvas center (1754 / 2 = 877)
+      target.centerX = Math.round(1754 - current.centerX);
+      target.top = current.top;
+      target.avatarTop = current.avatarTop;
+      target.avatarHeight = current.avatarHeight;
 
-      window.addEventListener('mousemove', onDrag);
-      window.addEventListener('mouseup', endDrag);
+      renderViewport();
+      renderGuides();
+      updateCodeBox();
+      showToast(`Mirrored Seat ${selectedSeatIdx + 1} to Seat ${oppositeIdx + 1}!`);
     }
 
-    function onDrag(e) {
-      if (!dragging) return;
-      const dx = (e.clientX - dragging.startX) / zoomLevel;
-      const dy = (e.clientY - dragging.startY) / zoomLevel;
-      const seat = state[currentPlatform][currentCapacity][dragging.idx];
+    /* DRAG AND DROP */
+    function startDrag(e, seatIdx, mode) {
+      selectSeat(seatIdx);
+      isDragging = true;
+      dragMode = mode;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      const seat = state[currentCapacity][seatIdx];
+      initialPropX = seat.centerX;
+      initialPropY = mode === 'avatar' ? seat.avatarTop : seat.top;
+      e.preventDefault();
+    }
 
-      if (dragging.type === 'avatar') {
-        seat.centerX = Math.round(dragging.origCenterX + dx);
-        seat.avatarTop = Math.round(dragging.origAvatarTop + dy);
-      } else if (dragging.type === 'pod') {
-        seat.centerX = Math.round(dragging.origCenterX + dx);
-        seat.top = Math.round(dragging.origPodTop + dy);
+    function onDragMove(e) {
+      if (!isDragging) return;
+      const dx = (e.clientX - dragStartX) / zoomLevel;
+      const dy = (e.clientY - dragStartY) / zoomLevel;
+
+      const seat = state[currentCapacity][selectedSeatIdx];
+      seat.centerX = Math.round(Math.max(50, Math.min(1704, initialPropX + dx)));
+
+      if (dragMode === 'avatar') {
+        seat.avatarTop = Math.round(Math.max(20, Math.min(500, initialPropY + dy)));
+      } else {
+        seat.top = Math.round(Math.max(20, Math.min(450, initialPropY + dy)));
       }
 
       renderViewport();
+      renderGuides();
       updateInspector();
       updateCodeBox();
     }
 
     function endDrag() {
-      dragging = null;
-      window.removeEventListener('mousemove', onDrag);
-      window.removeEventListener('mouseup', endDrag);
+      isDragging = false;
     }
 
-    // Zoom Controls
+    /* ZOOM CONTROLS */
     function adjustZoom(delta) {
-      zoomLevel = Math.max(0.3, Math.min(1.5, zoomLevel + delta));
+      zoomLevel = Math.max(0.4, Math.min(1.5, Math.round((zoomLevel + delta) * 100) / 100));
+      document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%';
+      document.getElementById('viewport').style.transform = `scale(${zoomLevel})`;
+    }
+
+    function fitToWindow() {
+      const container = document.getElementById('canvasContainer');
+      const cw = container.clientWidth - 48;
+      const ch = container.clientHeight - 48;
+      const scaleX = cw / 1754;
+      const scaleY = ch / 896;
+      zoomLevel = Math.max(0.4, Math.min(1.0, Math.round(Math.min(scaleX, scaleY) * 100) / 100));
       document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%';
       document.getElementById('viewport').style.transform = `scale(${zoomLevel})`;
     }
 
     function resetZoom() {
-      const container = document.getElementById('canvasContainer');
-      const size = getCanvasSize();
-      const availW = container.clientWidth - 60;
-      const availH = container.clientHeight - 60;
-      const scaleX = availW / size.w;
-      const scaleY = availH / size.h;
-      zoomLevel = Math.min(scaleX, scaleY, 1.0);
-      document.getElementById('zoomDisplay').textContent = Math.round(zoomLevel * 100) + '%';
+      zoomLevel = 1.0;
+      document.getElementById('zoomDisplay').textContent = '100%';
       document.getElementById('viewport').style.transform = `scale(${zoomLevel})`;
     }
 
+    function toggleElement(elementId, visible) {
+      const el = document.getElementById(elementId);
+      if (el) el.style.display = visible ? 'flex' : 'none';
+    }
+
+    function toggleGuides(visible) {
+      renderGuides();
+    }
+
     function resetToDefaults() {
-      state[currentPlatform][currentCapacity] = JSON.parse(JSON.stringify(DEFAULTS[currentPlatform][currentCapacity]));
-      renderAll();
-      showToast('Reset current table to default coordinates');
-    }
-
-    // Generate Dart Code
-    function generateDartCode() {
-      const isMobile = currentPlatform === 'mobile';
-      const methodName = isMobile ? 'getMobilePositionsForPlayerCount' : 'getPositionsForPlayerCount';
-      const seats = state[currentPlatform][currentCapacity];
-
-      let lines = [];
-      lines.push(`// ${currentCapacity}-Player ${isMobile ? 'Mobile (1024x491)' : 'Desktop (1754x896)'}`);
-      lines.push(`case ${currentCapacity}:`);
-      lines.push(`  return const [`);
-      seats.forEach((s, i) => {
-        lines.push(`    MultiplayerSeatPosition(`);
-        lines.push(`      centerX: ${s.centerX},`);
-        lines.push(`      top: ${s.top},`);
-        lines.push(`      avatarTop: ${s.avatarTop},`);
-        lines.push(`      avatarHeight: ${s.avatarHeight},`);
-        if (s.isCenter) lines.push(`      isCenter: true,`);
-        lines.push(`    ),`);
-      });
-      lines.push(`  ];`);
-      return lines.join('\n');
-    }
-
-    function updateCodeBox() {
-      document.getElementById('codeBox').textContent = generateDartCode();
-    }
-
-    function copyDartCode() {
-      const code = generateDartCode();
-      navigator.clipboard.writeText(code).then(() => {
-        showToast('Dart code copied to clipboard!');
-      });
+      if (confirm(`Reset ${currentCapacity}-player table coordinates to defaults?`)) {
+        state[currentCapacity] = JSON.parse(JSON.stringify(DEFAULTS[currentCapacity]));
+        renderAll();
+        showToast('Reset to defaults.');
+      }
     }
 
     async function saveToServer() {
       try {
+        const payload = {
+          desktop: state,
+          savedAt: new Date().toISOString()
+        };
         const res = await fetch('/api/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(state)
+          body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        if (data.success) {
-          showToast('Saved all coordinates to localhost server!');
+        if (res.ok) {
+          showToast('Saved positions to server successfully!');
         } else {
-          alert('Save error: ' + data.error);
+          showToast('Failed saving positions to server.');
         }
       } catch (e) {
-        alert('Failed to connect to local server: ' + e);
+        showToast('Error saving to server: ' + e.message);
       }
+    }
+
+    function generateDartSnippet() {
+      const seats = state[currentCapacity];
+      let code = `      case ${currentCapacity}:\n        return const [\n`;
+      seats.forEach(s => {
+        code += `          MultiplayerSeatPosition(\n`;
+        code += `            centerX: ${s.centerX}.0,\n`;
+        code += `            top: ${s.top}.0,\n`;
+        code += `            avatarTop: ${s.avatarTop}.0,\n`;
+        code += `            avatarHeight: ${s.avatarHeight}.0,\n`;
+        if (s.isCenter) code += `            isCenter: true,\n`;
+        code += `          ),\n`;
+      });
+      code += `        ];`;
+      return code;
+    }
+
+    function updateCodeBox() {
+      document.getElementById('codeBox').textContent = generateDartSnippet();
+    }
+
+    function copyDartCode() {
+      const code = generateDartSnippet();
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('Dart code copied to clipboard!');
+      });
     }
 
     function showToast(msg) {
@@ -1009,10 +1675,6 @@
       t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2500);
     }
-
-    window.addEventListener('load', init);
-    window.addEventListener('resize', resetZoom);
   </script>
 </body>
 </html>
-

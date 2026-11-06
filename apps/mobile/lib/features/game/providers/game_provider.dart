@@ -262,6 +262,16 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
       !state.hasDrawnThisTurn &&
       state.cardGroups.expand((g) => g.cards).length == 13;
 
+  bool get isHumanFirstDrop {
+    if (state.hasDrawnThisTurn) return false;
+    final humanActionsInRound = state.actionLogs.where(
+      (l) => l.roundNumber == state.currentRoundNumber &&
+             l.player == 'Human' &&
+             (l.action == 'Draw Deck' || l.action == 'Draw Open' || l.action == 'Discard'),
+    );
+    return humanActionsInRound.isEmpty;
+  }
+
   void openClosedJoker() {
     if (!state.gameSettings.isClosedJoker || state.hasHumanOpenedJoker) return;
     if (state.hasDrawnThisTurn || state.cardGroups.expand((g) => g.cards).length > 13) return;
@@ -1347,7 +1357,7 @@ class GameTableNotifier extends StateNotifier<GameTableState> {
   void dropCurrentHand() {
     if (!isHumanTurn || state.isRoundOver) return;
 
-    final isFirstDrop = state.gameState.turnNumber <= 1 && !state.hasDrawnThisTurn;
+    final isFirstDrop = isHumanFirstDrop;
     final int dropPenalty = isFirstDrop
         ? state.gameSettings.firstDropPenalty
         : state.gameSettings.middleDropPenalty;

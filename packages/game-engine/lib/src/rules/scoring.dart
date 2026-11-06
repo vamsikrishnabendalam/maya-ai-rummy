@@ -6,7 +6,7 @@ import 'set_validator.dart';
 class Scoring {
   static int getCardValue(Card c, Card? wildJoker) {
     if (JokerUtils.isJoker(c, wildJoker)) return 0;
-    if (c.rank == Rank.ace || c.rank == Rank.king || c.rank == Rank.queen || c.rank == Rank.jack) return 10;
+    if (c.rank == Rank.ace || c.rank == Rank.king || c.rank == Rank.queen || c.rank == Rank.jack || c.rank == Rank.ten) return 10;
     return (c.rank?.index ?? 0) + 1;
   }
 

@@ -189,7 +189,7 @@ class GameTableScreen extends ConsumerWidget {
     final wildJoker = notifier.wildJokerCard;
 
     final isFirstDrop =
-        gameState.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
+        notifier.isHumanFirstDrop;
 
     final dropPenalty = isFirstDrop
         ? tableState.gameSettings.firstDropPenalty
@@ -229,6 +229,13 @@ class GameTableScreen extends ConsumerWidget {
     );
 
     final nextDealNumber = tableState.roundScores.length + 1;
+
+    final displayScore = (isHumanTurn &&
+            isDiscardPhase &&
+            tableState.selectedCard != null &&
+            notifier.remainingCardsFormValidDeclaration)
+        ? 0
+        : tableState.currentScore;
 
     final isPortrait = !isLandscape;
 
@@ -536,7 +543,7 @@ class GameTableScreen extends ConsumerWidget {
                         child: RoyalLifeChecklistBar(
                           hasFirstLife: notifier.hasHumanLife,
                           hasSecondLife: notifier.hasHumanSecondLife,
-                          points: tableState.currentScore,
+                          points: displayScore,
                           isMyTurn: isHumanTurn,
                           turnSeconds: tableState.turnSecondsRemaining,
                           instructionText: toastMessage,
@@ -638,6 +645,13 @@ class GameTableScreen extends ConsumerWidget {
     } else {
       modeLabel = '${tableState.gameSettings.eliminationScore} POOL';
     }
+
+    final displayScore = (isHumanTurn &&
+            isDiscardPhase &&
+            tableState.selectedCard != null &&
+            notifier.remainingCardsFormValidDeclaration)
+        ? 0
+        : tableState.currentScore;
 
     return Center(
       child: AspectRatio(
@@ -912,11 +926,11 @@ class GameTableScreen extends ConsumerWidget {
                           Align(
                             alignment: Alignment.centerRight,
                             child: Text(
-                              'DEADWOOD: ${tableState.currentScore} PTS',
+                              'DEADWOOD: $displayScore PTS',
                               style: GoogleFonts.outfit(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w800,
-                                color: tableState.currentScore == 0 ? const Color(0xFF34D399) : const Color(0xFFFBBF24),
+                                color: displayScore == 0 ? const Color(0xFF34D399) : const Color(0xFFFBBF24),
                               ),
                             ),
                           ),
@@ -3388,6 +3402,13 @@ class GameTableScreen extends ConsumerWidget {
 
     final isMobileLandscape = !isPortrait && !isDesktop;
 
+    final displayScore = (isHumanTurn &&
+            isDiscardPhase &&
+            tableState.selectedCard != null &&
+            notifier.remainingCardsFormValidDeclaration)
+        ? 0
+        : tableState.currentScore;
+
     if (isMobileLandscape) {
       return Container(
         padding: const EdgeInsets.symmetric(
@@ -3442,7 +3463,7 @@ class GameTableScreen extends ConsumerWidget {
             RoyalLifeChecklistBar(
               hasFirstLife: notifier.hasHumanLife,
               hasSecondLife: notifier.hasHumanSecondLife,
-              points: tableState.currentScore,
+              points: displayScore,
               isMyTurn: isHumanTurn,
               turnSeconds: tableState.turnSecondsRemaining,
             ),
@@ -3548,7 +3569,7 @@ class GameTableScreen extends ConsumerWidget {
           RoyalLifeChecklistBar(
             hasFirstLife: notifier.hasHumanLife,
             hasSecondLife: notifier.hasHumanSecondLife,
-            points: tableState.currentScore,
+            points: displayScore,
             isMyTurn: isHumanTurn,
             turnSeconds: tableState.turnSecondsRemaining,
           ),
@@ -4090,7 +4111,9 @@ class GameTableScreen extends ConsumerWidget {
                       Text(
                         tableState.isAwaitingHumanDeclarationShow
                             ? 'Declare Hand (${tableState.currentScore}p)'
-                            : 'Declare Hand',
+                            : (notifier.remainingCardsFormValidDeclaration
+                                ? 'Declare Hand (0 pts)'
+                                : 'Declare Hand'),
                         style: GoogleFonts.outfit(
                           color: active
                               ? const Color(0xFF241A00)
@@ -4846,7 +4869,7 @@ class GameTableScreen extends ConsumerWidget {
     final tableState = ref.read(gameTableProvider);
 
     final isFirstDrop =
-        tableState.gameState.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
+        ref.read(gameTableProvider.notifier).isHumanFirstDrop;
 
     final penalty = isFirstDrop
         ? tableState.gameSettings.firstDropPenalty

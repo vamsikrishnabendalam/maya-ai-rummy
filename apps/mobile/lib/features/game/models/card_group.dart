@@ -1,4 +1,4 @@
-import 'package:game_engine/game_engine.dart' show Card, Rank;
+import 'package:game_engine/game_engine.dart' show Card, Rank, JokerUtils;
 
 /// Types of card groupings in Indian Rummy
 enum CardGroupType {
@@ -63,12 +63,12 @@ class CardGroup {
   /// Number of cards in this group
   int get length => cards.length;
 
-  /// Total deadwood penalty points for this group
-  int get points {
+  /// Total deadwood penalty points for this group, taking optional wild joker into account.
+  int calculatePoints([Card? wildJoker]) {
     if (isValid && type != CardGroupType.deadwood) return 0;
     int sum = 0;
     for (final card in cards) {
-      if (card.isPrintedJoker) continue;
+      if (JokerUtils.isJoker(card, wildJoker)) continue;
       switch (card.rank) {
         case Rank.ace:
         case Rank.jack:
@@ -90,6 +90,9 @@ class CardGroup {
     }
     return sum;
   }
+
+  /// Total deadwood penalty points for this group without wild joker (backward compatibility getter)
+  int get points => calculatePoints(null);
 
   /// Create a copy with optional field overrides
   CardGroup copyWith({

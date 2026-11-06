@@ -79,7 +79,7 @@ class CardGroupWidget extends StatelessWidget {
       case CardGroupType.set:
         return 'Set • 0 pts';
       case CardGroupType.deadwood:
-        return 'Deadwood • ${group.points} pts';
+        return 'Deadwood • ${group.calculatePoints(wildJokerCard)} pts';
     }
   }
 

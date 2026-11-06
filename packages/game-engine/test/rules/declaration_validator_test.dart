@@ -117,5 +117,41 @@ void main() {
       expect(result.isValid, isTrue);
       expect(result.penaltyScore, equals(0));
     });
+
+    test('Valid declaration when wild joker is Queen and meld combines with Original Joker and Queen', () {
+      final wildQueen = Card(suit: Suit.diamonds, rank: Rank.queen, deckIndex: 0);
+      final pj = Card(deckIndex: 0, isPrintedJoker: true);
+      final queenHearts = Card(suit: Suit.hearts, rank: Rank.queen, deckIndex: 0);
+
+      // Verify individual card values: both must have 0 deadwood value!
+      expect(Scoring.getCardValue(pj, wildQueen), equals(0));
+      expect(Scoring.getCardValue(queenHearts, wildQueen), equals(0));
+
+      final g1 = [
+        Card(suit: Suit.spades, rank: Rank.two, deckIndex: 0),
+        Card(suit: Suit.spades, rank: Rank.three, deckIndex: 0),
+        Card(suit: Suit.spades, rank: Rank.four, deckIndex: 0),
+        Card(suit: Suit.spades, rank: Rank.five, deckIndex: 0),
+      ];
+      final g2 = [
+        Card(suit: Suit.diamonds, rank: Rank.five, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.six, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.seven, deckIndex: 0),
+      ];
+      final g3 = [
+        Card(suit: Suit.clubs, rank: Rank.nine, deckIndex: 0),
+        Card(suit: Suit.hearts, rank: Rank.nine, deckIndex: 0),
+        Card(suit: Suit.diamonds, rank: Rank.nine, deckIndex: 0),
+      ];
+      final g4 = [
+        Card(suit: Suit.clubs, rank: Rank.ten, deckIndex: 0),
+        pj,
+        queenHearts,
+      ];
+
+      final result = validator.validate([g1, g2, g3, g4], wildQueen);
+      expect(result.isValid, isTrue);
+      expect(result.penaltyScore, equals(0));
+    });
   });
 }

@@ -2,10 +2,10 @@
   "desktop": {
     "2": [
       {
-        "centerX": 618,
-        "top": 98,
-        "avatarTop": 121,
-        "avatarHeight": 350,
+        "centerX": 877,
+        "top": 70,
+        "avatarTop": 125,
+        "avatarHeight": 340,
         "isCenter": true,
         "avatar": "female_01.webp",
         "name": "Maya (AI)"
@@ -13,257 +13,122 @@
     ],
     "3": [
       {
-        "centerX": 275,
-        "top": 104,
-        "avatarTop": 127,
-        "avatarHeight": 345,
-        "avatar": "female_01.webp",
-        "name": "Ananya"
-      },
-      {
-        "centerX": 986,
-        "top": 103,
-        "avatarTop": 127,
-        "avatarHeight": 345,
-        "avatar": "male_01.webp",
-        "name": "Vikram"
-      }
-    ],
-    "4": [
-      {
-        "centerX": -5,
-        "top": 198,
-        "avatarTop": 224,
-        "avatarHeight": 270,
+        "centerX": 550,
+        "top": 65,
+        "avatarTop": 120,
+        "avatarHeight": 330,
         "avatar": "female_01.webp",
         "name": "Ananya (Left)"
       },
       {
-        "centerX": 654,
-        "top": 142,
-        "avatarTop": 164,
-        "avatarHeight": 320,
+        "centerX": 1204,
+        "top": 65,
+        "avatarTop": 120,
+        "avatarHeight": 330,
+        "avatar": "male_01.webp",
+        "name": "Vikram (Right)"
+      }
+    ],
+    "4": [
+      {
+        "centerX": 280,
+        "top": 105,
+        "avatarTop": 160,
+        "avatarHeight": 280,
+        "avatar": "female_01.webp",
+        "name": "Ananya (Left)"
+      },
+      {
+        "centerX": 877,
+        "top": 70,
+        "avatarTop": 125,
+        "avatarHeight": 330,
         "isCenter": true,
         "avatar": "male_01.webp",
         "name": "Vikram (Center)"
       },
       {
-        "centerX": 1307,
-        "top": 175,
-        "avatarTop": 196,
-        "avatarHeight": 302,
+        "centerX": 1474,
+        "top": 105,
+        "avatarTop": 160,
+        "avatarHeight": 280,
         "avatar": "female_02.webp",
         "name": "Priya (Right)"
       }
     ],
     "5": [
       {
-        "centerX": -71,
-        "top": 258,
-        "avatarTop": 283,
-        "avatarHeight": 270,
+        "centerX": 200,
+        "top": 125,
+        "avatarTop": 175,
+        "avatarHeight": 265,
         "avatar": "female_01.webp",
         "name": "Ananya"
       },
       {
-        "centerX": 384,
-        "top": 196,
-        "avatarTop": 219,
+        "centerX": 640,
+        "top": 75,
+        "avatarTop": 130,
         "avatarHeight": 320,
         "avatar": "male_02.webp",
         "name": "Karthik"
       },
       {
-        "centerX": 835,
-        "top": 197,
-        "avatarTop": 222,
+        "centerX": 1114,
+        "top": 75,
+        "avatarTop": 130,
         "avatarHeight": 320,
         "avatar": "female_03.webp",
         "name": "Meera"
       },
       {
-        "centerX": 1338,
-        "top": 258,
-        "avatarTop": 290,
-        "avatarHeight": 270,
+        "centerX": 1554,
+        "top": 125,
+        "avatarTop": 175,
+        "avatarHeight": 265,
         "avatar": "male_03.webp",
         "name": "Arjun"
       }
     ],
     "6": [
       {
-        "centerX": -111,
-        "top": 260,
-        "avatarTop": 281,
-        "avatarHeight": 270,
+        "centerX": 160,
+        "top": 135,
+        "avatarTop": 185,
+        "avatarHeight": 260,
         "avatar": "female_01.webp",
         "name": "Ananya"
-      },
-      {
-        "centerX": 246,
-        "top": 202,
-        "avatarTop": 227,
-        "avatarHeight": 310,
-        "avatar": "male_01.webp",
-        "name": "Vikram"
-      },
-      {
-        "centerX": 616,
-        "top": 191,
-        "avatarTop": 216,
-        "avatarHeight": 320,
-        "isCenter": true,
-        "avatar": "female_02.webp",
-        "name": "Maya"
-      },
-      {
-        "centerX": 1006,
-        "top": 206,
-        "avatarTop": 227,
-        "avatarHeight": 310,
-        "avatar": "male_02.webp",
-        "name": "Karthik"
-      },
-      {
-        "centerX": 1365,
-        "top": 298,
-        "avatarTop": 304,
-        "avatarHeight": 270,
-        "avatar": "female_03.webp",
-        "name": "Meera"
-      }
-    ]
-  },
-  "mobile": {
-    "2": [
-      {
-        "centerX": 512,
-        "top": 80,
-        "avatarTop": 102,
-        "avatarHeight": 140,
-        "isCenter": true,
-        "avatar": "female_01.webp",
-        "name": "Maya (AI)"
-      }
-    ],
-    "3": [
-      {
-        "centerX": 326,
-        "top": 95,
-        "avatarTop": 118,
-        "avatarHeight": 138,
-        "avatar": "female_01.webp",
-        "name": "Ananya"
-      },
-      {
-        "centerX": 695,
-        "top": 92,
-        "avatarTop": 115,
-        "avatarHeight": 138,
-        "avatar": "male_01.webp",
-        "name": "Vikram"
-      }
-    ],
-    "4": [
-      {
-        "centerX": 200,
-        "top": 88,
-        "avatarTop": 111,
-        "avatarHeight": 125,
-        "avatar": "female_01.webp",
-        "name": "Ananya (Left)"
       },
       {
         "centerX": 510,
-        "top": 56,
-        "avatarTop": 79,
-        "avatarHeight": 140,
-        "isCenter": true,
-        "avatar": "male_01.webp",
-        "name": "Vikram (Center)"
-      },
-      {
-        "centerX": 828,
-        "top": 90,
-        "avatarTop": 113,
-        "avatarHeight": 125,
-        "avatar": "female_02.webp",
-        "name": "Priya (Right)"
-      }
-    ],
-    "5": [
-      {
-        "centerX": 158,
-        "top": 136,
-        "avatarTop": 158,
-        "avatarHeight": 125,
-        "avatar": "female_01.webp",
-        "name": "Ananya"
-      },
-      {
-        "centerX": 385,
-        "top": 117,
-        "avatarTop": 139,
-        "avatarHeight": 136,
-        "avatar": "male_02.webp",
-        "name": "Karthik"
-      },
-      {
-        "centerX": 647,
-        "top": 118,
-        "avatarTop": 142,
-        "avatarHeight": 136,
-        "avatar": "female_03.webp",
-        "name": "Meera"
-      },
-      {
-        "centerX": 879,
-        "top": 131,
-        "avatarTop": 153,
-        "avatarHeight": 125,
-        "avatar": "male_03.webp",
-        "name": "Arjun"
-      }
-    ],
-    "6": [
-      {
-        "centerX": 114,
-        "top": 149,
-        "avatarTop": 171,
-        "avatarHeight": 120,
-        "avatar": "female_01.webp",
-        "name": "Ananya"
-      },
-      {
-        "centerX": 298,
-        "top": 122,
-        "avatarTop": 146,
-        "avatarHeight": 130,
+        "top": 85,
+        "avatarTop": 140,
+        "avatarHeight": 310,
         "avatar": "male_01.webp",
         "name": "Vikram"
       },
       {
-        "centerX": 508,
-        "top": 121,
-        "avatarTop": 141,
-        "avatarHeight": 138,
+        "centerX": 877,
+        "top": 70,
+        "avatarTop": 125,
+        "avatarHeight": 330,
         "isCenter": true,
         "avatar": "female_02.webp",
         "name": "Maya"
       },
       {
-        "centerX": 696,
-        "top": 129,
-        "avatarTop": 148,
-        "avatarHeight": 130,
+        "centerX": 1244,
+        "top": 85,
+        "avatarTop": 140,
+        "avatarHeight": 310,
         "avatar": "male_02.webp",
         "name": "Karthik"
       },
       {
-        "centerX": 900,
-        "top": 149,
-        "avatarTop": 172,
-        "avatarHeight": 120,
+        "centerX": 1594,
+        "top": 135,
+        "avatarTop": 185,
+        "avatarHeight": 260,
         "avatar": "female_03.webp",
         "name": "Meera"
       }

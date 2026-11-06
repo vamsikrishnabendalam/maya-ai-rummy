@@ -384,14 +384,20 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         }
       }
 
-      final effectivePhase = (has14Cards && g.isMyTurn(user.uid) && g.phase != 'DRAW_PHASE') ? 'DISCARD_PHASE' : g.phase;
-      final normalizedGame = g.copyWith(phase: effectivePhase);
+      final currentHandCards = groups.expand((grp) => grp.cards).toList();
+      final has14CardsNow = currentHandCards.length >= 14;
+
+      final effectivePhase = (has14CardsNow && g.isMyTurn(user.uid) && g.phase != 'DRAW_PHASE') ? 'DISCARD_PHASE' : g.phase;
+      final normalizedGame = g.copyWith(
+        phase: effectivePhase,
+        myHand: currentHandCards.isNotEmpty ? currentHandCards : g.myHand,
+      );
 
       state = state.copyWith(
         gameState: normalizedGame,
         cardGroups: groups,
         currentScore: score,
-        hasDrawnThisTurn: (has14Cards || normalizedGame.isDiscardPhase) && normalizedGame.isMyTurn(user.uid),
+        hasDrawnThisTurn: (has14CardsNow || normalizedGame.isDiscardPhase) && normalizedGame.isMyTurn(user.uid),
       );
 
       // Auto-unlock Closed Joker ONLY if dealt hand already contains a Pure Sequence (Life) on deal (13 cards, before any draw)
@@ -1245,10 +1251,14 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     );
   }
 
-  @visibleForTesting
-  List<CardGroup> syncGroupsWithHandForTesting(List<CardGroup> currentGroups, List<Card> serverHand, Card? openJoker) =>
-      _syncGroupsWithHand(currentGroups, serverHand, openJoker);
-
+  @visibleForTesting
+
+  List<CardGroup> syncGroupsWithHandForTesting(List<CardGroup> currentGroups, List<Card> serverHand, Card? openJoker) =>
+
+      _syncGroupsWithHand(currentGroups, serverHand, openJoker);
+
+
+
   List<CardGroup> _syncGroupsWithHand(List<CardGroup> currentGroups, List<Card> serverHand, Card? openJoker) {
     final serverCardsRemaining = List<Card>.from(serverHand);
 
@@ -1276,6 +1286,10 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
         }
         if (idx >= 0) {
           keptCards.add(serverCardsRemaining.removeAt(idx));
+        } else if (!_discardedCardIntsThisRound.contains(card.toInt())) {
+          // Card was NOT in server snapshot, but was NOT discarded either.
+          // It is a valid locally drawn card that must be preserved!
+          keptCards.add(card);
         }
       }
       if (keptCards.isNotEmpty) {
@@ -1284,9 +1298,9 @@ class MultiplayerGameNotifier extends StateNotifier<MultiplayerGameTableState> {
     }
 
     int totalKept = updatedGroups.fold<int>(0, (sum, g) => sum + g.cards.length);
-    // If fewer than 10 cards matched out of a full 13+ card hand, currentGroups is stale (e.g. from a prior round).
-    // Discard stale grouping and partition the entire fresh hand cleanly!
-    if (serverHand.length >= 13 && totalKept < 10) {
+    // Strict Invariant: If fewer than 13 cards matched when serverHand has 13+ cards,
+    // local groups have lost cards or are stale. Discard stale grouping and partition the entire fresh hand cleanly!
+    if (serverHand.length >= 13 && totalKept < 13) {
       final partition = HandPartitioner.findBestPartition(serverHand, openJoker);
       final cleanGroups = <CardGroup>[];
       for (final grp in partition.groups) {

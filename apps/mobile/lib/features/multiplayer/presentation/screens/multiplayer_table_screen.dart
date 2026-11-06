@@ -1348,7 +1348,7 @@ class _MultiplayerTableScreenState extends ConsumerState<MultiplayerTableScreen>
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
     final isDesktop = Responsive.isDesktop(context) || size.width >= 1024;
-    final isFirstDrop = game.turnNumber <= 1 && !tableState.hasDrawnThisTurn;
+    final isFirstDrop = game.isPlayerFirstDrop(myUid, hasDrawnThisTurn: tableState.hasDrawnThisTurn);
     final dropPenalty = isFirstDrop ? game.firstDropPenalty : game.middleDropPenalty;
     final canDrop = !game.isDeclaring && !game.isGameOver && !game.isCompleted && !game.isRoundOver && !tableState.isHandLocked && isMyTurn && isDrawPhase && !isDropped;
 

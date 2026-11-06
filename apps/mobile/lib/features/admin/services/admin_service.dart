@@ -372,7 +372,26 @@ class AdminService {
   Future<String> exportGameLogJson(String gameId) async {
     final details = await getGameAuditDetails(gameId);
     final sanitized = sanitizeForJson(details);
-    return const JsonEncoder.withIndent('  ').convert(sanitized);
+    return JsonEncoder.withIndent('  ', (nonEncodable) {
+      if (nonEncodable is Timestamp) {
+        return nonEncodable.toDate().toIso8601String();
+      }
+      if (nonEncodable is DateTime) {
+        return nonEncodable.toIso8601String();
+      }
+      try {
+        // ignore: avoid_dynamic_calls
+        final dynamic d = (nonEncodable as dynamic).toDate();
+        if (d is DateTime) return d.toIso8601String();
+        if (d != null) return d.toString();
+      } catch (_) {}
+      try {
+        // ignore: avoid_dynamic_calls
+        final dynamic json = (nonEncodable as dynamic).toJson();
+        if (json != null) return sanitizeForJson(json);
+      } catch (_) {}
+      return nonEncodable.toString();
+    }).convert(sanitized);
   }
 
   /// Recursively convert Firestore Timestamp and non-serializable objects into JSON-encodable types
@@ -384,6 +403,17 @@ class AdminService {
     if (value is DateTime) {
       return value.toIso8601String();
     }
+    // Handle JS / Platform Timestamp interop safely
+    try {
+      // ignore: avoid_dynamic_calls
+      final dynamic d = (value as dynamic).toDate();
+      if (d is DateTime) {
+        return d.toIso8601String();
+      } else if (d != null) {
+        return d.toString();
+      }
+    } catch (_) {}
+
     if (value is Map) {
       return value.map((k, v) => MapEntry(k.toString(), sanitizeForJson(v)));
     }
@@ -395,10 +425,13 @@ class AdminService {
     }
     try {
       // ignore: avoid_dynamic_calls
-      return (value as dynamic).toJson();
-    } catch (_) {
-      return value.toString();
-    }
+      final dynamic json = (value as dynamic).toJson();
+      if (json != null) {
+        return sanitizeForJson(json);
+      }
+    } catch (_) {}
+
+    return value.toString();
   }
 
   /// Grant or adjust player XP authoritatively

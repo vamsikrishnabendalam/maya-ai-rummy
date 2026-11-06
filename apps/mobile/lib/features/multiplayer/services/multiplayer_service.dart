@@ -87,6 +87,49 @@ class MultiplayerService {
     return List.generate(length, (_) => chars[rand.nextInt(chars.length)]).join();
   }
 
+  static DateTime? parseDate(dynamic d) {
+    if (d == null) return null;
+    if (d is DateTime) return d;
+    try {
+      if ((d as dynamic).toDate != null) return (d as dynamic).toDate() as DateTime;
+    } catch (_) {}
+    if (d is String) return DateTime.tryParse(d);
+    return null;
+  }
+
+  static String resolveNextActiveSeatPlayer(List<TablePlayer> players, String currentUid) {
+    final active = players.where((p) => p.status == 'ACTIVE').toList()
+      ..sort((a, b) => a.seatIndex.compareTo(b.seatIndex));
+    if (active.isEmpty) return currentUid;
+    final curIdx = active.indexWhere((p) => p.uid == currentUid);
+    if (curIdx < 0) {
+      final cur = players.firstWhere((p) => p.uid == currentUid, orElse: () => players.first);
+      final nextActive = active.firstWhere((p) => p.seatIndex > cur.seatIndex, orElse: () => active.first);
+      return nextActive.uid;
+    }
+    return active[(curIdx + 1) % active.length].uid;
+  }
+
+  static String resolveNextActiveSeatPlayerFromRaw(List<dynamic> rawPlayers, String currentUid) {
+    final active = rawPlayers
+        .map((p) => Map<String, dynamic>.from(p as Map))
+        .where((p) => p['status'] == 'ACTIVE')
+        .toList()
+      ..sort((a, b) => ((a['seatIndex'] as num?)?.toInt() ?? 0).compareTo((b['seatIndex'] as num?)?.toInt() ?? 0));
+    if (active.isEmpty) return currentUid;
+    final curIdx = active.indexWhere((p) => p['uid'] == currentUid);
+    if (curIdx < 0) {
+      final curMap = rawPlayers.firstWhere((p) => (p as Map)['uid'] == currentUid, orElse: () => rawPlayers.first) as Map;
+      final currentSeat = (curMap['seatIndex'] as num?)?.toInt() ?? 0;
+      final nextActive = active.firstWhere(
+        (p) => ((p['seatIndex'] as num?)?.toInt() ?? 0) > currentSeat,
+        orElse: () => active.first,
+      );
+      return nextActive['uid'] as String;
+    }
+    return active[(curIdx + 1) % active.length]['uid'] as String;
+  }
+
   FirebaseFirestore? get _firestore => FirebaseConfig.isInitialized ? FirebaseFirestore.instance : null;
   FirebaseFunctions? get _functions => FirebaseConfig.isInitialized ? FirebaseFunctions.instance : null;
 
@@ -96,6 +139,7 @@ class MultiplayerService {
   final Map<String, List<Card>> _mockPrivateHands = {}; // key: "gameId_uid"
   final Map<String, StreamController<TableLobby>> _tableControllers = {};
   final Map<String, StreamController<MultiplayerGameState>> _gameControllers = {};
+  Timer? _roundTransitionTimer;
 
   // --------------- Table Lobby Management ---------------
 
@@ -545,6 +589,16 @@ class MultiplayerService {
             'prizePool': isCoinTable ? math.max(0, currentPrizePool - entryCoins) : 0,
             'kickedPlayerUids': kickedUids.toList(),
           });
+
+          if (isCoinTable && entryCoins > 0) {
+            _walletService.creditCoins(
+              uid: targetUid,
+              amount: entryCoins,
+              type: 'REFUND_ENTRY',
+              reason: 'Refund entry coins (Removed from table by host)',
+              referenceId: tableId,
+            ).catchError((e) => debugPrint('[MultiplayerService] kickPlayer refund error: '));
+          }
         });
       } catch (e) {
         debugPrint('[MultiplayerService] kickPlayerFromTable error: $e');
@@ -1199,22 +1253,13 @@ class MultiplayerService {
 
           // Advance turn to next active player in sequential circular seat order
           final rawPlayers = (gameData['players'] as List<dynamic>?) ?? [];
-          final currentRawIdx = rawPlayers.indexWhere((p) => (p as Map)['uid'] == myUid);
-          String nextPlayerId = myUid;
-          if (rawPlayers.isNotEmpty) {
-            for (int i = 1; i < rawPlayers.length; i++) {
-              final candidate = rawPlayers[(currentRawIdx + i) % rawPlayers.length] as Map;
-              if (candidate['status'] == 'ACTIVE') {
-                nextPlayerId = candidate['uid'] as String;
-                break;
-              }
-            }
-          }
+          final nextPlayerId = resolveNextActiveSeatPlayerFromRaw(rawPlayers, myUid);
 
           final updatedPlayers = rawPlayers.map((pMap) {
             final p = Map<String, dynamic>.from(pMap as Map);
             if (p['uid'] == myUid) {
               p['cardCount'] = existingCards.length;
+              p['turnsPlayed'] = ((p['turnsPlayed'] as num?)?.toInt() ?? 0) + 1;
             }
             return p;
           }).toList();
@@ -1287,20 +1332,11 @@ class MultiplayerService {
 
     final openPile = List<Card>.from(game.openPile)..add(removedCard);
 
-    // Advance turn to next active player in sequential circular seat order
-    final pIdx = game.players.indexWhere((p) => p.uid == myUid);
-    TablePlayer? nextPlayer;
-    for (int i = 1; i < game.players.length; i++) {
-      final candidate = game.players[(pIdx + i) % game.players.length];
-      if (candidate.status == 'ACTIVE') {
-        nextPlayer = candidate;
-        break;
-      }
-    }
-    final nextPlayerId = nextPlayer?.uid ?? myUid;
+    // Advance turn to next active player in clockwise circular seat order
+    final nextPlayerId = resolveNextActiveSeatPlayer(game.players, myUid);
 
     final updatedPlayers = game.players.map((p) {
-      if (p.uid == myUid) return p.copyWith(cardCount: hand.length);
+      if (p.uid == myUid) return p.copyWith(cardCount: hand.length, turnsPlayed: p.turnsPlayed + 1);
       return p;
     }).toList();
 
@@ -1362,10 +1398,24 @@ class MultiplayerService {
           final rawLog = (gameData['actionLog'] as List<dynamic>?) ?? [];
           final actionLog = rawLog.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 
-          final hasDrawnOrDiscarded = actionLog.any((a) =>
+          // Isolate actionLog entries strictly belonging to current round
+          int roundStartIndex = 0;
+          for (int i = actionLog.length - 1; i >= 0; i--) {
+            final typ = actionLog[i]['type'];
+            if (typ == 'ROUND_STARTED' || typ == 'GAME_STARTED') {
+              roundStartIndex = i;
+              break;
+            }
+          }
+          final currentRoundLog = actionLog.sublist(roundStartIndex);
+          final hasPlayedInRound = currentRoundLog.any((a) =>
               a['playerId'] == myUid &&
-              (a['type'] == 'DRAW_CLOSED' || a['type'] == 'DRAW_OPEN' || a['type'] == 'DISCARD'));
-          final isFirstDrop = turnNum == 0 || !hasDrawnOrDiscarded;
+              (a['type'] == 'DRAW_CLOSED' ||
+               a['type'] == 'DRAW_OPEN' ||
+               a['type'] == 'DISCARD' ||
+               a['type'] == 'TURN_TIMEOUT'));
+
+          final isFirstDrop = (players[pIdx].turnsPlayed == 0) && !hasPlayedInRound;
           final firstDropPenalty = (gameData['firstDropPenalty'] as int?) ?? 20;
           final middleDropPenalty = (gameData['middleDropPenalty'] as int?) ?? 40;
           final penalty = isFirstDrop ? firstDropPenalty : middleDropPenalty;
@@ -1493,9 +1543,13 @@ class MultiplayerService {
                 'nextRoundStartTime': nextRoundStart.toIso8601String(),
               });
 
-              Timer(const Duration(seconds: 6), () {
-                startNextRound(gameId);
-              });
+              final isHost = players.any((p) => p.uid == myUid && p.isHost);
+              if (isHost) {
+                _roundTransitionTimer?.cancel();
+                _roundTransitionTimer = Timer(const Duration(seconds: 6), () {
+                  startNextRound(gameId);
+                });
+              }
             } else {
               // Entire Match Completed
               final finalResults = players.map((p) {
@@ -1530,16 +1584,9 @@ class MultiplayerService {
               }
             }
           } else {
-            // Advance turn to the next active player in sequential circular seat order
-            TablePlayer? nextPlayer;
-            for (int i = 1; i < players.length; i++) {
-              final candidate = players[(pIdx + i) % players.length];
-              if (candidate.status == 'ACTIVE') {
-                nextPlayer = candidate;
-                break;
-              }
-            }
-            nextPlayer ??= remainingActive.isNotEmpty ? remainingActive.first : players.first;
+            // Advance turn to next active player in clockwise circular seat order
+            final nextPlayerId = resolveNextActiveSeatPlayer(players, myUid);
+            final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
             final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
             final nextDeadline = turnTimerSec > 0
@@ -1574,10 +1621,7 @@ class MultiplayerService {
     if (pIdx < 0) throw Exception('Player not found in game');
 
     final actionLog = List<Map<String, dynamic>>.from(game.actionLog);
-    final hasDrawnOrDiscarded = actionLog.any((a) =>
-        a['playerId'] == myUid &&
-        (a['type'] == 'DRAW_CLOSED' || a['type'] == 'DRAW_OPEN' || a['type'] == 'DISCARD'));
-    final isFirstDrop = game.turnNumber == 0 || !hasDrawnOrDiscarded;
+    final isFirstDrop = game.isPlayerFirstDrop(myUid);
     final penalty = isFirstDrop ? game.firstDropPenalty : game.middleDropPenalty;
 
     final droppedPlayer = players[pIdx].copyWith(status: 'DROPPED', score: penalty);
@@ -1702,9 +1746,13 @@ class MultiplayerService {
         _mockGames[gameId] = updatedGame;
         _getOrCreateGameController(gameId).add(updatedGame);
 
-        Timer(const Duration(seconds: 6), () {
-          startNextRound(gameId);
-        });
+        final isHost = game.players.any((p) => p.uid == myUid && p.isHost);
+        if (isHost) {
+          _roundTransitionTimer?.cancel();
+          _roundTransitionTimer = Timer(const Duration(seconds: 6), () {
+            startNextRound(gameId);
+          });
+        }
       } else {
         final finalResults = players.map((p) {
           final isWin = p.uid == (tournamentWinnerId ?? winner.uid);
@@ -1733,16 +1781,9 @@ class MultiplayerService {
         _getOrCreateGameController(gameId).add(updatedGame);
       }
     } else {
-      // Advance turn to the next active player in sequential circular seat order
-      TablePlayer? nextPlayer;
-      for (int i = 1; i < players.length; i++) {
-        final candidate = players[(pIdx + i) % players.length];
-        if (candidate.status == 'ACTIVE') {
-          nextPlayer = candidate;
-          break;
-        }
-      }
-      nextPlayer ??= remainingActive.isNotEmpty ? remainingActive.first : players.first;
+      // Advance turn to next active player in clockwise circular seat order
+      final nextPlayerId = resolveNextActiveSeatPlayer(players, myUid);
+      final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
       final turnTimerSec = game.turnTimerSeconds;
       final nextDeadline = turnTimerSec > 0 ? now.add(Duration(seconds: turnTimerSec + 5)) : null;
@@ -1846,9 +1887,26 @@ class MultiplayerService {
       return {'isValid': true, 'message': 'Declaration already processed'};
     }
 
+    if (game.currentTurnPlayerId != myUid) {
+      throw Exception('Not your turn to declare.');
+    }
+    if (game.phase != 'DISCARD_PHASE') {
+      throw Exception('Must draw before declaring.');
+    }
+
     final hasSeenJoker = game.hasPlayerOpenedJoker(myUid);
-    final effectiveJoker = hasSeenJoker ? game.openJoker : null;
-    final valRes = DeclarationValidator().validate(groups, effectiveJoker);
+    Card? effectiveJoker = hasSeenJoker ? game.openJoker : null;
+    var valRes = DeclarationValidator().validate(groups, effectiveJoker);
+
+    // Closed Joker Declaration Fallback: If show was rejected because the player hadn't manually
+    // tapped to reveal the closed joker, but the declared hand possesses a valid Pure Sequence (Life),
+    // re-validate using the game's actual joker card. A valid declaration inherently unlocks Life!
+    if (!valRes.isValid && game.isClosedJoker && !hasSeenJoker && game.openJoker != null) {
+      final allCards = groups.expand((g) => g).toList();
+      if (SequenceValidator.hasPureSequenceInHand(allCards)) {
+        valRes = DeclarationValidator().validate(groups, game.openJoker);
+      }
+    }
     final now = syncedServerNow;
 
     if (valRes.isValid) {
@@ -2422,8 +2480,9 @@ class MultiplayerService {
         nextRoundStartTime: nextRoundStart,
       );
 
-      // Automatic server timer to deal the next round
-      Timer(const Duration(seconds: 6), () {
+      // Automatic server timer to deal the next round (Mock mode)
+      _roundTransitionTimer?.cancel();
+      _roundTransitionTimer = Timer(const Duration(seconds: 6), () {
         startNextRound(game.gameId);
       });
 
@@ -2560,11 +2619,12 @@ class MultiplayerService {
     // Restore dropped players back to ACTIVE for the new round
     final updatedPlayers = activeGame.players.map((p) {
       if (p.status == 'ELIMINATED') {
-        return p.copyWith(cardCount: 0);
+        return p.copyWith(cardCount: 0, turnsPlayed: 0);
       }
       return p.copyWith(
         status: 'ACTIVE',
         cardCount: 13,
+        turnsPlayed: 0,
       );
     }).toList();
 
@@ -2656,7 +2716,11 @@ class MultiplayerService {
                 p['disconnectedAt'] = null;
                 needsUpdate = true;
               }
-              p['lastHeartbeat'] = now.toIso8601String();
+              final lastHb = parseDate(p['lastHeartbeat']);
+              if (lastHb == null || now.difference(lastHb).inSeconds >= 10) {
+                p['lastHeartbeat'] = now.toIso8601String();
+                needsUpdate = true;
+              }
             }
             return p;
           }).toList();
@@ -2996,19 +3060,11 @@ class MultiplayerService {
           if (currentMisses < 2) {
             // Player used 1 of their 3 chances: auto-discard and pass turn
             final newMisses = currentMisses + 1;
-            players[pIdx] = timedOutPlayer.copyWith(misses: newMisses, cardCount: 13);
+            players[pIdx] = timedOutPlayer.copyWith(misses: newMisses, cardCount: 13, turnsPlayed: timedOutPlayer.turnsPlayed + 1);
 
-            // Advance to next active player in sequential circular seat order
-            TablePlayer? nextPlayer;
-            for (int i = 1; i < players.length; i++) {
-              final candidate = players[(pIdx + i) % players.length];
-              if (candidate.status == 'ACTIVE') {
-                nextPlayer = candidate;
-                break;
-              }
-            }
-            final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
-            nextPlayer ??= remainingActive.first;
+            // Advance to next active player in clockwise circular seat order
+            final nextPlayerId = resolveNextActiveSeatPlayer(players, currentTurnUid);
+            final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
             actionLog.add({
               'seq': actionLog.length + 1,
@@ -3101,16 +3157,9 @@ class MultiplayerService {
             return;
           }
 
-          // Advance to next active player in sequential circular seat order
-          TablePlayer? nextPlayer;
-          for (int i = 1; i < players.length; i++) {
-            final candidate = players[(pIdx + i) % players.length];
-            if (candidate.status == 'ACTIVE') {
-              nextPlayer = candidate;
-              break;
-            }
-          }
-          nextPlayer ??= remainingActive.first;
+          // Advance to next active player in clockwise circular seat order
+          final nextPlayerId = resolveNextActiveSeatPlayer(players, currentTurnUid);
+          final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
           actionLog.add({
             'seq': actionLog.length + 1,
@@ -3175,18 +3224,11 @@ class MultiplayerService {
 
     if (currentMisses < 2) {
       final newMisses = currentMisses + 1;
-      players[pIdx] = timedOutPlayer.copyWith(misses: newMisses);
+      players[pIdx] = timedOutPlayer.copyWith(misses: newMisses, turnsPlayed: timedOutPlayer.turnsPlayed + 1);
 
-      TablePlayer? nextPlayer;
-      for (int i = 1; i < players.length; i++) {
-        final candidate = players[(pIdx + i) % players.length];
-        if (candidate.status == 'ACTIVE') {
-          nextPlayer = candidate;
-          break;
-        }
-      }
-      final remainingActive = players.where((p) => p.status == 'ACTIVE').toList();
-      nextPlayer ??= remainingActive.first;
+      // Advance to next active player in clockwise circular seat order
+      final nextPlayerId = resolveNextActiveSeatPlayer(players, game.currentTurnPlayerId);
+      final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
       actionLog.add({
         'seq': actionLog.length + 1,
@@ -3264,15 +3306,9 @@ class MultiplayerService {
       return;
     }
 
-    TablePlayer? nextPlayer;
-    for (int i = 1; i < players.length; i++) {
-      final candidate = players[(pIdx + i) % players.length];
-      if (candidate.status == 'ACTIVE') {
-        nextPlayer = candidate;
-        break;
-      }
-    }
-    nextPlayer ??= remainingActive.first;
+    // Advance to next active player in clockwise circular seat order
+    final nextPlayerId = resolveNextActiveSeatPlayer(players, game.currentTurnPlayerId);
+    final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
     actionLog.add({
       'seq': actionLog.length + 1,
@@ -3358,6 +3394,19 @@ class MultiplayerService {
           if (tableId != null) {
             final tableRef = _firestore!.collection('tables').doc(tableId);
             tx.update(tableRef, {'status': 'WAITING', 'activeGameId': null});
+          }
+
+          if (gameData['entryType'] == 'COIN' && (gameData['entryCoins'] as int? ?? 0) > 0) {
+            final refundCoins = gameData['entryCoins'] as int;
+            for (final p in players) {
+              _walletService.creditCoins(
+                uid: p.uid,
+                amount: refundCoins,
+                type: 'REFUND_ENTRY',
+                reason: 'Refund entry coins (Game cancelled by table owner)',
+                referenceId: gameId,
+              ).catchError((e) => debugPrint('[MultiplayerService] endGameByHost refund error: '));
+            }
           }
         });
       } catch (e) {
@@ -3493,15 +3542,8 @@ class MultiplayerService {
             };
 
             if (wasTurn) {
-              TablePlayer? nextPlayer;
-              for (int i = 1; i < players.length; i++) {
-                final candidate = players[(targetIdx + i) % players.length];
-                if (candidate.status == 'ACTIVE') {
-                  nextPlayer = candidate;
-                  break;
-                }
-              }
-              nextPlayer ??= remainingActive.first;
+              final nextPlayerId = resolveNextActiveSeatPlayer(players, targetUid);
+              final nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
 
               final turnNum = (gameData['turnNumber'] as int?) ?? 0;
               final turnTimerSec = (gameData['turnTimerSeconds'] as int?) ?? 30;
@@ -3576,14 +3618,8 @@ class MultiplayerService {
       final wasTurn = game.currentTurnPlayerId == targetUid;
       TablePlayer? nextPlayer;
       if (wasTurn) {
-        for (int i = 1; i < players.length; i++) {
-          final candidate = players[(targetIdx + i) % players.length];
-          if (candidate.status == 'ACTIVE') {
-            nextPlayer = candidate;
-            break;
-          }
-        }
-        nextPlayer ??= remainingActive.first;
+        final nextPlayerId = resolveNextActiveSeatPlayer(players, targetUid);
+        nextPlayer = players.firstWhere((p) => p.uid == nextPlayerId, orElse: () => players.first);
       }
 
       final turnTimerSec = game.turnTimerSeconds;
@@ -3745,7 +3781,7 @@ class MultiplayerService {
 
   @visibleForTesting
   void setMockPrivateHand(String gameId, String uid, List<Card> hand) {
-    _mockPrivateHands['_'] = List.from(hand);
+    _mockPrivateHands['${gameId}_$uid'] = List.from(hand);
   }
 
   MultiplayerGameState? getMockGame(String gameId) => _mockGames[gameId];
@@ -3756,5 +3792,18 @@ class MultiplayerService {
 
   StreamController<MultiplayerGameState> _getOrCreateGameController(String gameId) {
     return _gameControllers.putIfAbsent(gameId, () => StreamController<MultiplayerGameState>.broadcast());
+  }
+
+  void cleanupTable(String tableId) {
+    _tableControllers[tableId]?.close();
+    _tableControllers.remove(tableId);
+    _mockTables.remove(tableId);
+  }
+
+  void cleanupGame(String gameId) {
+    _gameControllers[gameId]?.close();
+    _gameControllers.remove(gameId);
+    _mockGames.remove(gameId);
+    _mockPrivateHands.removeWhere((k, _) => k.startsWith('_'));
   }
 }

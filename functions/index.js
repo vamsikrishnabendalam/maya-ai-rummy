@@ -666,8 +666,21 @@ exports.dropGame = functions.https.onCall(async (data, context) => {
 
     const turnNumber = gData.turnNumber || 0;
     const actionLog = [...(gData.actionLog || [])];
-    const hasDrawnOrDiscarded = actionLog.some(a => a.playerId === uid && (a.type === 'DRAW_CLOSED' || a.type === 'DRAW_OPEN' || a.type === 'DISCARD'));
-    const isFirstDrop = turnNumber === 0 || !hasDrawnOrDiscarded;
+    let roundStartIndex = 0;
+    for (let i = actionLog.length - 1; i >= 0; i--) {
+      const typ = actionLog[i] && actionLog[i].type;
+      if (typ === 'ROUND_STARTED' || typ === 'GAME_STARTED') {
+        roundStartIndex = i;
+        break;
+      }
+    }
+    const currentRoundLog = actionLog.slice(roundStartIndex);
+    const hasPlayedInRound = currentRoundLog.some(a =>
+      a.playerId === uid &&
+      (a.type === 'DRAW_CLOSED' || a.type === 'DRAW_OPEN' || a.type === 'DISCARD' || a.type === 'TURN_TIMEOUT')
+    );
+    const playerTurnsPlayed = players[playerIdx].turnsPlayed || 0;
+    const isFirstDrop = playerTurnsPlayed === 0 && !hasPlayedInRound;
     const penalty = isFirstDrop ? (gData.firstDropPenalty || 20) : (gData.middleDropPenalty || 40);
 
     const droppedPlayer = {
